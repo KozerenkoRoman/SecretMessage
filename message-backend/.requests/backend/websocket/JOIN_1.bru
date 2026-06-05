@@ -1,0 +1,24 @@
+meta {
+  name: JOIN_1
+  type: ws
+  seq: 1
+}
+
+ws {
+  url: ws://localhost:3000/ws
+  body: ws
+  auth: inherit
+}
+
+body:ws {
+  name: message 1
+  type: json
+  content: '''
+    {
+      "type": "JOIN",
+      "room_id": "game_room_777",
+      "player_id": "player_1",
+      "request_id": "req_001"
+    }
+  '''
+}

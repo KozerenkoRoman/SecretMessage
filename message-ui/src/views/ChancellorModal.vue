@@ -66,7 +66,7 @@
 
         <div
           v-if="bottomSelection.length > 0"
-          class="bg-slate-950/60 rounded-xl p-3 mb-4 border border-slate-800 text-center text-xs text-slate-400"
+          class="bg-slate-950/60 rounded-xl p-3 mb-4 border border-slate-800 text-center text-xxs text-slate-400"
         >
           Порядок карт на дно:
           <span class="text-orange-400 font-bold">{{

@@ -30,16 +30,7 @@
                 card.info.image ? { backgroundImage: `url(${card.info.image})` } : {}
               "
               :data-tooltip="`${card.info.name} (${card.id}) — ${card.info.desc}`"
-            >
-              <div
-                class="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-950/80 backdrop-blur-[2px] px-3 py-1 rounded-full border border-white/10 z-10"
-              >
-                <span
-                  class="text-[9px] font-bold uppercase tracking-widest text-slate-300"
-                  >Розкрито</span
-                >
-              </div>
-            </div>
+            ></div>
           </div>
         </div>
         <button

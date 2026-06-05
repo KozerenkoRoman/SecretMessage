@@ -8,7 +8,6 @@
       >
         {{ isRegister ? "Реєстрація" : "Вхід" }}
       </h2>
-
       <form @submit.prevent="handleSubmit" class="space-y-4">
         <div
           v-if="loginError"
@@ -16,7 +15,6 @@
         >
           {{ loginError }}
         </div>
-
         <div>
           <label class="block text-sm font-medium mb-1 text-slate-400"
             >Логін / Нікнейм</label
@@ -28,7 +26,6 @@
             class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-500 text-white font-medium"
           />
         </div>
-
         <div v-if="isRegister">
           <label class="block text-sm font-medium mb-1 text-slate-400"
             >Email-адреса</label
@@ -41,7 +38,6 @@
             placeholder="example@domain.com"
           />
         </div>
-
         <div>
           <label class="block text-sm font-medium mb-1 text-slate-400">Пароль</label>
           <input
@@ -51,14 +47,12 @@
             class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-500 text-white font-medium"
           />
         </div>
-
         <button
           type="submit"
-          class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-lg transition-colors shadow-lg shadow-amber-500/10 mt-4 cursor-pointer"
+          class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black rounded-xl shadow-lg shadow-amber-500/10 mt-4 cursor-pointer transition-all active:scale-95 font-mono uppercase text-sm tracking-wider"
         >
           {{ isRegister ? "Зареєструватися" : "Увійти до гри" }}
         </button>
-
         <p class="text-center text-xs text-slate-500 mt-4">
           {{ isRegister ? "Вже маєте акаунт?" : "Ще немає акаунта?" }}
           <span
@@ -80,10 +74,9 @@ import { useRouter } from "vue-router";
 
 const authStore = useAuthStore();
 const router = useRouter();
-
 const isRegister = ref(false);
 const username = ref("");
-const email = ref(""); // Нове реактивне поле для email
+const email = ref("");
 const password = ref("");
 const loginError = ref(null);
 
@@ -97,24 +90,15 @@ const handleSubmit = async () => {
   try {
     loginError.value = null;
     const endpoint = isRegister.value ? "/api/register" : "/api/auth";
-
-    const bodyPayload = {
-      username: username.value,
-      password: password.value,
-    };
-
+    const bodyPayload = { username: username.value, password: password.value };
     if (isRegister.value) {
       bodyPayload.email = email.value;
     }
-
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bodyPayload),
     });
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(
@@ -122,26 +106,13 @@ const handleSubmit = async () => {
           (isRegister.value ? "Помилка реєстрації" : "Неправильний логін або пароль")
       );
     }
-
     const data = await response.json();
-    console.log("Відповідь від сервера Go:", data);
-
     if (data.token) {
-      // 1. Зберігаємо сесію та мапимо роль
-      authStore.setSession(data.token, {
-        username: data.username,
-        role: data.user_role, // перетворюємо "user_role" від Go на "role" для Vue
-      });
-
+      authStore.setSession(data.token, { username: data.username, role: data.user_role });
       localStorage.setItem("user_id", data.username);
-      console.log("Успішний вхід. Роль користувача:", authStore.user?.role);
-
-      // 2. АВТОМАТИЧНИЙ РЕДІРЕКТ НА ОСНОВІ РОЛІ:
       if (authStore.isAdmin) {
-        console.log("Користувач є адміном. Перенаправлення на /admin");
         router.push("/admin");
       } else {
-        console.log("Звичайний користувач. Перенаправлення на /desktop");
         const redirectPath = router.currentRoute.value.query.redirect || "/desktop";
         router.push(redirectPath);
       }

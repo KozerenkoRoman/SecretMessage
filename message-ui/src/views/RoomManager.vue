@@ -6,9 +6,11 @@
     >
       <div class="text-center">
         <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"
+          class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"
         ></div>
-        <p class="text-slate-400">Підключення до ігрової кімнати {{ roomID }}...</p>
+        <p class="text-slate-400 font-mono text-sm">
+          Підключення до ігрової кімнати {{ roomID }}...
+        </p>
       </div>
     </div>
 
@@ -35,12 +37,13 @@ import BoardView from "./BoardView.vue";
 
 const gameStore = useGameStore();
 const authStore = useAuthStore();
+const route = useRoute();
+const router = useRouter();
 
-const route = useRoute(); // Поточний стан роуту (параметри)
-const router = useRouter(); // Інструмент для навігації (push/replace)
-const roomID = computed(() => route.params.id); // 1. ВИПРАВЛЕНО: route замість router
+const roomID = computed(() => route.params.id);
 const loading = ref(true);
 const gameState = computed(() => gameStore.gameState);
+
 const myID = computed(() => {
   return authStore.user?.id || localStorage.getItem("user_id") || "";
 });
@@ -77,22 +80,17 @@ const handleStartGameSignal = () => {
   gameStore.sendWSMessage("START_GAME", null, null, null);
 };
 
-// Обробка виходу з кімнати
 const handleLeaveRoom = () => {
   console.log("[RoomManager] Гравець виходить з кімнати...");
-  // Явно викликаємо метод стору для відключення перед зміною сторінки
   gameStore.leaveCurrentRoom();
   router.push("/desktop");
 };
 
-// Обробка розіграшу карти
 const handlePlayCard = (actionPayload) => {
-  // Надсилаємо хід на сервер
   gameStore.sendWSMessage("ACTION", null, actionPayload, null);
 };
 
 onBeforeUnmount(() => {
-  // Запобіжний вихід з кімнати, якщо компонент розмонтується іншим шляхом
   gameStore.leaveCurrentRoom();
 });
 </script>

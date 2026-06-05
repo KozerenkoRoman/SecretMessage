@@ -14,7 +14,7 @@
         </div>
         <router-link
           to="/desktop"
-          class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-500 text-sm font-semibold rounded-lg transition-colors border border-slate-700"
+          class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-500 hover:text-amber-400 text-xs font-bold uppercase tracking-wider font-mono rounded-xl transition-all border border-slate-700 shadow-md active:scale-95"
         >
           ← На робочий стіл
         </router-link>
@@ -42,7 +42,7 @@
           </h2>
           <button
             @click="fetchUsers"
-            class="text-xs text-amber-500 hover:underline cursor-pointer"
+            class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-amber-500 hover:text-amber-400 text-[10px] font-bold font-mono rounded-lg border border-slate-700 cursor-pointer transition-all"
           >
             Оновити список ↻
           </button>
@@ -73,12 +73,8 @@
                 >
                   {{ user.id }}
                 </td>
-                <td class="p-4 font-semibold text-slate-200">
-                  {{ user.username }}
-                </td>
-                <td class="p-4 text-slate-400">
-                  {{ user.email || "—" }}
-                </td>
+                <td class="p-4 font-semibold text-slate-200">{{ user.username }}</td>
+                <td class="p-4 text-slate-400">{{ user.email || "—" }}</td>
                 <td class="p-4">
                   <span
                     :class="[
@@ -95,14 +91,13 @@
                   <button
                     v-if="user.role !== 'admin'"
                     @click="kickUser(user.id, user.username)"
-                    class="px-3 py-1 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white text-xs font-bold rounded-md border border-rose-500/20 hover:border-transparent transition-all cursor-pointer"
+                    class="px-3 py-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 font-bold rounded-xl border border-rose-900/50 shadow-md active:scale-95 transition-all cursor-pointer text-xs uppercase tracking-wider font-mono"
                   >
                     Заблокувати
                   </button>
                   <span v-else class="text-xs text-slate-600 italic">недоторканний</span>
                 </td>
               </tr>
-
               <tr v-if="users.length === 0">
                 <td colspan="5" class="p-8 text-center text-slate-500 text-sm italic">
                   Користувачів не знайдено або завантаження...
@@ -121,7 +116,6 @@ import { ref, onMounted } from "vue";
 import { useAuthStore } from "../stores/auth";
 
 const authStore = useAuthStore();
-
 const users = ref([]);
 const errorMessage = ref(null);
 const successMessage = ref(null);
@@ -130,7 +124,6 @@ const fetchUsers = async () => {
   try {
     errorMessage.value = null;
     const token = authStore.token || localStorage.getItem("token");
-
     const response = await fetch("/api/admin/users", {
       method: "GET",
       headers: {
@@ -138,12 +131,10 @@ const fetchUsers = async () => {
         Authorization: `Bearer ${token}`,
       },
     });
-
     if (response.status === 403 || response.status === 401) {
       throw new Error("У вас немає прав доступу до панелі адміністратора.");
     }
     if (!response.ok) throw new Error("Не вдалося завантажити список користувачів.");
-
     const data = await response.json();
     users.value = Array.isArray(data) ? data : data.users || [];
   } catch (err) {
@@ -154,15 +145,11 @@ const fetchUsers = async () => {
 
 const kickUser = async (userId, username) => {
   if (!confirm(`Ви впевнені, що хочете заблокувати користувача ${username}?`)) return;
-
   try {
     errorMessage.value = null;
     successMessage.value = null;
     const token = authStore.token || localStorage.getItem("token");
-
-    // Відповідно до вашого cmd/network/router.go: /api/admin/users/{id}/block
     const url = `/api/admin/users/${userId}/block`;
-
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -171,19 +158,16 @@ const kickUser = async (userId, username) => {
       },
       body: JSON.stringify({}),
     });
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(
         errorData.message || `Не вдалося заблокувати користувача ${username}`
       );
     }
-
     successMessage.value = `Користувача ${username} успішно заблоковано на бекенді.`;
     setTimeout(() => {
       successMessage.value = null;
     }, 4000);
-
     fetchUsers();
   } catch (err) {
     errorMessage.value = err.message;

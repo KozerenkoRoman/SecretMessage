@@ -16,8 +16,8 @@ const (
 	CardHandmaid                   // Служниця
 	CardPrince                     // Принц
 	CardChancellor                 // Канцлер
-	CardCountess                   // Графиня
 	CardKing                       // Король
+	CardCountess                   // Графиня
 	CardPrincess                   // Принцеса
 )
 
@@ -180,8 +180,8 @@ type CardPlayedPayload struct {
 	TargetID string   `json:"target_id,omitempty"`
 }
 
-func (CardPlayedPayload) IsEventPayload()                     {}
-func (p CardPlayedPayload) Mask(_ string) EventPayload        { return p }
+func (CardPlayedPayload) IsEventPayload()              {}
+func (p CardPlayedPayload) Mask(_ string) EventPayload { return p }
 
 // CardDrawnPayload — гравець добрав карту з колоди (або BurnCard).
 // Видна тільки самому гравцю; для інших card зрізається до 0.

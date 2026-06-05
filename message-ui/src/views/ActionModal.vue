@@ -7,7 +7,7 @@
       <div
         class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-5xl shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar"
       >
-        <h3 class="text-lg font-bold text-cyan-400 mb-2">
+        <h3 class="text-lg font-bold text-amber-400 mb-2">
           Розіграш карти: {{ cardInfo?.name || cardType }}
         </h3>
         <p class="text-xs text-slate-400 italic mb-4">{{ cardInfo?.desc }}</p>
@@ -17,8 +17,8 @@
             <label
               class="block text-xs uppercase text-slate-400 font-bold mb-2 tracking-wider font-mono"
             >
-              Оберіть Ціль:</label
-            >
+              Оберіть Ціль:
+            </label>
             <div class="grid grid-cols-2 gap-2">
               <button
                 v-for="p in availableTargets"
@@ -28,7 +28,7 @@
                 class="p-2 rounded-lg border text-sm font-medium transition-all cursor-pointer text-center font-mono"
                 :class="[
                   targetID === p.id
-                    ? 'bg-cyan-600 border-cyan-400 text-white shadow-md shadow-cyan-500/20'
+                    ? 'bg-amber-600 border-amber-400 text-white shadow-md shadow-amber-500/20'
                     : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600',
                 ]"
               >
@@ -59,9 +59,8 @@
           <label
             class="block text-xs uppercase text-slate-400 font-bold mb-2 tracking-wider font-mono"
           >
-            Вгадайте карту опонента (натисніть для вибору):</label
-          >
-
+            Вгадайте карту опонента (натисніть для вибору):
+          </label>
           <div
             class="flex flex-col gap-4 bg-slate-900/60 p-5 rounded-xl border border-slate-700/50"
           >
@@ -74,7 +73,7 @@
                 :class="[
                   getCardColor(card.type),
                   guessCard === card.type
-                    ? 'ring-4 ring-cyan-400 scale-105 z-10 shadow-lg shadow-cyan-500/30 border-transparent'
+                    ? 'ring-4 ring-amber-400 scale-105 z-10 shadow-lg shadow-amber-500/30 border-transparent'
                     : 'opacity-70 hover:opacity-100 hover:scale-102 border border-white/5',
                 ]"
                 :style="
@@ -87,13 +86,12 @@
                 }`"
               >
                 <span
-                  class="text-[8px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-cyan-300 rounded-b uppercase tracking-wider"
+                  class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
                 >
                   {{ guessCard === card.type ? "Обрано" : "Обрати" }}
                 </span>
               </div>
             </div>
-
             <div class="flex justify-center gap-4">
               <div
                 v-for="card in cardRows.row2"
@@ -103,7 +101,7 @@
                 :class="[
                   getCardColor(card.type),
                   guessCard === card.type
-                    ? 'ring-4 ring-cyan-400 scale-105 z-10 shadow-lg shadow-cyan-500/30 border-transparent'
+                    ? 'ring-4 ring-amber-400 scale-105 z-10 shadow-lg shadow-amber-500/30 border-transparent'
                     : 'opacity-70 hover:opacity-100 hover:scale-102 border border-white/5',
                 ]"
                 :style="
@@ -116,7 +114,7 @@
                 }`"
               >
                 <span
-                  class="text-[8px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-cyan-300 rounded-b uppercase tracking-wider"
+                  class="text-[8px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
                 >
                   {{ guessCard === card.type ? "Обрано" : "Обрати" }}
                 </span>
@@ -129,7 +127,7 @@
           <button
             @click="handleCancel"
             type="button"
-            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium cursor-pointer transition-colors font-mono"
+            class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-500 hover:text-amber-400 font-bold border border-slate-700 rounded-xl shadow-md cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
           >
             Скасувати
           </button>
@@ -137,7 +135,7 @@
             @click="handleSubmit"
             :disabled="!isValid"
             type="button"
-            class="px-5 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-600 hover:to-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-bold shadow-lg cursor-pointer transition-all font-mono uppercase tracking-wider"
+            class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black rounded-xl shadow-lg shadow-amber-950/20 cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
           >
             Підтвердити Хід
           </button>
@@ -202,16 +200,14 @@ const filteredCardOptions = computed(() => {
   return uniqueCards;
 });
 
-// НОВИЙ СOMPUTED ВЛАСТИВОСТІ ДЛЯ РОЗДІЛЕННЯ НА ДВА РЯДИ (5 ТА 4 КАРТИ)
 const cardRows = computed(() => {
   const cardsArray = Object.keys(filteredCardOptions.value).map((key) => ({
     type: key,
     info: filteredCardOptions.value[key],
   }));
-
   return {
-    row1: cardsArray.slice(0, 5), // Перші 5 карт
-    row2: cardsArray.slice(5, 9), // Наступні 4 карти
+    row1: cardsArray.slice(0, 5),
+    row2: cardsArray.slice(5, 9),
   };
 });
 
@@ -264,6 +260,14 @@ const handleSubmit = () => {
 </script>
 
 <style scoped>
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
+}
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }

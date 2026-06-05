@@ -2,15 +2,20 @@
   <div
     class="h-screen bg-slate-900 text-white p-2 flex flex-col justify-between overflow-hidden relative font-sans select-none"
   >
-    <!-- ВЕРХНЯ ПАНЕЛЬ (HEADER) -->
     <header
       class="w-full flex justify-between items-center bg-slate-800/80 backdrop-blur px-3 py-2 rounded-xl border border-slate-700 flex-shrink-0 gap-4 z-10 h-[6vh]"
     >
       <div class="flex items-center gap-4">
-        <button @click="handleLeaveGame" type="button" class="btn-danger">Вийти</button>
+        <button
+          @click="handleLeaveGame"
+          type="button"
+          class="px-4 py-1.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 font-bold rounded-xl border border-rose-900/50 shadow-md active:scale-95 transition-all text-xs uppercase tracking-wider font-mono cursor-pointer"
+        >
+          Вийти
+        </button>
         <div class="h-6 w-[1px] bg-slate-700"></div>
         <div>
-          <h2 class="text-sm font-bold text-cyan-400 font-mono leading-none mb-0.5">
+          <h2 class="text-sm font-bold text-yellow-400 font-mono leading-none mb-0.5">
             Кімната: {{ roomID }}
           </h2>
           <p class="text-[10px] text-slate-400">
@@ -21,7 +26,6 @@
           </p>
         </div>
       </div>
-
       <div class="flex items-center gap-3">
         <div
           v-if="!gameState?.is_started"
@@ -29,12 +33,16 @@
         >
           Очікування...
         </div>
-        <button v-if="canStartGame" @click="handleStartGame" class="btn-primary">
+        <button
+          v-if="canStartGame"
+          @click="handleStartGame"
+          class="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black rounded-xl shadow-lg shadow-amber-950/20 active:scale-95 transition-all text-xs uppercase tracking-wider font-mono cursor-pointer"
+        >
           Почати ⚔
         </button>
         <div
           v-else-if="showChancellorPanel"
-          class="status-pill bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-amber-500/40 animate-pulse"
+          class="status-pill bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-yellow-500/40 animate-pulse"
         >
           Вибір Канцлера!
         </div>
@@ -50,11 +58,9 @@
       </div>
     </header>
 
-    <!-- ГОЛОВНА ІГРОВА ЗОНА (MAIN) -->
     <main
       class="flex-1 flex flex-col justify-between my-1 gap-1 overflow-hidden w-full max-w-6xl mx-auto"
     >
-      <!-- Карточки опонентів (Верхня частина столу) -->
       <div
         class="w-full flex justify-center items-center gap-6 flex-shrink-0 h-[20vh] max-h-[140px] overflow-hidden"
       >
@@ -62,7 +68,7 @@
           <div
             :class="[
               isTurnOfPlayer(player.id)
-                ? 'border-amber-400 bg-slate-800 ring-2 ring-amber-400/30'
+                ? 'border-yellow-400 bg-slate-800 ring-2 ring-yellow-400/30'
                 : 'border-slate-700 bg-slate-800/60',
             ]"
             class="flex flex-col items-center p-2 rounded-xl border transition-all duration-300 w-60 h-full justify-between shadow-md"
@@ -76,8 +82,8 @@
                 >{{ player.username || "Опонент" }}</span
               >
               <span
-                class="text-[9px] bg-slate-700 text-cyan-400 px-1 py-0.5 rounded font-mono"
-                >★{{ player.score || 0 }}</span
+                class="text-[9px] bg-slate-700 text-yellow-400 px-1 py-0.5 rounded font-mono"
+                >★ {{ player.score || 0 }}</span
               >
             </div>
             <div
@@ -108,37 +114,38 @@
         </template>
       </div>
 
-      <!-- Центральна ігрова зона: Колода та Стіл відбою -->
-      <!-- ВИСОТУ ЗМЕНШЕНО З 60vh ДО 50vh, ЩОБ ЗБЕРЕГТИ БАЛАНС ПРИ ЗБІЛЬШЕННІ КАРТ У ФУТЕРІ -->
       <div
         class="h-[50vh] flex items-center justify-center p-3 bg-slate-950/40 rounded-2xl border border-slate-800/60 w-full overflow-hidden"
       >
         <div
-          class="flex gap-4 items-center w-full max-w-4xl mx-auto justify-between h-full"
+          class="flex gap-6 items-center w-full max-w-5xl mx-auto justify-between h-full"
         >
-          <!-- Колода карт -->
           <div class="flex flex-col items-center justify-center gap-1 flex-shrink-0">
             <div
-              class="relative w-24 h-36 bg-gradient-to-br from-cyan-800 to-indigo-900 rounded-xl border-2 border-cyan-400 shadow-lg flex flex-col items-center justify-center"
+              class="relative w-44 h-64 bg-gradient-to-br from-yellow-800 to-indigo-900 rounded-xl border-2 border-yellow-500/40 shadow-lg shadow-amber-950/20 flex flex-col items-center justify-center bg-cover bg-center overflow-hidden"
+              :style="{ backgroundImage: `url(${deckBackImage})` }"
             >
-              <span class="text-xs font-bold uppercase text-cyan-200 tracking-wider"
-                >Колода</span
-              >
-              <span class="text-2xl font-black text-white leading-none mt-2">{{
-                gameState?.deck ? gameState.deck.length : 0
-              }}</span>
               <div
-                class="absolute inset-0 border border-cyan-500/30 rounded-xl translate-x-[3px] translate-y-[3px] -z-10 bg-slate-900"
+                class="absolute inset-0 bg-slate-950/50 flex flex-col items-center justify-center p-1"
+              >
+                <span
+                  class="text-[12px] font-bold uppercase text-amber-200 tracking-wider bg-slate-950/80 px-2 py-0.5 rounded backdrop-blur-[1px]"
+                  >Колода</span
+                >
+                <span
+                  class="text-2xl font-black text-white leading-none mt-1.5 bg-slate-950/70 px-2.5 py-1 rounded font-mono shadow-md border border-white/5"
+                  >{{ gameState?.deck ? gameState.deck.length : 0 }}</span
+                >
+              </div>
+              <div
+                class="absolute inset-0 border border-yellow-500/20 rounded-xl translate-x-[2px] translate-y-[2px] -z-10 bg-slate-900"
               ></div>
             </div>
-            <div class="text-[10px] font-bold text-slate-400 font-mono mt-1">
+            <div class="text-[16px] font-bold text-slate-400 font-mono mt-0.5">
               Відбій: {{ globalDiscardPile.length }}
             </div>
           </div>
-
-          <div class="h-full max-h-[260px] w-[1px] bg-slate-800 flex-shrink-0"></div>
-
-          <!-- Сітка скинутих карт -->
+          <div class="h-full max-h-[220px] w-[1px] bg-slate-800 flex-shrink-0"></div>
           <div class="flex-1 flex flex-col justify-between pl-1 h-full overflow-hidden">
             <div
               class="flex justify-between items-center border-b border-slate-800 pb-1 mb-1 flex-shrink-0"
@@ -149,12 +156,15 @@
               >
             </div>
             <div
-              class="grid grid-cols-7 gap-1.5 justify-items-center w-full overflow-y-auto custom-scrollbar content-start flex-1 pr-1 py-1"
+              class="flex flex-wrap gap-2 justify-start w-full overflow-y-auto overflow-x-hidden custom-scrollbar content-start flex-1 px-3 pt-2 pb-1"
             >
-              <template v-for="slotIndex in 21" :key="`discard-slot-${slotIndex}`">
+              <template
+                v-for="slotIndex in globalDiscardPile.length"
+                :key="`discard-slot-${slotIndex}`"
+              >
                 <div
                   v-if="globalDiscardPile[slotIndex - 1]"
-                  class="game-card game-card-discard max-w-[5.5rem] w-full bg-cover bg-center"
+                  class="game-card game-card-discard w-[5.5rem] aspect-[2/3] bg-cover bg-center transition-all duration-200 hover:scale-105 hover:z-20 flex-shrink-0 relative"
                   :class="getCardColor(globalDiscardPile[slotIndex - 1].type)"
                   :style="
                     getCardImage(globalDiscardPile[slotIndex - 1].type)
@@ -165,31 +175,18 @@
                         }
                       : {}
                   "
-                  :data-tooltip="`${getCardName(
-                    globalDiscardPile[slotIndex - 1].type
-                  )}(${getCardValue(
-                    globalDiscardPile[slotIndex - 1].type
-                  )}) — ${getCardDesc(globalDiscardPile[slotIndex - 1].type)} [Власник: ${
-                    globalDiscardPile[slotIndex - 1].owner
-                  }]`"
-                >
-                  <span
-                    class="text-[8px] opacity-90 font-mono truncate block text-center bg-slate-950/80 py-0.5 mt-auto rounded-b z-10 relative text-cyan-300"
-                    >{{ globalDiscardPile[slotIndex - 1].owner }}</span
-                  >
-                </div>
+                ></div>
               </template>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Інформаційний рядок поточного гравця -->
       <div class="w-full flex justify-center items-center flex-shrink-0 h-[4vh]">
         <div
           class="bg-slate-800/50 px-4 py-0.5 rounded-full border border-slate-700/60 flex items-center gap-3 text-xs"
         >
-          <span class="font-bold text-cyan-400"
+          <span class="font-bold text-yellow-400"
             >Ви: <span class="text-white">{{ myPlayer?.username || "Гість" }}</span></span
           >
           <span class="text-slate-500">|</span>
@@ -212,12 +209,9 @@
       </div>
     </main>
 
-    <!-- НИЖНЯ ПАНЕЛЬ / РУКА ГРАВЦЯ (FOOTER) -->
-    <!-- ВИСОТУ ЗБІЛЬШЕНО З h-[18vh] ДО h-[28vh] ДЛЯ ВМІЩЕННЯ КАРТ w-44 h-64 ТА ЗАБЕЗПЕЧЕННЯ КРАСИВОГО ХОВЕР-ЕФЕКТУ -->
     <footer
       class="w-full max-w-2xl mx-auto bg-slate-950/90 backdrop-blur-md p-2 rounded-t-2xl border-t border-x border-slate-800 flex flex-col items-center shadow-2xl flex-shrink-0 z-10 h-[28vh] min-h-[280px]"
     >
-      <!-- Панель вибору карт під час дії Канцлера -->
       <div
         v-if="showChancellorPanel"
         class="w-full flex flex-col items-center h-full justify-between"
@@ -228,7 +222,6 @@
           </h4>
         </div>
         <div class="flex justify-center gap-4 items-center flex-1 w-full overflow-hidden">
-          <!-- РОЗМІР КАРТ ЗМІНЕНО З w-24 НА w-44 h-64 -->
           <div
             v-for="(cardType, cIdx) in myHandCards"
             :key="`chancellor-card-${cIdx}-${cardType}`"
@@ -246,8 +239,6 @@
           ></div>
         </div>
       </div>
-
-      <!-- Стандартне відображення карт у руці гравця -->
       <div
         v-else
         class="flex justify-center gap-4 relative z-10 items-center flex-1 w-full h-full"
@@ -255,7 +246,6 @@
         <div v-if="myHandCards.length === 0" class="text-slate-500 text-xs italic">
           Очікування карт...
         </div>
-        <!-- РОЗМІР КАРТ ЗМІНЕНО З w-24 НА w-44 h-64. ДОДАНО КЛАС h-64 ДЛЯ ЧІТКОЇ СТРУКТУРИ -->
         <div
           v-for="(cardType, cIdx) in myHandCards"
           :key="`hand-card-${cIdx}-${cardType}`"
@@ -264,7 +254,7 @@
           :class="[
             getCardColor(cardType),
             isMyTurn
-              ? 'game-card-playable hover:-translate-y-4 hover:scale-105 cursor-pointer shadow-lg shadow-cyan-500/10'
+              ? 'game-card-playable hover:-translate-y-4 hover:scale-105 cursor-pointer shadow-lg shadow-yellow-500/10'
               : 'game-card-disabled opacity-60 cursor-not-allowed',
           ]"
           :style="
@@ -279,7 +269,6 @@
       </div>
     </footer>
 
-    <!-- МОДАЛЬНІ ВІКНА (MODALS) -->
     <ActionModal
       :is-open="showActionModal"
       :card-type="String(activePlay.cardType)"
@@ -327,6 +316,7 @@ import ActionModal from "./ActionModal.vue";
 import CardRevealModal from "./CardRevealModal.vue";
 import GameEndModal from "./GameEndModal.vue";
 import GameErrorModal from "./GameErrorModal.vue";
+import deckBackImage from "../assets/deckBack.png";
 
 const props = defineProps({
   roomID: { type: String, required: true },
@@ -341,7 +331,6 @@ const emit = defineEmits([
   "next-round",
   "restart-game",
 ]);
-
 const gameStore = useGameStore();
 const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
 

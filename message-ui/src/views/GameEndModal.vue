@@ -1,4 +1,4 @@
-<!-- === src/views/GameEndModal.vue === -->
+
 <template>
   <Transition name="fade">
     <div
@@ -37,7 +37,7 @@
             class="text-2xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-500 uppercase animate-pulse"
           >
             {{
-              gameState?.is_game_over ? "Ви absoluteний чемпіон!" : "Ви виграли раунд!"
+              gameState?.is_game_over ? "Ви абсолютний чемпіон!" : "Ви виграли раунд!"
             }}
           </h2>
           <h2 v-else class="text-2xl font-black tracking-wide text-slate-200 uppercase">
@@ -46,7 +46,8 @@
 
           <p class="text-xs text-slate-400 mt-2">
             Переможець:
-            <span class="text-cyan-400 font-bold font-mono">{{ winnerName }}</span>
+            <!-- Замінено text-cyan-400 на text-amber-400 для відповідності золотому стилю -->
+            <span class="text-amber-400 font-bold font-mono">{{ winnerName }}</span>
           </p>
         </div>
 
@@ -80,7 +81,8 @@
                 <span v-else class="text-xs opacity-40">👤</span>
                 <span
                   class="text-sm font-medium truncate"
-                  :class="p.id === myID ? 'text-cyan-400 font-bold' : 'text-slate-300'"
+              
+                  :class="p.id === myID ? 'text-amber-400 font-bold' : 'text-slate-300'"
                 >
                   {{ p.username || "Опонент" }}
                   <span
@@ -115,7 +117,7 @@
             :class="
               hasOpponentLeft
                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700 shadow-none'
-                : 'bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-600 hover:to-indigo-700 text-white shadow-cyan-500/10 cursor-pointer active:scale-95'
+                : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black shadow-amber-500/10 cursor-pointer active:scale-95'
             "
           >
             {{ hasOpponentLeft ? "Очікування гравців..." : "Наступний раунд ⚔️" }}
@@ -159,7 +161,6 @@ const props = defineProps({
   isSinglePlayer: { type: Boolean, default: false },
 });
 
-// Додано подію leave-game для сповіщення батьківського компонента
 defineEmits(["next-round", "restart-game", "leave-game"]);
 
 const isAmIWinner = computed(() => {

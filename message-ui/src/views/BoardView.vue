@@ -308,7 +308,7 @@
 
 <script setup>
 import { CARD_INFO } from "../constants/cards";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useGameStore } from "../stores/gameStore";
 import { storeToRefs } from "pinia";
 import ChancellorModal from "./ChancellorModal.vue";
@@ -333,6 +333,34 @@ const emit = defineEmits([
 ]);
 const gameStore = useGameStore();
 const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
+
+watch(
+  () => props.gameState?.round_number,
+  (newRound, oldRound) => {
+    if (
+      typeof newRound === "number" &&
+      typeof oldRound === "number" &&
+      newRound > oldRound
+    ) {
+      console.log(
+        `[BoardView] Раунд збільшився з ${oldRound} на ${newRound}. Закриваємо вікно дуелі.`
+      );
+      handleCloseRevealModal();
+    }
+  }
+);
+
+watch(
+  () => props.gameState?.deck?.length,
+  (newDeckLength, oldDeckLength) => {
+    if (newDeckLength && oldDeckLength && newDeckLength > oldDeckLength) {
+      console.log(
+        "[BoardView] Колоду перетасовано для нового раунду. Закриваємо вікно дуелі."
+      );
+      handleCloseRevealModal();
+    }
+  }
+);
 
 const effectiveMyID = computed(() => {
   const fromStore = storeMyID.value;

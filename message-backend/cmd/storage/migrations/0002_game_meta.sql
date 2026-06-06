@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_banned BOOLEAN NOT NULL DEFAULT FALSE,
     ban_reason TEXT,
     banned_at TIMESTAMPTZ,
+    avatar_seed VARCHAR(255) NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -58,6 +58,7 @@ type User struct {
 	IsBanned     bool           `json:"is_banned"`
 	BanReason    sql.NullString `json:"ban_reason"`
 	BannedAt     sql.NullTime   `json:"banned_at"`
+	AvatarSeed   string         `json:"avatar_seed"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 }

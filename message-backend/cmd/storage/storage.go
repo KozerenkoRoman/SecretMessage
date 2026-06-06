@@ -408,6 +408,7 @@ func (s *Storage) SeedAdmin(ctx context.Context, logger *logrus.Logger) error {
 		Username:     adminUser,
 		Email:        adminEmail,
 		PasswordHash: string(hashedPassword),
+		AvatarSeed:   uuid.New().String(),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to seed admin user: %w", err)

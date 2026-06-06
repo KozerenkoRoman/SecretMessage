@@ -31,29 +31,36 @@ func (q *Queries) BanUser(ctx context.Context, arg BanUserParams) error {
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, email, password_hash, user_role)
-VALUES ($1, $2, $3, 'user')
-RETURNING id, username, email, user_role, is_banned, created_at, updated_at
+INSERT INTO users (username, email, password_hash, user_role, avatar_seed)
+VALUES ($1, $2, $3, 'user', $4)
+RETURNING id, username, email, user_role, is_banned, avatar_seed, created_at, updated_at
 `
 
 type CreateUserParams struct {
 	Username     string `json:"username"`
 	Email        string `json:"email"`
 	PasswordHash string `json:"password_hash"`
+	AvatarSeed   string `json:"avatar_seed"`
 }
 
 type CreateUserRow struct {
-	ID        uuid.UUID `json:"id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	UserRole  string    `json:"user_role"`
-	IsBanned  bool      `json:"is_banned"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         uuid.UUID `json:"id"`
+	Username   string    `json:"username"`
+	Email      string    `json:"email"`
+	UserRole   string    `json:"user_role"`
+	IsBanned   bool      `json:"is_banned"`
+	AvatarSeed string    `json:"avatar_seed"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Username, arg.Email, arg.PasswordHash)
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Username,
+		arg.Email,
+		arg.PasswordHash,
+		arg.AvatarSeed,
+	)
 	var i CreateUserRow
 	err := row.Scan(
 		&i.ID,
@@ -61,6 +68,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.Email,
 		&i.UserRole,
 		&i.IsBanned,
+		&i.AvatarSeed,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -110,7 +118,7 @@ func (q *Queries) GetLeaderboard(ctx context.Context, limit int32) ([]GetLeaderb
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, password_hash, user_role, is_banned, ban_reason, banned_at, created_at, updated_at
+SELECT id, username, email, password_hash, user_role, is_banned, ban_reason, banned_at, avatar_seed, created_at, updated_at
 FROM users 
 WHERE id = $1
 `
@@ -127,6 +135,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.IsBanned,
 		&i.BanReason,
 		&i.BannedAt,
+		&i.AvatarSeed,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -134,7 +143,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, email, password_hash, user_role, is_banned, ban_reason, banned_at, created_at, updated_at
+SELECT id, username, email, password_hash, user_role, is_banned, ban_reason, banned_at, avatar_seed, created_at, updated_at
 FROM users
 WHERE username = $1
 `
@@ -151,6 +160,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.IsBanned,
 		&i.BanReason,
 		&i.BannedAt,
+		&i.AvatarSeed,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -218,21 +228,22 @@ func (q *Queries) GetUserStats(ctx context.Context, userID uuid.UUID) (UserStat,
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, email, user_role, is_banned, ban_reason, banned_at, created_at, updated_at
+SELECT id, username, email, user_role, is_banned, ban_reason, banned_at, avatar_seed, created_at, updated_at
 FROM users
 ORDER BY created_at DESC
 `
 
 type ListUsersRow struct {
-	ID        uuid.UUID      `json:"id"`
-	Username  string         `json:"username"`
-	Email     string         `json:"email"`
-	UserRole  string         `json:"user_role"`
-	IsBanned  bool           `json:"is_banned"`
-	BanReason sql.NullString `json:"ban_reason"`
-	BannedAt  sql.NullTime   `json:"banned_at"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID         uuid.UUID      `json:"id"`
+	Username   string         `json:"username"`
+	Email      string         `json:"email"`
+	UserRole   string         `json:"user_role"`
+	IsBanned   bool           `json:"is_banned"`
+	BanReason  sql.NullString `json:"ban_reason"`
+	BannedAt   sql.NullTime   `json:"banned_at"`
+	AvatarSeed string         `json:"avatar_seed"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
@@ -252,6 +263,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 			&i.IsBanned,
 			&i.BanReason,
 			&i.BannedAt,
+			&i.AvatarSeed,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -282,8 +294,8 @@ func (q *Queries) LogGameHistory(ctx context.Context, arg LogGameHistoryParams) 
 }
 
 const seedAdminUser = `-- name: SeedAdminUser :exec
-INSERT INTO users (username, email, password_hash, user_role)
-VALUES ($1, $2, $3, 'admin')
+INSERT INTO users (username, email, password_hash, user_role, avatar_seed)
+VALUES ($1, $2, $3, 'admin', $4)
 ON CONFLICT (username) DO NOTHING
 `
 
@@ -291,10 +303,16 @@ type SeedAdminUserParams struct {
 	Username     string `json:"username"`
 	Email        string `json:"email"`
 	PasswordHash string `json:"password_hash"`
+	AvatarSeed   string `json:"avatar_seed"`
 }
 
 func (q *Queries) SeedAdminUser(ctx context.Context, arg SeedAdminUserParams) error {
-	_, err := q.db.Exec(ctx, seedAdminUser, arg.Username, arg.Email, arg.PasswordHash)
+	_, err := q.db.Exec(ctx, seedAdminUser,
+		arg.Username,
+		arg.Email,
+		arg.PasswordHash,
+		arg.AvatarSeed,
+	)
 	return err
 }
 
@@ -306,6 +324,20 @@ WHERE id = $1
 
 func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, unbanUser, id)
+	return err
+}
+
+const updateUserAvatar = `-- name: UpdateUserAvatar :exec
+UPDATE users SET avatar_seed = $2, updated_at = NOW() WHERE id = $1
+`
+
+type UpdateUserAvatarParams struct {
+	ID         uuid.UUID `json:"id"`
+	AvatarSeed string    `json:"avatar_seed"`
+}
+
+func (q *Queries) UpdateUserAvatar(ctx context.Context, arg UpdateUserAvatarParams) error {
+	_, err := q.db.Exec(ctx, updateUserAvatar, arg.ID, arg.AvatarSeed)
 	return err
 }
 

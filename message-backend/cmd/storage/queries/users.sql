@@ -1,20 +1,20 @@
 -- name: CreateUser :one
-INSERT INTO users (username, email, password_hash, user_role)
-VALUES ($1, $2, $3, 'user')
-RETURNING id, username, email, user_role, is_banned, created_at, updated_at;
+INSERT INTO users (username, email, password_hash, user_role, avatar_seed)
+VALUES ($1, $2, $3, 'user', $4)
+RETURNING id, username, email, user_role, is_banned, avatar_seed, created_at, updated_at;
 
 -- name: GetUserByID :one
-SELECT id, username, email, password_hash, user_role, is_banned, ban_reason, banned_at, created_at, updated_at
+SELECT id, username, email, password_hash, user_role, is_banned, ban_reason, banned_at, avatar_seed, created_at, updated_at
 FROM users 
 WHERE id = $1;
 
 -- name: ListUsers :many
-SELECT id, username, email, user_role, is_banned, ban_reason, banned_at, created_at, updated_at
+SELECT id, username, email, user_role, is_banned, ban_reason, banned_at, avatar_seed, created_at, updated_at
 FROM users
 ORDER BY created_at DESC;
 
 -- name: GetUserByUsername :one
-SELECT id, username, email, password_hash, user_role, is_banned, ban_reason, banned_at, created_at, updated_at
+SELECT id, username, email, password_hash, user_role, is_banned, ban_reason, banned_at, avatar_seed, created_at, updated_at
 FROM users
 WHERE username = $1;
 
@@ -56,8 +56,8 @@ ORDER BY played_at DESC
 LIMIT $2 OFFSET $3;
 
 -- name: SeedAdminUser :exec
-INSERT INTO users (username, email, password_hash, user_role)
-VALUES ($1, $2, $3, 'admin')
+INSERT INTO users (username, email, password_hash, user_role, avatar_seed)
+VALUES ($1, $2, $3, 'admin', $4)
 ON CONFLICT (username) DO NOTHING;
 
 -- name: GetLeaderboard :many
@@ -66,3 +66,6 @@ FROM user_stats as s
 JOIN users as u ON s.user_id = u.id
 ORDER BY s.total_score DESC, s.games_won DESC
 LIMIT $1;
+
+-- name: UpdateUserAvatar :exec
+UPDATE users SET avatar_seed = $2, updated_at = NOW() WHERE id = $1;

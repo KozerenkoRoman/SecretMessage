@@ -16,12 +16,13 @@ import (
 )
 
 type AuthRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	AvatarSeed string `json:"avatar_seed,omitempty"`
 }
 
 type BlockRequest struct {
-	UserID string `json:"user_id"` // Стрінг для парсингу UUID з JSON
+	UserID string `json:"user_id"`
 	Ban    bool   `json:"ban"`
 	Reason string `json:"reason"`
 }
@@ -50,10 +51,17 @@ func (s *Server) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		// Оскільки це безшовна автореєстрація, створюємо дефолтний емейл
 		defaultEmail := fmt.Sprintf("%s@loveletter.local", req.Username)
 
+		avatarSeed := req.AvatarSeed
+		if avatarSeed == "" {
+			// Якщо сид порожній, створюємо випадковий унікальний рядок
+			avatarSeed = uuid.New().String()
+		}
+
 		_, err := s.hub.store.Queries.CreateUser(ctx, gen.CreateUserParams{
 			Username:     req.Username,
 			Email:        defaultEmail,
 			PasswordHash: string(hashedPassword),
+			AvatarSeed:   avatarSeed,
 		})
 		if err != nil {
 			s.log.WithField("error", err.Error()).Error("Помилка автореєстрації користувача")
@@ -188,6 +196,35 @@ func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.sendJSON(w, http.StatusOK, response)
+}
+
+func (s *Server) HandleUpdateAvatar(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value("userID").(uuid.UUID)
+
+	var input struct {
+		AvatarSeed string `json:"avatar_seed"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if len(input.AvatarSeed) == 0 || len(input.AvatarSeed) > 100 {
+		http.Error(w, "invalid seed length", http.StatusBadRequest)
+		return
+	}
+
+	err := s.hub.store.Queries.UpdateUserAvatar(r.Context(), gen.UpdateUserAvatarParams{
+		ID:         userID,
+		AvatarSeed: input.AvatarSeed,
+	})
+	if err != nil {
+		http.Error(w, "failed to update avatar", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
 // HandleGetRooms повертає список ідентифікаторів активних кімнат у Хабі

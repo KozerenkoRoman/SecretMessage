@@ -45,13 +45,19 @@
             </div>
 
             <div
-              class="w-44 h-64 rounded-xl border-2 shadow-2xl transition-all duration-300 select-none bg-cover bg-center relative overflow-hidden group hover:scale-105"
+              class="w-44 h-64 rounded-xl border-2 shadow-2xl transition-all duration-300 select-none bg-cover bg-center relative overflow-hidden group hover:scale-105 flex flex-col justify-end"
               :class="[card.info.color, card.info.border || 'border-white/10']"
               :style="
                 card.info.image ? { backgroundImage: `url(${card.info.image})` } : {}
               "
               :data-tooltip="`${card.info.name} (${card.id}) — ${card.info.desc}`"
-            ></div>
+            >
+              <span
+                class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 z-10 relative text-amber-300 uppercase tracking-wider rounded-b-xl border-t border-white/5 w-full"
+              >
+                {{ card.info.name }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -69,8 +75,8 @@
 
 <script setup>
 import { computed } from "vue";
-import { CARD_INFO } from "../constants/cards.js";
-import { getAvatarUrl } from "../utils/avatar.js"; // Додано імпорт утиліти аватарок
+import { getCardInfoHelper } from "../constants/cards.js";
+import { getAvatarUrl } from "../utils/avatar.js";
 
 const emit = defineEmits(["close"]);
 const props = defineProps({
@@ -84,9 +90,20 @@ const isValidReveal = computed(() => {
   return isBaron.value || props.data.cardType !== undefined;
 });
 
+const getPlayerData = (id) => {
+  if (!id || !props.players) return null;
+  if (typeof props.players === "object" && props.players[id]) {
+    return props.players[id];
+  }
+  if (Array.isArray(props.players)) {
+    return props.players.find((p) => p && String(p.id) === String(id)) || null;
+  }
+  return null;
+};
+
 const getCardInfo = (id) => {
   return (
-    CARD_INFO[id] || {
+    getCardInfoHelper(id) || {
       name: "Невідома карта",
       desc: "Ефект оброблюється сервером",
       color: "bg-slate-800",
@@ -96,7 +113,6 @@ const getCardInfo = (id) => {
   );
 };
 
-// Модифіковано: тепер повертаємо також об'єкт playerData для рендеру аватара
 const displayCards = computed(() => {
   if (!isValidReveal.value) return [];
   if (isBaron.value) {
@@ -129,16 +145,6 @@ const displayCards = computed(() => {
   ];
 });
 
-const getPlayerData = (id) => {
-  if (!id || !props.players) return null;
-  if (typeof props.players === "object" && props.players[id]) {
-    return props.players[id];
-  }
-  if (Array.isArray(props.players)) {
-    return props.players.find((p) => p && String(p.id) === String(id)) || null;
-  }
-  return null;
-};
 </script>
 
 <style scoped>

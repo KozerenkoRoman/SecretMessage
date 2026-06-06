@@ -2,15 +2,32 @@
   <div class="room-manager-container min-h-screen bg-slate-900">
     <div
       v-if="loading || !gameState"
-      class="flex h-screen items-center justify-center text-white"
+      class="flex h-screen items-center justify-center text-white p-4"
     >
-      <div class="text-center">
+      <div
+        class="text-center max-w-sm w-full bg-slate-950/40 p-6 rounded-2xl border border-slate-800/60 backdrop-blur-sm shadow-xl"
+      >
         <div
           class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"
         ></div>
-        <p class="text-slate-400 font-mono text-sm">
-          Підключення до ігрової кімнати {{ roomID }}...
+
+        <p class="text-slate-300 font-medium text-sm mb-1">
+          Підключення до ігрової кімнати
         </p>
+        <p
+          class="text-amber-400 font-mono text-xs tracking-wider mb-6 truncate px-2"
+          :title="roomID"
+        >
+          {{ roomID }}...
+        </p>
+
+        <button
+          @click="handleLeaveRoom"
+          type="button"
+          class="px-5 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-700/80 text-slate-300 hover:text-white font-bold rounded-xl text-xs transition-all border border-slate-700/60 shadow-md active:scale-95 cursor-pointer font-mono uppercase tracking-wider"
+        >
+          Скасувати підключення
+        </button>
       </div>
     </div>
 
@@ -81,7 +98,8 @@ const handleStartGameSignal = () => {
 };
 
 const handleLeaveRoom = () => {
-  console.log("[RoomManager] Гравець виходить з кімнати...");
+  console.log("[RoomManager] Скасування підключення або вихід з кімнати...");
+  gameStore.clearError();
   gameStore.leaveCurrentRoom();
   router.push("/desktop");
 };

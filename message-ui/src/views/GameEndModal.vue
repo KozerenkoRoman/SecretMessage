@@ -1,4 +1,3 @@
-
 <template>
   <Transition name="fade">
     <div
@@ -36,9 +35,7 @@
             v-if="isAmIWinner"
             class="text-2xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-500 uppercase animate-pulse"
           >
-            {{
-              gameState?.is_game_over ? "Ви абсолютний чемпіон!" : "Ви виграли раунд!"
-            }}
+            {{ gameState?.is_game_over ? "Ви абсолютний чемпіон!" : "Ви виграли раунд!" }}
           </h2>
           <h2 v-else class="text-2xl font-black tracking-wide text-slate-200 uppercase">
             {{ gameState?.is_game_over ? "Гру завершено" : "Раунд закінчено" }}
@@ -46,7 +43,6 @@
 
           <p class="text-xs text-slate-400 mt-2">
             Переможець:
-            <!-- Замінено text-cyan-400 на text-amber-400 для відповідності золотому стилю -->
             <span class="text-amber-400 font-bold font-mono">{{ winnerName }}</span>
           </p>
         </div>
@@ -81,7 +77,6 @@
                 <span v-else class="text-xs opacity-40">👤</span>
                 <span
                   class="text-sm font-medium truncate"
-              
                   :class="p.id === myID ? 'text-amber-400 font-bold' : 'text-slate-300'"
                 >
                   {{ p.username || "Опонент" }}
@@ -120,16 +115,15 @@
                 : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black shadow-amber-500/10 cursor-pointer active:scale-95'
             "
           >
-            {{ hasOpponentLeft ? "Очікування гравців..." : "Наступний раунд ⚔️" }}
+            {{ hasOpponentLeft ? "Очікування гравців..." : "Наступний раунд" }}
           </button>
-
           <button
             v-if="hasOpponentLeft"
             type="button"
             @click="$emit('leave-game')"
             class="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-500/10 transition-all cursor-pointer text-sm uppercase tracking-wider active:scale-95"
           >
-            Вийти в лобі 🚪
+            Вийти в лобі
           </button>
 
           <template v-else-if="gameState?.is_game_over">
@@ -197,18 +191,14 @@ const sortedPlayers = computed(() => {
 });
 
 const hasOpponentLeft = computed(() => {
-  if (props.isSinglePlayer) {
-    const playersData = props.gameState?.players;
-    if (!playersData) return true;
+  const playersData = props.gameState?.players;
+  if (!playersData) return true;
 
-    const totalConnected = Array.isArray(playersData)
-      ? playersData.filter((p) => p !== null).length
-      : Object.keys(playersData).length;
+  const totalConnected = Array.isArray(playersData)
+    ? playersData.filter((p) => p !== null).length
+    : Object.keys(playersData).length;
 
-    if (totalConnected >= 2) return false;
-    return true;
-  }
-  return false;
+  return totalConnected < 2;
 });
 </script>
 

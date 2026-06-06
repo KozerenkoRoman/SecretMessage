@@ -60,6 +60,7 @@
     filter 0.2s ease,
     opacity 0.2s ease;
   user-select: none;
+  overflow: visible !important;
 }
 
 /* Карта, якою можна ходити (хід гравця) */

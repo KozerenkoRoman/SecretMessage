@@ -7,7 +7,7 @@
       <div
         class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar transition-all duration-300"
         :class="[
-          isGuardGuessRequired && availableTargets.length > 0 ? 'max-w-4xl' : 'max-w-xl',
+          isGuardGuessRequired && availableTargets.length > 0 ? 'max-w-5xl' : 'max-w-xl',
         ]"
       >
         <h3 class="text-lg font-bold text-amber-400 mb-2">
@@ -57,7 +57,7 @@
             v-else
             class="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg flex flex-col gap-1"
           >
-            <span class="font-bold">⚠️ Немає доступних цілей!</span>
+            <span class="font-bold">Немає доступних цілей!</span>
             <span>
               Усі інші гравці захищені ефектом Служниці або вибули. Карта буде скинута в
               загальний відбій без застосування ефекту.
@@ -76,17 +76,17 @@
           <label
             class="block text-xs uppercase text-slate-400 font-bold mb-2 tracking-wider font-mono"
           >
-            Вгадайте карту опонента (натисніть для вибору):
+            Виберіть карту опонента:
           </label>
 
           <div
-            class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-2 bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 justify-items-center"
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 bg-slate-900/60 p-6 rounded-xl border border-slate-700/50 justify-items-center"
           >
             <div
               v-for="card in allCards"
               :key="card.type"
               @click="guessCard = card.type"
-              class="w-full max-w-[100px] aspect-[2/3] rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
+              class="w-44 h-64 aspect-[2/3] rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
               :class="[
                 getCardColor(card.type),
                 guessCard === card.type
@@ -103,7 +103,7 @@
               }`"
             >
               <span
-                class="text-[10px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
+                class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
               >
                 {{ guessCard === card.type ? "Обрано" : card.info.name }}
               </span>
@@ -135,7 +135,11 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { CARD_INFO } from "../constants/cards";
+import {
+  CARD_INFO_NUMBERS,
+  CARD_INFO_NAMES,
+  getCardInfoHelper,
+} from "../constants/cards";
 import { getAvatarUrl } from "../utils/avatar";
 
 const props = defineProps({
@@ -151,18 +155,20 @@ const emit = defineEmits(["close", "submit"]);
 const targetID = ref("");
 const guessCard = ref("");
 
-const cardInfo = computed(() => CARD_INFO[props.cardType]);
+const cardInfo = computed(() => getCardInfoHelper(props.cardType));
 
 const getCardColor = (type) => {
-  return CARD_INFO[type]?.color || "bg-slate-700";
+  return getCardInfoHelper(type)?.color || "bg-slate-700";
 };
+
 const getCardImage = (type) => {
-  return CARD_INFO[type]?.image || "";
+  return getCardInfoHelper(type)?.image || "";
 };
 
 const requiresTargetSelection = computed(() => {
   return cardInfo.value?.targetType && cardInfo.value.targetType !== "SELF";
 });
+
 const isGuardGuessRequired = computed(() => {
   return !!cardInfo.value?.requiresGuess;
 });
@@ -180,16 +186,13 @@ const availableTargets = computed(() => {
 
 const filteredCardOptions = computed(() => {
   const uniqueCards = {};
-  Object.keys(CARD_INFO).forEach((key) => {
-    if (isNaN(key)) {
-      if (key === "GUARD") return;
-      uniqueCards[key] = CARD_INFO[key];
-    }
+  Object.keys(CARD_INFO_NAMES).forEach((key) => {
+    if (key === "GUARD") return;
+    uniqueCards[key] = CARD_INFO_NAMES[key];
   });
   return uniqueCards;
 });
 
-// Об'єднуємо всі доступні карти в один плаский масив для Grid-сітки
 const allCards = computed(() => {
   return Object.keys(filteredCardOptions.value).map((key) => ({
     type: key,
@@ -231,8 +234,8 @@ const handleSubmit = () => {
   if (!isValid.value) return;
   let guessCardId = null;
   if (isGuardGuessRequired.value && guessCard.value) {
-    const foundKey = Object.keys(CARD_INFO).find(
-      (key) => !isNaN(key) && CARD_INFO[key].type === guessCard.value
+    const foundKey = Object.keys(CARD_INFO_NUMBERS).find(
+      (key) => CARD_INFO_NUMBERS[key].type === guessCard.value
     );
     guessCardId = foundKey !== undefined ? Number(foundKey) : null;
   }
@@ -266,6 +269,6 @@ const handleSubmit = () => {
   border-radius: 999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.8);
+  background: rgba(148, 164, 184, 0.8);
 }
 </style>

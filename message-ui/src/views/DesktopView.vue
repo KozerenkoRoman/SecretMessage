@@ -7,7 +7,7 @@
         <div class="flex items-center gap-3">
           <div
             @click="openAvatarModal"
-            class="relative w-12 h-12 bg-slate-950 border-2 border-amber-500/80 rounded-full p-0.5 overflow-hidden shadow-md cursor-pointer group transition-transform hover:scale-105"
+            class="relative w-16 h-16 bg-slate-950 border-2 border-amber-500/80 rounded-full p-0.5 overflow-hidden shadow-md cursor-pointer group transition-transform hover:scale-105"
             title="Налаштування профілю"
           >
             <img
@@ -62,26 +62,49 @@
         <div
           v-for="room in gameStore.lobbyRooms"
           :key="room.room_id || room.ID"
-          class="lobby-card"
+          class="lobby-card flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-slate-700 transition-all"
         >
-          <div>
-            <div class="font-bold text-amber-500/90">
-              Кімната #{{ room.room_id || room.ID }}
-            </div>
-            <div class="text-xs text-slate-400 mt-1">
-              Гравців: {{ room.player_count ?? room.PlayerCount ?? 0 }}/{{
-                room.max_players ?? room.MaxPlayers ?? 4
-              }}
-            </div>
+          <div class="flex items-center gap-3 truncate">
             <div
-              v-if="room.player_names || room.PlayerNames"
-              class="text-[10px] text-slate-500 mt-1"
+              class="w-12 h-12 rounded-full border-2 border-amber-500/40 p-0.5 bg-slate-950 overflow-hidden flex-shrink-0 shadow-md"
             >
-              Учасники: {{ (room.PlayerNames || room.player_names).join(", ") }}
+              <img
+                :src="
+                  getAvatarUrl(
+                    room.host_avatar_seed || room.HostAvatarSeed || 'default_seed'
+                  )
+                "
+                alt="Аватар хоста"
+                class="w-full h-full object-cover rounded-full"
+              />
+            </div>
+
+            <div class="truncate">
+              <div
+                class="font-bold text-amber-500/90 font-mono text-sm flex items-center gap-1.5"
+              >
+                Кімната "{{ room.room_id || room.ID }}"
+              </div>
+              <div class="text-xs text-slate-400 mt-0.5">
+                Гравців: {{ room.player_count ?? room.PlayerCount ?? 0 }}/{{
+                  room.max_players ?? room.MaxPlayers ?? 4
+                }}
+              </div>
+              <div
+                v-if="room.player_names || room.PlayerNames"
+                class="text-[10px] text-slate-500 mt-0.5 truncate max-w-[200px]"
+                :title="(room.PlayerNames || room.player_names).join(', ')"
+              >
+                Учасники: {{ (room.PlayerNames || room.player_names).join(", ") }}
+              </div>
             </div>
           </div>
-          <router-link :to="`/room/${room.room_id || room.ID}`" class="btn-enter">
-            Увійти
+
+          <router-link
+            :to="`/room/${room.room_id || room.ID}`"
+            class="btn-enter flex-shrink-0"
+          >
+            Приєднатися
           </router-link>
         </div>
       </div>

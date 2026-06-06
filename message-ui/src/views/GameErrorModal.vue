@@ -1,4 +1,3 @@
-<!-- src/views/GameErrorModal.vue -->
 <template>
   <Transition name="fade">
     <div
@@ -30,13 +29,24 @@
           код: {{ errorCode }}
         </p>
 
-        <button
-          @click="$emit('close')"
-          type="button"
-          class="w-full mt-5 py-2.5 bg-gradient-to-r from-slate-700 to-slate-700 hover:from-rose-600 hover:to-rose-700 text-white font-bold rounded-xl text-sm transition-all border border-slate-600 hover:border-rose-500 cursor-pointer shadow-lg active:scale-95"
-        >
-          Зрозуміло
-        </button>
+        <div class="mt-5 space-y-2">
+          <button
+            @click="$emit('close')"
+            type="button"
+            class="w-full py-2.5 bg-gradient-to-r from-slate-700 to-slate-700 hover:from-rose-600 hover:to-rose-700 text-white font-bold rounded-xl text-sm transition-all border border-slate-600 hover:border-rose-500 cursor-pointer shadow-lg active:scale-95"
+          >
+            Зрозуміло
+          </button>
+
+          <button
+            v-if="isSoloError"
+            @click="handleLeave"
+            type="button"
+            class="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-rose-500/10 cursor-pointer uppercase font-mono tracking-wider active:scale-95"
+          >
+            Вийти в лобі
+          </button>
+        </div>
       </div>
     </div>
   </Transition>
@@ -44,6 +54,8 @@
 
 <script setup>
 import { computed } from "vue";
+import { useGameStore } from "../stores/gameStore";
+import { useRouter } from "vue-router";
 import { EngineErrorCodes } from "../types/errors";
 
 const props = defineProps({
@@ -53,58 +65,49 @@ const props = defineProps({
   },
 });
 
-defineEmits(["close"]);
+const emit = defineEmits(["close"]);
+const gameStore = useGameStore();
+const router = useRouter();
 
 const ERROR_TRANSLATIONS = Object.freeze({
+  failed_to_next_round:
+    "Неможливо розпочати наступний раунд: усі опоненти залишили кімнату.",
   [EngineErrorCodes.Internal]:
     "Сталася внутрішня помилка сервера. Спробуйте повторити дію через декілька секунд.",
 
-  [EngineErrorCodes.InvalidPhase]:
-    "Цю дію не можна виконати на поточній фазі гри.",
+  [EngineErrorCodes.InvalidPhase]: "Цю дію не можна виконати на поточній фазі гри.",
   [EngineErrorCodes.InvalidState]:
     "Стан гри неконсистентний. Перезавантажте сторінку та підключіться повторно.",
-  [EngineErrorCodes.EmptyTurnOrder]:
-    "У кімнаті не визначено порядок ходів.",
+  [EngineErrorCodes.EmptyTurnOrder]: "У кімнаті не визначено порядок ходів.",
   [EngineErrorCodes.CurrentTurnOutOfRange]:
     "Внутрішня помилка кімнати: некоректний поточний хід.",
-  [EngineErrorCodes.NoPlayers]:
-    "У кімнаті немає активних гравців.",
+  [EngineErrorCodes.NoPlayers]: "У кімнаті немає активних гравців.",
   [EngineErrorCodes.CardEffectNotImplemented]:
     "Ефект цієї карти ще не реалізовано на сервері.",
 
-  [EngineErrorCodes.PlayerNotFound]:
-    "Вас не знайдено серед учасників цієї кімнати.",
+  [EngineErrorCodes.PlayerNotFound]: "Вас не знайдено серед учасників цієї кімнати.",
   [EngineErrorCodes.PlayerAlreadyOut]:
     "Ви вже вибули з поточного раунду — дочекайтеся наступного.",
-  [EngineErrorCodes.PlayerProtected]:
-    "Ви знаходитесь під захистом Служниці.",
-  [EngineErrorCodes.PlayerHasNoCards]:
-    "У вас немає карт у руці для виконання цієї дії.",
+  [EngineErrorCodes.PlayerProtected]: "Ви знаходитесь під захистом Служниці.",
+  [EngineErrorCodes.PlayerHasNoCards]: "У вас немає карт у руці для виконання цієї дії.",
 
-  [EngineErrorCodes.OutOfTurn]:
-    "Зараз хід іншого гравця. Зачекайте своєї черги.",
-  [EngineErrorCodes.InvalidHandIndex]:
-    "Невірний індекс карти у вашій руці.",
-  [EngineErrorCodes.CannotTargetSelf]:
-    "Цією картою не можна цілитися в самого себе.",
+  [EngineErrorCodes.OutOfTurn]: "Зараз хід іншого гравця. Зачекайте своєї черги.",
+  [EngineErrorCodes.InvalidHandIndex]: "Невірний індекс карти у вашій руці.",
+  [EngineErrorCodes.CannotTargetSelf]: "Цією картою не можна цілитися в самого себе.",
   [EngineErrorCodes.MustPlayCountess]:
     "Згідно з правилами, ви зобов’язані зіграти Графиню, якщо в руці є Принц або Король!",
 
-  [EngineErrorCodes.TargetRequired]:
-    "Для цієї карти необхідно обрати гравця-ціль.",
-  [EngineErrorCodes.TargetNotFound]:
-    "Обраного гравця не знайдено в кімнаті.",
+  [EngineErrorCodes.TargetRequired]: "Для цієї карти необхідно обрати гравця-ціль.",
+  [EngineErrorCodes.TargetNotFound]: "Обраного гравця не знайдено в кімнаті.",
   [EngineErrorCodes.TargetAlreadyOut]:
     "Обраний гравець уже вибув з раунду — оберіть іншу ціль.",
   [EngineErrorCodes.TargetProtected]:
     "Неможливо застосувати ефект: обраний гравець знаходиться під захистом Служниці.",
-
   [EngineErrorCodes.GuardCannotGuessGuard]:
     "Вартовий не може вгадувати іншого Вартового.",
   [EngineErrorCodes.GuardGuessRequired]:
     "Вкажіть, яку саме карту ви намагаєтесь вгадати.",
-  [EngineErrorCodes.BaronNoCardsToCompare]:
-    "Немає карт для порівняння Бароном.",
+  [EngineErrorCodes.BaronNoCardsToCompare]: "Немає карт для порівняння Бароном.",
 
   [EngineErrorCodes.ChancellorInvalidBottomOrder]:
     "Невірний порядок повернення карт у колоду.",
@@ -120,12 +123,27 @@ const errorCode = computed(() => {
   const raw = props.message;
   if (!raw) return "";
   if (typeof raw === "string") {
-    return raw.startsWith("ERR_") ? raw : "";
+    return raw.startsWith("ERR_") || raw === "failed_to_next_round" ? raw : "";
   }
   if (typeof raw === "object" && typeof raw.code === "string") {
     return raw.code;
   }
   return "";
+});
+
+const rawMessageText = computed(() => {
+  const raw = props.message;
+  if (!raw) return "";
+  if (typeof raw === "string") return raw;
+  return raw.message || "";
+});
+
+const isSoloError = computed(() => {
+  const code = errorCode.value;
+  const text = rawMessageText.value;
+  return (
+    code === "failed_to_next_round" || text.includes("insufficient connected players")
+  );
 });
 
 const hasError = computed(() => {
@@ -139,22 +157,24 @@ const hasError = computed(() => {
 });
 
 const translatedMessage = computed(() => {
-  const raw = props.message;
-  if (!raw) return FALLBACK_EMPTY;
-
   const code = errorCode.value;
   if (code && ERROR_TRANSLATIONS[code]) {
     return ERROR_TRANSLATIONS[code];
   }
 
-  if (code) {
-    return FALLBACK_GENERIC;
+  const text = rawMessageText.value;
+  if (text.includes("insufficient connected players")) {
+    return "Неможливо розпочати наступний раунд: недостатньо підключених гравців (ви залишилися самі).";
   }
 
-  if (typeof raw === "string") return FALLBACK_GENERIC;
-
-  return FALLBACK_GENERIC;
+  return code ? FALLBACK_GENERIC : text || FALLBACK_GENERIC;
 });
+
+const handleLeave = () => {
+  emit("close");
+  gameStore.leaveCurrentRoom();
+  router.push("/desktop");
+};
 </script>
 
 <style scoped>

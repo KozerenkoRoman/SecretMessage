@@ -49,6 +49,7 @@
                 В Руку
               </span>
             </div>
+
             <div
               v-if="getBottomOrderIndex(index) !== -1"
               class="absolute inset-0 bg-orange-500/30 rounded-xl border-2 border-orange-400 flex items-center justify-center z-20 backdrop-blur-[1px]"
@@ -56,9 +57,15 @@
               <span
                 class="bg-orange-500 text-white font-black text-sm w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
               >
-                #{{ getBottomOrderIndex(index) + 1 }}</span
-              >
+                #{{ getBottomOrderIndex(index) + 1 }}
+              </span>
             </div>
+
+            <span
+              class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+            >
+              {{ getCardName(cardType) }}
+            </span>
           </div>
         </div>
 
@@ -97,7 +104,7 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { CARD_INFO } from "../constants/cards";
+import { getCardInfoHelper } from "../constants/cards";
 
 const props = defineProps({
   isOpen: { type: Boolean, required: true },
@@ -109,12 +116,14 @@ const emit = defineEmits(["submit"]);
 const chosenKeepIndex = ref(null);
 const bottomSelection = ref([]);
 
-const getCardDesc = (type) => CARD_INFO[type]?.desc || "Опис відсутній";
-const getCardColor = (type) => CARD_INFO[type]?.color || "bg-slate-700";
-const getCardName = (type) => CARD_INFO[type]?.name || "Невідома карта";
-const getCardValue = (type) =>
-  CARD_INFO[type]?.value !== undefined ? CARD_INFO[type].value : "?";
-const getCardImage = (type) => CARD_INFO[type]?.image || "";
+const getCardDesc = (type) => getCardInfoHelper(type)?.desc || "Опис відсутній";
+const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-slate-700";
+const getCardName = (type) => getCardInfoHelper(type)?.name || "Невідома карта";
+const getCardValue = (type) => {
+  const val = getCardInfoHelper(type)?.value;
+  return val !== undefined ? val : "?";
+};
+const getCardImage = (type) => getCardInfoHelper(type)?.image || "";
 
 const isReadyToSubmit = computed(() => {
   return (

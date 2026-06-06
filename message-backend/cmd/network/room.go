@@ -124,14 +124,15 @@ type Room struct {
 
 // RoomLobbyInfo — DTO для списку лобі.
 type RoomLobbyInfo struct {
-	ID          string   `json:"room_id"`
-	HostID      string   `json:"host_id"`
-	PlayerCount int      `json:"player_count"`
-	MaxPlayers  int      `json:"max_players"`
-	IsStarted   bool     `json:"is_started"`
-	Players     []string `json:"players"`
-	PlayerNames []string `json:"player_names"`
-	CreatedAt   int64    `json:"created_at"`
+	ID             string   `json:"room_id"`
+	HostID         string   `json:"host_id"`
+	PlayerCount    int      `json:"player_count"`
+	MaxPlayers     int      `json:"max_players"`
+	IsStarted      bool     `json:"is_started"`
+	Players        []string `json:"players"`
+	PlayerNames    []string `json:"player_names"`
+	CreatedAt      int64    `json:"created_at"`
+	HostAvatarSeed string   `json:"host_avatar_seed"`
 }
 
 // =============================================================================
@@ -204,14 +205,15 @@ func (r *Room) GetLobbyInfo() RoomLobbyInfo {
 	}
 
 	return RoomLobbyInfo{
-		ID:          r.id,
-		HostID:      r.hostID,
-		PlayerCount: len(r.state.Players),
-		MaxPlayers:  MAX_PLAYERS,
-		IsStarted:   len(r.state.TurnOrder) > 0,
-		Players:     players,
-		PlayerNames: names,
-		CreatedAt:   r.createdAt.Unix(),
+		ID:             r.id,
+		HostID:         r.hostID,
+		PlayerCount:    len(r.state.Players),
+		MaxPlayers:     MAX_PLAYERS,
+		IsStarted:      len(r.state.TurnOrder) > 0,
+		Players:        players,
+		PlayerNames:    names,
+		CreatedAt:      r.createdAt.Unix(),
+		HostAvatarSeed: r.state.Players[r.hostID].AvatarSeed,
 	}
 }
 

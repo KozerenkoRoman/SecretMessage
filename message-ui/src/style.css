@@ -355,7 +355,6 @@
   transform: translateX(-50%) scale(1);
 }
 
-/* Налаштування для маленьких карт на столі відбою, щоб підказка не обрізалась */
 .game-card-discard {
   overflow: visible !important;
   cursor: default;

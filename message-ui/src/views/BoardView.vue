@@ -6,13 +6,7 @@
       class="w-full flex justify-between items-center bg-slate-800/80 backdrop-blur px-3 py-2 rounded-xl border border-slate-700 flex-shrink-0 gap-4 z-10 h-[6vh]"
     >
       <div class="flex items-center gap-4">
-        <button
-          @click="handleLeaveGame"
-          type="button"
-          class="px-4 py-1.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 font-bold rounded-xl border border-rose-900/50 shadow-md active:scale-95 transition-all text-xs uppercase tracking-wider font-mono cursor-pointer"
-        >
-          Вийти
-        </button>
+        <button @click="handleLeaveGame" type="button" class="btn-danger">Вийти</button>
         <div class="h-6 w-[1px] bg-slate-700"></div>
         <div>
           <h2 class="text-sm font-bold text-yellow-400 font-mono leading-none mb-0.5">
@@ -33,18 +27,16 @@
         >
           Очікування...
         </div>
-        <button
-          v-if="canStartGame"
-          @click="handleStartGame"
-          class="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black rounded-xl shadow-lg shadow-amber-950/20 active:scale-95 transition-all text-xs uppercase tracking-wider font-mono cursor-pointer"
-        >
+
+        <button v-if="canStartGame" @click="handleStartGame" class="btn-primary">
           Почати ⚔
         </button>
+
         <div
           v-else-if="showChancellorPanel"
           class="status-pill bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-yellow-500/40 animate-pulse"
         >
-          Вибір Канцлера!
+          Вибір :Канцлера!
         </div>
         <div
           v-else-if="isMyTurn"
@@ -64,7 +56,7 @@
       <div
         class="w-full flex justify-center items-center gap-6 flex-shrink-0 h-[20vh] max-h-[140px] overflow-hidden"
       >
-        <template v-for="(player, index) in opponents" :key="player.id">
+        <template v-for="player in opponents" :key="player.id">
           <div
             :class="[
               isTurnOfPlayer(player.id)
@@ -87,16 +79,21 @@
               >
             </div>
             <div
-              class="flex justify-center items-center h-16 w-full overflow-hidden pl-2"
+              class="flex justify-center items-center h-16 w-full overflow-hidden pl-2 gap-1"
             >
               <div
                 v-for="cIdx in getOpponentHandCount(player)"
                 :key="cIdx"
-                class="w-10 h-14 bg-gradient-to-br from-indigo-950 to-slate-900 rounded-lg border border-indigo-400/40 shadow flex items-center justify-center -mr-2"
+                class="w-10 h-14 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.5)] overflow-hidden -mr-2 transition-transform duration-200 hover:scale-110 hover:z-30"
               >
-                <span class="text-[8px] font-mono text-indigo-400/50">L.H.</span>
+                <img
+                  :src="deckBackImage"
+                  alt="Сорочка карти"
+                  class="w-fullh-full object-cover rounded-sm select-none"
+                />
               </div>
             </div>
+
             <div class="w-full text-center text-[9px] flex-shrink-0">
               <span
                 v-if="player.is_protected"
@@ -122,7 +119,7 @@
         >
           <div class="flex flex-col items-center justify-center gap-1 flex-shrink-0">
             <div
-              class="relative w-44 h-64 bg-gradient-to-br from-yellow-800 to-indigo-900 rounded-xl border-2 border-yellow-500/40 shadow-lg shadow-amber-950/20 flex flex-col items-center justify-center bg-cover bg-center overflow-hidden"
+              class="relative w-44 h-64 bg-gradient-to-br from-yellow-800 to-indigo-900 rounded-xl border-2 border-amber-500 shadow-lg shadow-amber-950/20 flex flex-col items-center justify-center bg-cover bg-center overflow-hidden p-[2px]"
               :style="{ backgroundImage: `url(${deckBackImage})` }"
             >
               <div
@@ -137,23 +134,23 @@
                   >{{ gameState?.deck ? gameState.deck.length : 0 }}</span
                 >
               </div>
-              <div
-                class="absolute inset-0 border border-yellow-500/20 rounded-xl translate-x-[2px] translate-y-[2px] -z-10 bg-slate-900"
-              ></div>
             </div>
             <div class="text-[16px] font-bold text-slate-400 font-mono mt-0.5">
               Відбій: {{ globalDiscardPile.length }}
             </div>
           </div>
+
           <div class="h-full max-h-[220px] w-[1px] bg-slate-800 flex-shrink-0"></div>
+
           <div class="flex-1 flex flex-col justify-between pl-1 h-full overflow-hidden">
             <div
               class="flex justify-between items-center border-b border-slate-800 pb-1 mb-1 flex-shrink-0"
             >
               <span
                 class="text-[10px] uppercase text-amber-400 font-bold font-mono tracking-wider"
-                >Стіл відбою</span
               >
+                Стіл відбою
+              </span>
             </div>
             <div
               class="flex flex-wrap gap-2 justify-start w-full overflow-y-auto overflow-x-hidden custom-scrollbar content-start flex-1 px-3 pt-2 pb-1"
@@ -164,18 +161,25 @@
               >
                 <div
                   v-if="globalDiscardPile[slotIndex - 1]"
-                  class="game-card game-card-discard w-[5.5rem] aspect-[2/3] bg-cover bg-center transition-all duration-200 hover:scale-105 hover:z-20 flex-shrink-0 relative"
+                  class="game-card game-card-discard w-[5.5rem] p-0 border border-slate-700/50 overflow-hidden bg-slate-950"
                   :class="getCardColor(globalDiscardPile[slotIndex - 1].type)"
-                  :style="
-                    getCardImage(globalDiscardPile[slotIndex - 1].type)
-                      ? {
-                          backgroundImage: `url(${getCardImage(
-                            globalDiscardPile[slotIndex - 1].type
-                          )})`,
-                        }
-                      : {}
-                  "
-                ></div>
+                  :data-tooltip="`${getCardName(
+                    globalDiscardPile[slotIndex - 1].type
+                  )} — Скинув ${globalDiscardPile[slotIndex - 1].owner}`"
+                >
+                  <img
+                    v-if="getCardImage(globalDiscardPile[slotIndex - 1].type)"
+                    :src="getCardImage(globalDiscardPile[slotIndex - 1].type)"
+                    :alt="getCardName(globalDiscardPile[slotIndex - 1].type)"
+                    class="w-full h-full object-cover pointer-events-none rounded-[0.4rem]"
+                  />
+                  <div
+                    v-else
+                    class="w-full h-full flex items-center justify-center text-[10px] text-center p-1"
+                  >
+                    {{ getCardName(globalDiscardPile[slotIndex - 1].type) }}
+                  </div>
+                </div>
               </template>
             </div>
           </div>
@@ -226,14 +230,14 @@
             v-for="(cardType, cIdx) in myHandCards"
             :key="`chancellor-card-${cIdx}-${cardType}`"
             @click="handleChancellorSelect(cIdx)"
-            class="game-card w-44 h-64 cursor-pointer ring-2 ring-amber-500/50 bg-cover bg-center transition-all duration-200 hover:scale-105"
+            class="game-card w-44 ring-2 ring-amber-500/50 bg-cover bg-center transition-all duration-200 hover:scale-105 cursor-pointer"
             :class="getCardColor(cardType)"
             :style="
               getCardImage(cardType)
                 ? { backgroundImage: `url(${getCardImage(cardType)})` }
                 : {}
             "
-            :data-tooltip="`${getCardName(cardType)}(${getCardValue(
+            :data-tooltip="`${getCardName(cardType)} (${getCardValue(
               cardType
             )}) — ${getCardDesc(cardType)}`"
           ></div>
@@ -250,19 +254,17 @@
           v-for="(cardType, cIdx) in myHandCards"
           :key="`hand-card-${cIdx}-${cardType}`"
           @click="isMyTurn ? handleCardClick(cardType, cIdx) : null"
-          class="game-card w-44 h-64 bg-cover bg-center transition-all duration-200"
+          class="game-card w-44 bg-cover bg-center"
           :class="[
             getCardColor(cardType),
-            isMyTurn
-              ? 'game-card-playable hover:-translate-y-4 hover:scale-105 cursor-pointer shadow-lg shadow-yellow-500/10'
-              : 'game-card-disabled opacity-60 cursor-not-allowed',
+            isMyTurn ? 'game-card-playable' : 'game-card-disabled',
           ]"
           :style="
             getCardImage(cardType)
               ? { backgroundImage: `url(${getCardImage(cardType)})` }
               : {}
           "
-          :data-tooltip="`${getCardName(cardType)}(${getCardValue(
+          :data-tooltip="`${getCardName(cardType)} (${getCardValue(
             cardType
           )}) — ${getCardDesc(cardType)}`"
         ></div>
@@ -580,15 +582,5 @@ const isOpponentLeft = computed(() => {
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.25s ease;
-}
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.3);
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.8);
-  border-radius: 4px;
 }
 </style>

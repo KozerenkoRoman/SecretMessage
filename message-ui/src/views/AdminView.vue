@@ -90,7 +90,7 @@
                 <td class="p-4 text-right">
                   <button
                     v-if="user.role !== 'admin'"
-                    @click="kickUser(user.id, user.username)"
+                    @click="openBlockConfirmation(user.id, user.username)"
                     class="px-3 py-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 font-bold rounded-xl border border-rose-900/50 shadow-md active:scale-95 transition-all cursor-pointer text-xs uppercase tracking-wider font-mono"
                   >
                     Заблокувати
@@ -108,17 +108,30 @@
         </div>
       </div>
     </div>
+
+    <ConfirmModal
+      :is-open="showConfirmModal"
+      title="Блокування користувача"
+      :message="`Ви впевнені, що хочете заблокувати користувача ${selectedUser?.username}? Ця дія обмежить доступ гравця до ігрового хабу.`"
+      confirm-text="Заблокувати"
+      cancel-text="Скасувати"
+      @confirm="handleConfirmBlock"
+      @cancel="closeConfirmModal"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from "vue";
 import { useAuthStore } from "../stores/auth";
+import ConfirmModal from "./ConfirmModal.vue";
 
 const authStore = useAuthStore();
 const users = ref([]);
 const errorMessage = ref(null);
 const successMessage = ref(null);
+const showConfirmModal = ref(false);
+const selectedUser = ref(null);
 
 const fetchUsers = async () => {
   try {
@@ -143,8 +156,22 @@ const fetchUsers = async () => {
   }
 };
 
-const kickUser = async (userId, username) => {
-  if (!confirm(`Ви впевнені, що хочете заблокувати користувача ${username}?`)) return;
+const openBlockConfirmation = (userId, username) => {
+  selectedUser.value = { id: userId, username };
+  showConfirmModal.value = true;
+};
+
+const closeConfirmModal = () => {
+  showConfirmModal.value = false;
+  selectedUser.value = null;
+};
+
+const handleConfirmBlock = async () => {
+  if (!selectedUser.value) return;
+
+  const { id: userId, username } = selectedUser.value;
+  closeConfirmModal();
+
   try {
     errorMessage.value = null;
     successMessage.value = null;

@@ -13,10 +13,8 @@
         >
           <span
             class="text-xs font-medium text-slate-300 hidden sm:inline max-w-[80px] truncate"
+            >{{ myPlayer?.username || "Гість" }}</span
           >
-            {{ myPlayer?.username || "Гість" }}
-          </span>
-
           <div
             class="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 p-[1px] shadow-inner flex-shrink-0"
           >
@@ -33,13 +31,12 @@
           </h2>
           <p class="text-xs text-slate-400">
             Час:
-            <span class="text-amber-400 font-mono font-bold text-xs">
+            <span class="text-amber-400 font-mono font-bold text-xs"
               >{{ gameState?.seconds_left || 0 }}с</span
             >
           </p>
         </div>
       </div>
-
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-2">
           <template v-if="!gameState?.is_started">
@@ -53,13 +50,12 @@
               Очікування...
             </div>
           </template>
-
           <template v-else>
             <div
               v-if="showChancellorPanel"
               class="status-pill bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-yellow-500/40 animate-pulse"
             >
-              Вибір :Канцлера!
+              Вибір: Канцлера!
             </div>
             <div
               v-else-if="isMyTurn"
@@ -75,7 +71,6 @@
             </div>
           </template>
         </div>
-
         <div class="h-6 w-[1px] bg-slate-700"></div>
       </div>
     </header>
@@ -105,7 +100,7 @@
               >
               <span
                 class="text-[9px] bg-slate-700 text-yellow-400 px-1 py-0.5 rounded font-mono"
-                >★ {{ player.score || 0 }}</span
+                >★{{ player.score || 0 }}</span
               >
             </div>
             <div
@@ -119,15 +114,15 @@
                 <img
                   :src="deckBackImage"
                   alt="Сорочка карти"
-                  class="w-fullh-full object-cover rounded-sm select-none"
+                  class="w-full h-full object-cover rounded-sm select-none"
                 />
               </div>
             </div>
-
             <div class="w-full text-center text-[9px] flex-shrink-0">
               <span
                 v-if="player.is_protected"
                 class="text-yellow-400 font-bold uppercase text-[8px]"
+                u
                 >Захист</span
               >
               <span
@@ -273,6 +268,7 @@
           ></div>
         </div>
       </div>
+
       <div
         v-else
         class="flex justify-center gap-4 relative z-10 items-center flex-1 w-full h-full"
@@ -310,12 +306,14 @@
       @close="showActionModal = false"
       @submit="handleActionModalSubmit"
     />
+
     <CardRevealModal
       v-if="revealedCardData"
       :data="revealedCardData"
       :players="props.gameState.players"
       @close="handleCloseRevealModal"
     />
+
     <ChancellorModal
       :is-open="showChancellorPanel"
       :cards="myHandCards"
@@ -324,6 +322,7 @@
           handleChancellorSelect({ keepIndex: keepHandIndex, bottomOrder })
       "
     />
+
     <GameEndModal
       v-if="!revealedCardData"
       :is-open="showGameEndModal"
@@ -334,7 +333,18 @@
       @restart-game="handleRestartGameRequest"
       @leave-game="emit('leave-game')"
     />
+
     <GameErrorModal :message="gameStore.error" @close="handleClearError" />
+
+    <ConfirmModal
+      :is-open="showLeaveConfirm"
+      title="Вихід з гри"
+      message="Ви впевнені, що хочете покинути поточну гру та повернутися в десктоп лобі?"
+      confirm-text="Вийти"
+      cancel-text="Залишитись"
+      @confirm="handleConfirmLeave"
+      @cancel="showLeaveConfirm = false"
+    />
   </div>
 </template>
 
@@ -344,11 +354,15 @@ import { ref, computed, watch } from "vue";
 import { useGameStore } from "../stores/gameStore";
 import { storeToRefs } from "pinia";
 import { getAvatarUrl } from "../utils/avatar";
+
+// Імпорт модалок
 import ChancellorModal from "./ChancellorModal.vue";
 import ActionModal from "./ActionModal.vue";
 import CardRevealModal from "./CardRevealModal.vue";
 import GameEndModal from "./GameEndModal.vue";
 import GameErrorModal from "./GameErrorModal.vue";
+import ConfirmModal from "./ConfirmModal.vue";
+
 import deckBackImage from "../assets/deckBack.png";
 
 const props = defineProps({
@@ -364,8 +378,10 @@ const emit = defineEmits([
   "next-round",
   "restart-game",
 ]);
+
 const gameStore = useGameStore();
 const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
+const showLeaveConfirm = ref(false);
 
 watch(
   () => props.gameState?.round_number,
@@ -404,6 +420,7 @@ const effectiveMyID = computed(() => {
 const handleCloseRevealModal = () => {
   gameStore.clearRevealedData();
 };
+
 const handleClearError = () => {
   gameStore.clearError();
 };
@@ -464,9 +481,12 @@ const canStartGame = computed(() => {
 });
 
 const handleLeaveGame = () => {
-  if (confirm("Ви впевнені, що хочете покинути поточну гру та повернутися в десктоп?")) {
-    emit("leave-game");
-  }
+  showLeaveConfirm.value = true;
+};
+
+const handleConfirmLeave = () => {
+  showLeaveConfirm.value = false;
+  emit("leave-game");
 };
 
 const arrangedPlayers = computed(() => {
@@ -506,12 +526,10 @@ const opponents = computed(() => {
 const myPlayer = computed(() => {
   const me = effectiveMyID.value;
   if (!me) return null;
-
   const playerObj = arrangedPlayers.value.find((p) => p.id === me) || null;
   if (playerObj && (!playerObj.avatar_seed || playerObj.avatar_seed === "")) {
     playerObj.avatar_seed = localStorage.getItem("avatar_seed") || "default_seed";
   }
-
   return playerObj;
 });
 
@@ -580,6 +598,7 @@ const handleActionModalSubmit = ({ handIndex, targetID, guessCardId }) => {
 const handleNextRoundRequest = () => {
   emit("next-round");
 };
+
 const handleRestartGameRequest = () => {
   emit("restart-game");
 };

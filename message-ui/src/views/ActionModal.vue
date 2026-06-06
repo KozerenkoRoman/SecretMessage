@@ -5,20 +5,17 @@
       class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
     >
       <div
-        class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-5xl shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar"
+        class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar transition-all duration-300"
+        :class="[
+          isGuardGuessRequired && availableTargets.length > 0 ? 'max-w-4xl' : 'max-w-xl',
+        ]"
       >
         <h3 class="text-lg font-bold text-amber-400 mb-2">
           Розіграш карти: {{ cardInfo?.name || cardType }}
         </h3>
-        <p class="text-xs text-slate-400 italic mb-4">{{ cardInfo?.desc }}</p>
 
         <div v-if="requiresTargetSelection" class="mb-4">
           <div v-if="availableTargets.length > 0">
-            <label
-              class="block text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider font-mono text-center md:text-left"
-            >
-              Оберіть Ціль:
-            </label>
             <div
               class="flex flex-wrap justify-center gap-6 bg-slate-900/40 p-4 rounded-xl border border-slate-700/30"
             >
@@ -30,7 +27,7 @@
                 class="flex flex-col items-center gap-2 group focus:outline-none cursor-pointer"
               >
                 <div
-                  class="w-20 h-20 rounded-full border-2 p-1 overflow-hidden transition-all duration-200"
+                  class="w-16 h-16 rounded-full border-2 p-1 overflow-hidden transition-all duration-200"
                   :class="[
                     targetID === p.id
                       ? 'border-amber-400 bg-amber-950/40 scale-105 shadow-lg shadow-amber-500/20'
@@ -70,9 +67,9 @@
 
         <div
           v-if="!requiresTargetSelection"
-          class="mb-4 text-sm text-emerald-400 bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20"
+          class="mb-4 text-sm text-amber-400 bg-amber-500/5 p-3 rounded-lg border border-amber-500/20"
         >
-          ✨ Ця карта застосовується автоматично на вас або скидається в стіл.
+          Ця карта застосовується автоматично на вас або скидається в стіл.
         </div>
 
         <div v-if="isGuardGuessRequired && availableTargets.length > 0" class="mb-5 mt-4">
@@ -81,64 +78,35 @@
           >
             Вгадайте карту опонента (натисніть для вибору):
           </label>
+
           <div
-            class="flex flex-col gap-4 bg-slate-900/60 p-5 rounded-xl border border-slate-700/50"
+            class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-2 bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 justify-items-center"
           >
-            <div class="flex justify-center gap-4">
-              <div
-                v-for="card in cardRows.row1"
-                :key="card.type"
-                @click="guessCard = card.type"
-                class="w-44 h-64 flex-shrink-0 rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
-                :class="[
-                  getCardColor(card.type),
-                  guessCard === card.type
-                    ? 'ring-4 ring-amber-400 scale-105 z-10 shadow-lg shadow-amber-500/30 border-transparent'
-                    : 'opacity-70 hover:opacity-100 hover:scale-102 border border-white/5',
-                ]"
-                :style="
-                  getCardImage(card.type)
-                    ? { backgroundImage: `url(${getCardImage(card.type)})` }
-                    : {}
-                "
-                :data-tooltip="`${card.info.name}(${card.info.value}) — ${
-                  card.info.desc || 'Опис відсутній'
-                }`"
+            <div
+              v-for="card in allCards"
+              :key="card.type"
+              @click="guessCard = card.type"
+              class="w-full max-w-[100px] aspect-[2/3] rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
+              :class="[
+                getCardColor(card.type),
+                guessCard === card.type
+                  ? 'ring-4 ring-amber-400 scale-105 z-10 shadow-lg shadow-amber-500/30 border-transparent'
+                  : 'opacity-70 hover:opacity-100 hover:scale-102 border border-white/5',
+              ]"
+              :style="
+                getCardImage(card.type)
+                  ? { backgroundImage: `url(${getCardImage(card.type)})` }
+                  : {}
+              "
+              :data-tooltip="`${card.info.name}(${card.info.value}) — ${
+                card.info.desc || 'Опис відсутній'
+              }`"
+            >
+              <span
+                class="text-[10px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
               >
-                <span
-                  class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
-                >
-                  {{ guessCard === card.type ? "Обрано" : "Обрати" }}
-                </span>
-              </div>
-            </div>
-            <div class="flex justify-center gap-4">
-              <div
-                v-for="card in cardRows.row2"
-                :key="card.type"
-                @click="guessCard = card.type"
-                class="w-44 h-64 flex-shrink-0 rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
-                :class="[
-                  getCardColor(card.type),
-                  guessCard === card.type
-                    ? 'ring-4 ring-amber-400 scale-105 z-10 shadow-lg shadow-amber-500/30 border-transparent'
-                    : 'opacity-70 hover:opacity-100 hover:scale-102 border border-white/5',
-                ]"
-                :style="
-                  getCardImage(card.type)
-                    ? { backgroundImage: `url(${getCardImage(card.type)})` }
-                    : {}
-                "
-                :data-tooltip="`${card.info.name}(${card.info.value}) — ${
-                  card.info.desc || 'Опис відсутній'
-                }`"
-              >
-                <span
-                  class="text-[8px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
-                >
-                  {{ guessCard === card.type ? "Обрано" : "Обрати" }}
-                </span>
-              </div>
+                {{ guessCard === card.type ? "Обрано" : card.info.name }}
+              </span>
             </div>
           </div>
         </div>
@@ -221,15 +189,12 @@ const filteredCardOptions = computed(() => {
   return uniqueCards;
 });
 
-const cardRows = computed(() => {
-  const cardsArray = Object.keys(filteredCardOptions.value).map((key) => ({
+// Об'єднуємо всі доступні карти в один плаский масив для Grid-сітки
+const allCards = computed(() => {
+  return Object.keys(filteredCardOptions.value).map((key) => ({
     type: key,
     info: filteredCardOptions.value[key],
   }));
-  return {
-    row1: cardsArray.slice(0, 5),
-    row2: cardsArray.slice(5, 9),
-  };
 });
 
 const isValid = computed(() => {

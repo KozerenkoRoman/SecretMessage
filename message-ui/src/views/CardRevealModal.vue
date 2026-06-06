@@ -5,24 +5,45 @@
       class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50"
     >
       <div
-        class="bg-slate-900 border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-lg shadow-2xl text-center flex flex-col"
+        class="bg-slate-900 border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-xl shadow-2xl text-center flex flex-col"
       >
         <div
           class="text-amber-400 font-bold text-xl mb-6 flex items-center justify-center gap-2 font-mono uppercase tracking-wide"
         >
-          ✨{{ isBaron ? "Дуель Барона" : "Ефект Священника" }}
+          {{ isBaron ? "Дуель Барона" : "Ефект Священника" }}
         </div>
+
         <div class="flex justify-center gap-6 flex-wrap my-auto items-stretch">
           <div
             v-for="(card, index) in displayCards"
             :key="index"
-            class="flex flex-col gap-2 items-center"
+            class="flex flex-col gap-3 items-center flex-1 max-w-[190px]"
           >
-            <span
-              class="text-xs text-slate-400 uppercase font-bold tracking-wider font-mono bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700/40"
+            <div
+              class="flex items-center gap-2 bg-slate-800/60 pl-1.5 pr-3 py-1 rounded-full border border-slate-700/50 w-full justify-center"
             >
-              {{ card.label }}
-            </span>
+              <div
+                class="w-16 h-16 rounded-full border border-slate-600 bg-slate-950/60 overflow-hidden flex-shrink-0"
+              >
+                <img
+                  :src="
+                    getAvatarUrl(
+                      card.playerData?.avatar_seed ||
+                        card.playerData?.username ||
+                        card.playerData?.id
+                    )
+                  "
+                  alt="Аватар гравця"
+                  class="w-full h-full object-cover rounded-full"
+                />
+              </div>
+              <span
+                class="text-xs text-slate-300 font-bold tracking-wide font-mono truncate max-w-[120px]"
+              >
+                {{ card.label }}
+              </span>
+            </div>
+
             <div
               class="w-44 h-64 rounded-xl border-2 shadow-2xl transition-all duration-300 select-none bg-cover bg-center relative overflow-hidden group hover:scale-105"
               :class="[card.info.color, card.info.border || 'border-white/10']"
@@ -33,6 +54,7 @@
             ></div>
           </div>
         </div>
+
         <button
           @click="$emit('close')"
           type="button"
@@ -48,6 +70,7 @@
 <script setup>
 import { computed } from "vue";
 import { CARD_INFO } from "../constants/cards.js";
+import { getAvatarUrl } from "../utils/avatar.js"; // Додано імпорт утиліти аватарок
 
 const emit = defineEmits(["close"]);
 const props = defineProps({
@@ -73,43 +96,48 @@ const getCardInfo = (id) => {
   );
 };
 
+// Модифіковано: тепер повертаємо також об'єкт playerData для рендеру аватара
 const displayCards = computed(() => {
   if (!isValidReveal.value) return [];
   if (isBaron.value) {
-    const playerName = getTargetName(props.data.playerId);
-    const targetName = getTargetName(props.data.targetId);
+    const pData = getPlayerData(props.data.playerId);
+    const tData = getPlayerData(props.data.targetId);
     return [
       {
         id: props.data.playerCard,
-        label: playerName,
+        label: pData?.username || "Опонент",
+        playerData: pData,
         info: getCardInfo(props.data.playerCard),
       },
       {
         id: props.data.targetCard,
-        label: targetName,
+        label: tData?.username || "Опонент",
+        playerData: tData,
         info: getCardInfo(props.data.targetCard),
       },
     ];
   }
+
+  const tData = getPlayerData(props.data.targetId);
   return [
     {
       id: props.data.cardType,
-      label: `Карта гравця ${getTargetName(props.data.targetId)}`,
+      label: tData?.username || "Опонент",
+      playerData: tData,
       info: getCardInfo(props.data.cardType),
     },
   ];
 });
 
-const getTargetName = (id) => {
-  if (!id || !props.players) return "Опонент";
+const getPlayerData = (id) => {
+  if (!id || !props.players) return null;
   if (typeof props.players === "object" && props.players[id]) {
-    return props.players[id].username;
+    return props.players[id];
   }
   if (Array.isArray(props.players)) {
-    const found = props.players.find((p) => p && String(p.id) === String(id));
-    return found ? found.username : "Опонент";
+    return props.players.find((p) => p && String(p.id) === String(id)) || null;
   }
-  return "Опонент";
+  return null;
 };
 </script>
 

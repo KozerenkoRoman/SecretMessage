@@ -11,7 +11,7 @@
           <h3
             class="text-amber-400 font-black text-xl tracking-wide uppercase flex items-center justify-center gap-2"
           >
-            🔮 Ефект Канцлера
+            Ефект Канцлера
           </h3>
           <p class="text-sm text-slate-300 mt-2 font-medium">
             <span v-if="chosenKeepIndex === null" class="text-cyan-400">

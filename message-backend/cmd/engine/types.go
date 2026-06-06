@@ -54,6 +54,7 @@ type Player struct {
 	IsProtected      bool       `json:"is_protected"`
 	Score            int        `json:"score"`
 	SpyPointsAwarded bool       `json:"spy_points_awarded"`
+	AvatarSeed       string     `json:"avatar_seed"`
 }
 
 // Очікуваний екшен (для Chancellor)
@@ -162,6 +163,7 @@ func (s GameState) Clone() GameState {
 			IsProtected:      player.IsProtected,
 			Score:            player.Score,
 			SpyPointsAwarded: player.SpyPointsAwarded,
+			AvatarSeed:       player.AvatarSeed,
 		}
 	}
 

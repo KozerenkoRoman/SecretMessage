@@ -16,9 +16,17 @@ import (
 )
 
 type AuthRequest struct {
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	AvatarSeed string `json:"avatar_seed,omitempty"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type UserRequest struct {
+	UserID      string `json:"user_id"`
+	Username    string `json:"username"`
+	Email       string `json:"email,omitempty"`
+	AvatarSeed  string `json:"avatar_seed,omitempty"`
+	Password    string `json:"password,omitempty"`
+	PasswordOld string `json:"password_old,omitempty"`
 }
 
 type BlockRequest struct {
@@ -51,17 +59,11 @@ func (s *Server) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		// Оскільки це безшовна автореєстрація, створюємо дефолтний емейл
 		defaultEmail := fmt.Sprintf("%s@loveletter.local", req.Username)
 
-		avatarSeed := req.AvatarSeed
-		if avatarSeed == "" {
-			// Якщо сид порожній, створюємо випадковий унікальний рядок
-			avatarSeed = uuid.New().String()
-		}
-
 		_, err := s.hub.store.Queries.CreateUser(ctx, gen.CreateUserParams{
 			Username:     req.Username,
 			Email:        defaultEmail,
 			PasswordHash: string(hashedPassword),
-			AvatarSeed:   avatarSeed,
+			AvatarSeed:   uuid.New().String(),
 		})
 		if err != nil {
 			s.log.WithField("error", err.Error()).Error("Помилка автореєстрації користувача")
@@ -105,9 +107,10 @@ func (s *Server) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.sendJSON(w, http.StatusOK, map[string]string{
-		"token":     token,
-		"user_role": dbUser.UserRole,
-		"username":  dbUser.Username,
+		"token":       token,
+		"user_role":   dbUser.UserRole,
+		"username":    dbUser.Username,
+		"avatar_seed": dbUser.AvatarSeed,
 	})
 }
 
@@ -198,33 +201,133 @@ func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	s.sendJSON(w, http.StatusOK, response)
 }
 
-func (s *Server) HandleUpdateAvatar(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("userID").(uuid.UUID)
-
-	var input struct {
-		AvatarSeed string `json:"avatar_seed"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+func (s *Server) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.sendHTTPError(w, http.StatusMethodNotAllowed, "Only POST allowed")
 		return
 	}
 
-	if len(input.AvatarSeed) == 0 || len(input.AvatarSeed) > 100 {
-		http.Error(w, "invalid seed length", http.StatusBadRequest)
+	var claims *auth.Claims
+	if c, ok := r.Context().Value(UserContextKey).(*auth.Claims); ok {
+		claims = c
+	} else if c, ok := r.Context().Value("user_claims").(*auth.Claims); ok {
+		claims = c
+	}
+
+	if claims == nil {
+		s.sendHTTPError(w, http.StatusUnauthorized, "Неавторизований доступ")
 		return
 	}
 
-	err := s.hub.store.Queries.UpdateUserAvatar(r.Context(), gen.UpdateUserAvatarParams{
-		ID:         userID,
-		AvatarSeed: input.AvatarSeed,
-	})
+	currentUserUUID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		http.Error(w, "failed to update avatar", http.StatusInternalServerError)
+		s.sendHTTPError(w, http.StatusBadRequest, "Некоректний ID користувача в токені")
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	var req UserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.sendHTTPError(w, http.StatusBadRequest, "Некоректний формат JSON")
+		return
+	}
+
+	ctx := r.Context()
+
+	dbUser, err := s.hub.store.Queries.GetUserByID(ctx, currentUserUUID)
+	if err != nil {
+		s.sendHTTPError(w, http.StatusNotFound, "Користувача не знайдено в базі даних")
+		return
+	}
+
+	hasChanges := false
+	if req.Password != "" {
+		if req.PasswordOld == "" {
+			s.sendHTTPError(w, http.StatusBadRequest, "Для зміни пароля необхідно вказати старий пароль")
+			return
+		}
+
+		err := bcrypt.CompareHashAndPassword([]byte(dbUser.PasswordHash), []byte(req.PasswordOld))
+		if err != nil {
+			s.sendHTTPError(w, http.StatusUnauthorized, "Поточний пароль вказано невірно")
+			return
+		}
+
+		newHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			s.sendHTTPError(w, http.StatusInternalServerError, "Помилка безпеки при обробці пароля")
+			return
+		}
+
+		err = s.hub.store.Queries.UpdateUserPassword(ctx, gen.UpdateUserPasswordParams{
+			ID:           dbUser.ID,
+			PasswordHash: string(newHash),
+		})
+		if err != nil {
+			s.log.Errorf("Помилка оновлення пароля для %s: %v", dbUser.Username, err)
+			s.sendHTTPError(w, http.StatusInternalServerError, "Помилка бази даних при зміні пароля")
+			return
+		}
+
+		hasChanges = true
+		s.log.Infof("Користувач %s успішно змінив свій пароль", dbUser.Username)
+	}
+
+	usernameChanged := req.Username != "" && req.Username != dbUser.Username
+	avatarChanged := req.AvatarSeed != "" && req.AvatarSeed != dbUser.AvatarSeed
+
+	if usernameChanged || avatarChanged {
+		if avatarChanged && len(req.AvatarSeed) > 255 {
+			s.sendHTTPError(w, http.StatusBadRequest, "Занадто довгий ідентифікатор аватара")
+			return
+		}
+
+		targetUsername := dbUser.Username
+		if req.Username != "" {
+			targetUsername = req.Username
+		}
+
+		targetAvatarSeed := dbUser.AvatarSeed
+		if req.AvatarSeed != "" {
+			targetAvatarSeed = req.AvatarSeed
+		}
+
+		err = s.hub.store.Queries.UpdateUser(ctx, gen.UpdateUserParams{
+			ID:         dbUser.ID,
+			Username:   targetUsername,
+			AvatarSeed: targetAvatarSeed,
+			Email:      dbUser.Email, // Email залишаємо без змін, беремо поточний з бази
+		})
+		if err != nil {
+			s.log.Errorf("Помилка оновлення профілю для %s: %v", dbUser.Username, err)
+			s.sendHTTPError(w, http.StatusInternalServerError, "Помилка бази даних при збереженні профілю")
+			return
+		}
+
+		if usernameChanged {
+			s.hub.DisconnectUserGlobally(dbUser.Username)
+			s.log.Infof("Користувач %s змінив нікнейм на %s (виконано реконнект)", dbUser.Username, targetUsername)
+		}
+
+		dbUser.Username = targetUsername
+		dbUser.AvatarSeed = targetAvatarSeed
+		hasChanges = true
+	}
+
+	if !hasChanges {
+		s.sendJSON(w, http.StatusOK, map[string]string{
+			"status":  "no_changes",
+			"message": "Дані збігаються з тими, що вже збережені",
+		})
+		return
+	}
+
+	// 4. Повертаємо успішну відповідь разом з актуальним профілем
+	s.sendJSON(w, http.StatusOK, map[string]any{
+		"status":      "success",
+		"username":    dbUser.Username,
+		"avatar_seed": dbUser.AvatarSeed,
+		"user_role":   dbUser.UserRole,
+	})
 }
 
 // HandleGetRooms повертає список ідентифікаторів активних кімнат у Хабі

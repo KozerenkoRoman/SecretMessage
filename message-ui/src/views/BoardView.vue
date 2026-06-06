@@ -8,45 +8,75 @@
       <div class="flex items-center gap-4">
         <button @click="handleLeaveGame" type="button" class="btn-danger">Вийти</button>
         <div class="h-6 w-[1px] bg-slate-700"></div>
+        <div
+          class="flex items-center gap-2 bg-slate-900/60 pl-2 pr-1.5 py-0.5 rounded-lg border border-slate-700/40"
+        >
+          <span
+            class="text-xs font-medium text-slate-300 hidden sm:inline max-w-[80px] truncate"
+          >
+            {{ myPlayer?.username || "Гість" }}
+          </span>
+
+          <div
+            class="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 p-[1px] shadow-inner flex-shrink-0"
+          >
+            <img
+              :src="getAvatarUrl(myPlayer?.avatar_seed)"
+              alt="Avatar"
+              class="w-full h-full object-cover rounded-full bg-slate-800"
+            />
+          </div>
+        </div>
         <div>
           <h2 class="text-sm font-bold text-yellow-400 font-mono leading-none mb-0.5">
             Кімната: {{ roomID }}
           </h2>
-          <p class="text-[10px] text-slate-400">
+          <p class="text-xs text-slate-400">
             Час:
-            <span class="text-amber-400 font-mono font-bold"
+            <span class="text-amber-400 font-mono font-bold text-xs">
               >{{ gameState?.seconds_left || 0 }}с</span
             >
           </p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
-        <div
-          v-if="!gameState?.is_started"
-          class="status-pill bg-blue-500/20 text-blue-400 border-blue-500/40 animate-pulse"
-        >
-          Очікування...
+
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <template v-if="!gameState?.is_started">
+            <button v-if="canStartGame" @click="handleStartGame" class="btn-primary">
+              Почати гру
+            </button>
+            <div
+              v-else
+              class="status-pill bg-blue-500/20 text-blue-400 border-blue-500/40 animate-pulse"
+            >
+              Очікування...
+            </div>
+          </template>
+
+          <template v-else>
+            <div
+              v-if="showChancellorPanel"
+              class="status-pill bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-yellow-500/40 animate-pulse"
+            >
+              Вибір :Канцлера!
+            </div>
+            <div
+              v-else-if="isMyTurn"
+              class="status-pill bg-emerald-500/20 text-emerald-400 border-emerald-500/40 animate-pulse"
+            >
+              Ваш хід!
+            </div>
+            <div
+              v-else
+              class="status-pill bg-slate-700 text-slate-300 border-transparent"
+            >
+              Ходить: {{ currentTurnPlayerName }}
+            </div>
+          </template>
         </div>
 
-        <button v-if="canStartGame" @click="handleStartGame" class="btn-primary">
-          Почати ⚔
-        </button>
-
-        <div
-          v-else-if="showChancellorPanel"
-          class="status-pill bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-yellow-500/40 animate-pulse"
-        >
-          Вибір :Канцлера!
-        </div>
-        <div
-          v-else-if="isMyTurn"
-          class="status-pill bg-emerald-500/20 text-emerald-400 border-emerald-500/40 animate-pulse"
-        >
-          Ваш хід!
-        </div>
-        <div v-else class="status-pill bg-slate-700 text-slate-300 border-transparent">
-          Ходить: {{ currentTurnPlayerName }}
-        </div>
+        <div class="h-6 w-[1px] bg-slate-700"></div>
       </div>
     </header>
 
@@ -222,7 +252,7 @@
       >
         <div class="text-center">
           <h4 class="text-amber-400 font-bold text-xs uppercase leading-none">
-            🔮 Оберіть карту собі
+            Оберіть карту собі
           </h4>
         </div>
         <div class="flex justify-center gap-4 items-center flex-1 w-full overflow-hidden">
@@ -313,6 +343,7 @@ import { CARD_INFO } from "../constants/cards";
 import { ref, computed, watch } from "vue";
 import { useGameStore } from "../stores/gameStore";
 import { storeToRefs } from "pinia";
+import { getAvatarUrl } from "../utils/avatar";
 import ChancellorModal from "./ChancellorModal.vue";
 import ActionModal from "./ActionModal.vue";
 import CardRevealModal from "./CardRevealModal.vue";
@@ -475,7 +506,13 @@ const opponents = computed(() => {
 const myPlayer = computed(() => {
   const me = effectiveMyID.value;
   if (!me) return null;
-  return arrangedPlayers.value.find((p) => p.id === me) || null;
+
+  const playerObj = arrangedPlayers.value.find((p) => p.id === me) || null;
+  if (playerObj && (!playerObj.avatar_seed || playerObj.avatar_seed === "")) {
+    playerObj.avatar_seed = localStorage.getItem("avatar_seed") || "default_seed";
+  }
+
+  return playerObj;
 });
 
 const myHandCards = computed(() => {

@@ -1,11 +1,36 @@
-<!-- === src/views/DesktopView.vue === -->
 <template>
   <div class="min-h-screen bg-slate-950 text-white p-6">
     <div class="max-w-4xl mx-auto">
-      <div class="lobby-header">
-        <div>
-          <h1 class="text-xl font-bold text-amber-500 font-mono">Secret Message</h1>
-          <p class="text-xs text-slate-400">Вітаємо, {{ currentUsername }}</p>
+      <div
+        class="lobby-header flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-xl mb-6"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            @click="openAvatarModal"
+            class="relative w-12 h-12 bg-slate-950 border-2 border-amber-500/80 rounded-full p-0.5 overflow-hidden shadow-md cursor-pointer group transition-transform hover:scale-105"
+            title="Налаштування профілю"
+          >
+            <img
+              :src="getAvatarUrl(userAvatarSeed)"
+              alt="Мій аватар"
+              class="w-full h-full object-cover rounded-full"
+            />
+            <div
+              class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-full"
+            >
+              <span
+                class="text-[10px] text-amber-400 font-bold uppercase tracking-tighter"
+                >Змінити</span
+              >
+            </div>
+          </div>
+
+          <div>
+            <h1 class="text-xl font-bold text-amber-500 font-mono leading-tight">
+              Secret Message
+            </h1>
+            <p class="text-xs text-slate-400">Вітаємо, {{ currentUsername }}</p>
+          </div>
         </div>
 
         <div class="flex items-center gap-3">
@@ -65,6 +90,15 @@
         Активних кімнат немає або вони вже розпочали гру. Створіть першу!
       </div>
     </div>
+
+    <UserProfileModal
+      v-if="showAvatarModal"
+      :currentUsername="currentUsername"
+      :currentSeed="userAvatarSeed"
+      :apiUrl="''"
+      @close="showAvatarModal = false"
+      @updated="handleProfileUpdated"
+    />
   </div>
 </template>
 
@@ -73,15 +107,47 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useGameStore } from "../stores/gameStore";
+import { getAvatarUrl } from "../utils/avatar";
+import UserProfileModal from "./UserProfileModal.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();
 const gameStore = useGameStore();
 const apiError = ref(null);
 
-// Виправлено: Беремо саме нікнейм (username), а не UUID користувача
-const currentUsername =
-  localStorage.getItem("username") || authStore.user?.username || "Гравець";
+// Перетворюємо у ref, щоб воно миттєво реагувало на зміни профілю з модалки
+const currentUsername = ref(
+  localStorage.getItem("username") || authStore.user?.username || "Гравець"
+);
+
+// Стан для керування відображенням модалки
+const showAvatarModal = ref(false);
+const userAvatarSeed = ref(
+  localStorage.getItem("avatar_seed") || authStore.user?.avatar_seed || "default_seed"
+);
+
+// Функція для генерації випадкового сиду
+const generateRandomSeed = () => {
+  return (
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15)
+  );
+};
+
+// Відкриття вікна редагування
+const openAvatarModal = () => {
+  showAvatarModal.value = true;
+};
+
+const handleProfileUpdated = (updatedData) => {
+  userAvatarSeed.value = updatedData.avatar_seed;
+  currentUsername.value = updatedData.username;
+
+  if (authStore.user) {
+    authStore.user.username = updatedData.username;
+    authStore.user.avatar_seed = updatedData.avatar_seed;
+  }
+};
 
 const fetchRooms = async () => {
   try {
@@ -149,5 +215,16 @@ const createRoom = async () => {
 onMounted(() => {
   fetchRooms();
   gameStore.connectToHub();
+  const storedSeed = localStorage.getItem("avatar_seed") || authStore.user?.avatar_seed;
+  if (storedSeed && storedSeed !== "default_seed") {
+    userAvatarSeed.value = storedSeed;
+  } else {
+    const newSeed = generateRandomSeed();
+    userAvatarSeed.value = newSeed;
+    localStorage.setItem("avatar_seed", newSeed);
+
+    // Тут в ідеалі зробити швидкий запит на бекенд (POST /api/user),
+    // щоб назавжди зберегти цей згенерований сід у базу даних для цього юзера.
+  }
 });
 </script>

@@ -1,4 +1,3 @@
-<!-- === src/views/ChancellorModal.vue === -->
 <template>
   <Transition name="fade">
     <div
@@ -24,7 +23,6 @@
           </p>
         </div>
 
-        <!-- ЗБІЛЬШЕНО КАРТИ ДО w-44 h-64 ТА МІНІМАЛЬНУ ВИСОТУ КОНТЕЙНЕРА ДО min-h-[280px] -->
         <div class="flex justify-center gap-4 min-h-[280px] items-center my-4 flex-wrap">
           <div
             v-for="(cardType, index) in cards"

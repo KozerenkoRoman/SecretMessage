@@ -327,17 +327,46 @@ func (q *Queries) UnbanUser(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const updateUserAvatar = `-- name: UpdateUserAvatar :exec
-UPDATE users SET avatar_seed = $2, updated_at = NOW() WHERE id = $1
+const updateUser = `-- name: UpdateUser :exec
+UPDATE users 
+SET avatar_seed = $2, 
+username = $3,
+email = $4,
+updated_at = NOW() 
+WHERE id = $1
 `
 
-type UpdateUserAvatarParams struct {
+type UpdateUserParams struct {
 	ID         uuid.UUID `json:"id"`
 	AvatarSeed string    `json:"avatar_seed"`
+	Username   string    `json:"username"`
+	Email      string    `json:"email"`
 }
 
-func (q *Queries) UpdateUserAvatar(ctx context.Context, arg UpdateUserAvatarParams) error {
-	_, err := q.db.Exec(ctx, updateUserAvatar, arg.ID, arg.AvatarSeed)
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
+	_, err := q.db.Exec(ctx, updateUser,
+		arg.ID,
+		arg.AvatarSeed,
+		arg.Username,
+		arg.Email,
+	)
+	return err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users 
+SET password_hash = $2, 
+updated_at = NOW() 
+WHERE id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	ID           uuid.UUID `json:"id"`
+	PasswordHash string    `json:"password_hash"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
 	return err
 }
 

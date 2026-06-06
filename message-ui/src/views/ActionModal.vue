@@ -15,24 +15,44 @@
         <div v-if="requiresTargetSelection" class="mb-4">
           <div v-if="availableTargets.length > 0">
             <label
-              class="block text-xs uppercase text-slate-400 font-bold mb-2 tracking-wider font-mono"
+              class="block text-xs uppercase text-slate-400 font-bold mb-3 tracking-wider font-mono text-center md:text-left"
             >
               Оберіть Ціль:
             </label>
-            <div class="grid grid-cols-2 gap-2">
+            <div
+              class="flex flex-wrap justify-center gap-6 bg-slate-900/40 p-4 rounded-xl border border-slate-700/30"
+            >
               <button
                 v-for="p in availableTargets"
                 :key="p.id"
                 @click="targetID = p.id"
                 type="button"
-                class="p-2 rounded-lg border text-sm font-medium transition-all cursor-pointer text-center font-mono"
-                :class="[
-                  targetID === p.id
-                    ? 'bg-amber-600 border-amber-400 text-white shadow-md shadow-amber-500/20'
-                    : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600',
-                ]"
+                class="flex flex-col items-center gap-2 group focus:outline-none cursor-pointer"
               >
-                {{ p.username }}{{ p.id === myID ? " (Ви)" : "" }}
+                <div
+                  class="w-20 h-20 rounded-full border-2 p-1 overflow-hidden transition-all duration-200"
+                  :class="[
+                    targetID === p.id
+                      ? 'border-amber-400 bg-amber-950/40 scale-105 shadow-lg shadow-amber-500/20'
+                      : 'border-slate-600 bg-slate-950/60 group-hover:border-slate-400 group-hover:scale-102',
+                  ]"
+                >
+                  <img
+                    :src="getAvatarUrl(p.avatar_seed || p.username || p.id)"
+                    alt="Аватар гравця"
+                    class="w-full h-full object-cover rounded-full"
+                  />
+                </div>
+                <span
+                  class="text-xs font-semibold font-mono tracking-wide max-w-[100px] truncate text-center transition-colors"
+                  :class="[
+                    targetID === p.id
+                      ? 'text-amber-400 font-bold'
+                      : 'text-slate-300 group-hover:text-white',
+                  ]"
+                >
+                  {{ p.username }}{{ p.id === myID ? " (Ви)" : "" }}
+                </span>
               </button>
             </div>
           </div>
@@ -148,6 +168,7 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { CARD_INFO } from "../constants/cards";
+import { getAvatarUrl } from "../utils/avatar";
 
 const props = defineProps({
   isOpen: { type: Boolean, required: true },

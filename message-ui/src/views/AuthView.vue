@@ -106,10 +106,19 @@ const handleSubmit = async () => {
           (isRegister.value ? "Помилка реєстрації" : "Неправильний логін або пароль")
       );
     }
+
     const data = await response.json();
     if (data.token) {
-      authStore.setSession(data.token, { username: data.username, role: data.user_role });
-      localStorage.setItem("user_id", data.username);
+      authStore.setSession(data.token, {
+        username: data.username,
+        role: data.user_role,
+        avatar_seed: data.avatar_seed,
+      });
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("username", data.username);
+      localStorage.setItem("avatar_seed", data.avatar_seed);
+
       if (authStore.isAdmin) {
         router.push("/admin");
       } else {

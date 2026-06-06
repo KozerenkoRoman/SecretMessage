@@ -67,5 +67,19 @@ JOIN users as u ON s.user_id = u.id
 ORDER BY s.total_score DESC, s.games_won DESC
 LIMIT $1;
 
--- name: UpdateUserAvatar :exec
-UPDATE users SET avatar_seed = $2, updated_at = NOW() WHERE id = $1;
+-- name: UpdateUser :exec
+UPDATE users 
+SET avatar_seed = $2, 
+username = $3,
+email = $4,
+updated_at = NOW() 
+WHERE id = $1;
+
+-- name: UpdateUserPassword :exec
+UPDATE users 
+SET password_hash = $2, 
+updated_at = NOW() 
+WHERE id = $1;
+
+
+

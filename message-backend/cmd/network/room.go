@@ -228,15 +228,13 @@ func (r *Room) GetState() engine.GameState {
 // Connection lifecycle
 // =============================================================================
 
-// RegisterClient прив'язує WS-з'єднання гравця до кімнати.
 func (r *Room) RegisterClient(playerID string, client *GlobalClient) {
 	r.mu.Lock()
 	r.conns[playerID] = client
 	r.log.WithFields(logrus.Fields{"room_id": r.id, "player_id": playerID}).
 		Debug("Сокет гравця успішно зареєстровано в кімнаті")
 	r.mu.Unlock()
-
-	go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+	// ПРИБРАНО: go r.BroadcastState(UpdateTypeRoomUpdated, nil)
 }
 
 // UnregisterClient — обробка повного дисконекту.
@@ -499,8 +497,6 @@ type outgoingPacket struct {
 //   - Подія, чий Mask(viewerID) повернув той самий obj без копіювання,
 //     не призводить до зайвих аллокацій.
 func (r *Room) BroadcastState(updateType string, events []engine.DomainEvent) {
-	// Швидкий snapshot: копіюємо лише ті поля, що нам потрібні після виходу
-	// з RLock. Стан самого Room залишається lock-free після цієї секції.
 	r.mu.RLock()
 	baseState := r.state.Clone()
 	clientsCopy := make(map[string]*GlobalClient, len(r.conns))
@@ -514,25 +510,33 @@ func (r *Room) BroadcastState(updateType string, events []engine.DomainEvent) {
 	}
 
 	for playerID, client := range clientsCopy {
-		// Будуємо viewer-state без глибокого Clone(). baseState вже є
-		// owned-копією поточного стану, тож ми можемо переюзати його
-		// верхньорівневі поля (Deck, TurnOrder, BurnCard) як read-only.
-		// Унікальною на viewer'а є лише мапа Players — там ми ховаємо чужі руки.
 		viewerPlayers := make(map[string]engine.Player, len(baseState.Players))
 		for id, p := range baseState.Players {
-			if id != playerID && len(p.Hand) > 0 {
-				// Створюємо нульований hand тієї ж довжини, щоб у JSON було
-				// `[0,0]` (фронт використовує саму довжину, не значення).
-				p.Hand = make([]engine.CardType, len(p.Hand))
+			maskedPlayer := engine.Player{
+				ID:               p.ID,
+				Username:         p.Username,
+				AvatarSeed:       p.AvatarSeed,
+				DiscardPile:      p.DiscardPile,
+				Score:            p.Score,
+				IsOut:            p.IsOut,
+				IsProtected:      p.IsProtected,
+				SpyPointsAwarded: p.SpyPointsAwarded,
 			}
-			viewerPlayers[id] = p
+
+			// Якщо це опонент і він має карти в руках — ховаємо їхній тип (замінюємо на 0 / невідомо)
+			if id != playerID && len(p.Hand) > 0 {
+				maskedPlayer.Hand = make([]engine.CardType, len(p.Hand)) // створює масив «порожніх» карт тієї ж кількості
+			} else {
+				// Якщо це сам гравець — віддаємо його руку як є
+				maskedPlayer.Hand = p.Hand
+			}
+
+			viewerPlayers[id] = maskedPlayer
 		}
+
 		viewerState := baseState
 		viewerState.Players = viewerPlayers
 
-		// Маскування подій: кожний Payload сам знає, що приховати від цього viewer.
-		// Тип-дискримінація відбувається через інтерфейс EventPayload (без JSON
-		// round-trip і без map[string]any — тобто без зайвої роботи для GC).
 		var filteredEvents []engine.DomainEvent
 		if len(events) > 0 {
 			filteredEvents = make([]engine.DomainEvent, len(events))
@@ -768,10 +772,6 @@ func (r *Room) SubmitChancellorAction(ctx context.Context, playerID, reqID strin
 	}
 }
 
-// =============================================================================
-// AddPlayer
-// =============================================================================
-
 // AddPlayer додає гравця в лобі.
 //
 // Передумова виклику: playerID УЖЕ провалідований як UUID на рівні
@@ -783,56 +783,56 @@ func (r *Room) AddPlayer(playerID string) error {
 		return fmt.Errorf("invalid player_id, expected UUID: %w", parseErr)
 	}
 
-	// --- Critical section ---
 	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	log := r.log.WithFields(logrus.Fields{"room_id": r.id, "player_id": playerID})
 
 	if len(r.state.TurnOrder) > 0 {
-		r.mu.Unlock()
 		return fmt.Errorf("cannot join: game has already started")
 	}
 	if len(r.state.Players) >= MAX_PLAYERS {
-		r.mu.Unlock()
 		return fmt.Errorf("room is full")
 	}
 
 	if _, exists := r.state.Players[playerID]; exists {
 		log.Debug("Гравець вже в кімнаті, пропускаємо інкремент лічильника")
 	} else {
-		// Username тягнемо з БД ОДРАЗУ під локом — це швидкий read.
-		// Якщо БД недоступна, ми просто не маємо username (не критично).
 		var username string
+		var avatarSeed string
+
 		if user, dbErr := r.store.GetUserByID(context.Background(), playerUUID); dbErr == nil {
 			username = user.Username
+			avatarSeed = user.AvatarSeed
+			log.Debug("Користувача знайдено в БД, avatarSeed: ", avatarSeed, ", username: ", username)
 		} else {
-			log.WithField("error", dbErr.Error()).
-				Debug("Не вдалося отримати username гравця з БД (не критично)")
+			log.WithField("error", dbErr.Error()).Debug("Не вдалося отримати дані гравця з БД (не критично)")
+			username = "Гравець"
+			avatarSeed = "default_seed"
 		}
 
 		r.state.Players[playerID] = engine.Player{
 			ID:          playerID,
 			Username:    username,
+			AvatarSeed:  avatarSeed,
 			Hand:        []engine.CardType{},
 			DiscardPile: []engine.CardType{},
 			Score:       0,
 		}
 	}
 
-	// КРИТИЧНО: знімаємо snapshot ДОКИ ТРИМАЄМО ЛОК.
-	// Раніше тут було r.GetState().Players (виклик RLock-методу під Lock —
-	// потенційний self-deadlock на RWMutex upgrade). Тепер читаємо r.state
-	// напряму, бо ми вже власники Lock'у.
 	playersCount := len(r.state.Players)
-	r.mu.Unlock()
-	// --- End critical section ---
 
 	if err := r.saveToDB(context.Background()); err != nil {
 		return fmt.Errorf("failed to save state after join: %w", err)
 	}
+
 	if r.hub != nil {
 		go r.hub.NotifyLobbyUpdate()
 	}
+
 	go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+
 	log.Infof("Гравець успішно приєднався. Усього гравців: %d", playersCount)
 	return nil
 }

@@ -6,15 +6,15 @@
       <h2
         class="text-2xl font-bold text-center mb-6 text-amber-500 font-mono tracking-wide"
       >
-        Вхід до гри
+        Реєстрація
       </h2>
 
-      <form @submit.prevent="handleLogin" class="space-y-4">
+      <form @submit.prevent="handleRegister" class="space-y-4">
         <div
-          v-if="loginError"
+          v-if="registerError"
           class="p-3 rounded-lg bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs text-center font-medium"
         >
-          {{ loginError }}
+          {{ registerError }}
         </div>
 
         <div>
@@ -26,6 +26,19 @@
             type="text"
             required
             class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-500 text-white font-medium"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-1 text-slate-400"
+            >Email-адреса</label
+          >
+          <input
+            v-model="email"
+            type="email"
+            required
+            class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-500 text-white font-medium"
+            placeholder="example@domain.com"
           />
         </div>
 
@@ -43,13 +56,13 @@
           type="submit"
           class="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black rounded-xl shadow-lg shadow-amber-500/10 mt-4 cursor-pointer transition-all active:scale-95 font-mono uppercase text-sm tracking-wider"
         >
-          Увійти до гри
+          Зареєструватися
         </button>
 
         <p class="text-center text-xs text-slate-500 mt-4">
-          Ще немає акаунта?
-          <router-link to="/register" class="text-amber-500 hover:underline ml-1">
-            Зареєструватися
+          Вже маєте акаунт?
+          <router-link to="/auth" class="text-amber-500 hover:underline ml-1">
+            Увійти
           </router-link>
         </p>
       </form>
@@ -66,25 +79,30 @@ const authStore = useAuthStore();
 const router = useRouter();
 
 const username = ref("");
+const email = ref("");
 const password = ref("");
-const loginError = ref(null);
+const registerError = ref(null);
 
-const handleLogin = async () => {
+const handleRegister = async () => {
   try {
-    loginError.value = null;
+    registerError.value = null;
 
-    const response = await fetch("/api/auth", {
+    const bodyPayload = {
+      username: username.value,
+      email: email.value,
+      password: password.value,
+      avatar_seed: `user_${Math.random().toString(36).substring(2, 11)}`,
+    };
+
+    const response = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: username.value,
-        password: password.value,
-      }),
+      body: JSON.stringify(bodyPayload),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || "Неправильний логін або пароль");
+      throw new Error(errorData.message || "Помилка реєстрації нового користувача");
     }
 
     const data = await response.json();
@@ -101,18 +119,13 @@ const handleLogin = async () => {
       localStorage.setItem("user_id", data.user_id || "");
       localStorage.setItem("avatar_seed", data.avatar_seed || "");
 
-      if (authStore.isAdmin) {
-        router.push("/admin");
-      } else {
-        const redirectPath = router.currentRoute.value.query.redirect || "/desktop";
-        router.push(redirectPath);
-      }
+      router.push("/desktop");
     } else {
-      throw new Error("Сервер не повернув JWT-токен доступу");
+      throw new Error("Сервер успішно створив акаунт, але не надіслав токен авторизації");
     }
   } catch (err) {
-    loginError.value = err.message;
-    console.error("Помилка автентифікації на клієнті:", err);
+    registerError.value = err.message;
+    console.error("Реєстрація провалена:", err);
   }
 };
 </script>

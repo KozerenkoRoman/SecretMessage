@@ -15,6 +15,7 @@ func InitRoutes(mux *http.ServeMux, s *Server) {
 	s.GET(mux, "/api/rooms", s.HandleGetRooms)
 	s.POST(mux, "/api/rooms", s.HandleCreateRoom)
 	s.POST(mux, "/api/user", s.HandleUpdateUser)
+	s.PUBLIC_POST(mux, "/api/register", s.HandleRegister)
 
 	// 3. АДМІНІСТРАТИВНІ ЕНДПОЇНТИ (AuthMiddleware + AdminOnlyMiddleware автоматично)
 	s.ADMIN_GET(mux, "/api/admin/games", s.HandleAdminGetGames)              // Перегляд логів матчів

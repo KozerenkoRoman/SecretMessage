@@ -137,7 +137,7 @@ export const useGameStore = defineStore('gameStore', () => {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const backendHost = window.location.hostname === 'localhost' ? 'localhost:3000' : window.location.host;
-    const wsUrl = `${protocol}//${backendHost}/ws?token=${token}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws?token=${token}`;
 
     console.log(`[WS] Створення нового підключення до шлюзу: ${wsUrl}`);
     try {

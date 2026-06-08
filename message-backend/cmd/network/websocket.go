@@ -23,13 +23,12 @@ type WSMessage struct {
 
 type Server struct {
 	hub      *Hub
-	gateway  *Gateway // ЗМІНЕНО: Інтегруємо Gateway всередину сервера
+	gateway  *Gateway
 	log      *logrus.Logger
 	upgrader websocket.Upgrader
 	store    *storage.Storage
 }
 
-// ЗМІНЕНО: Конструктор тепер приймає gateway
 func NewServer(hub *Hub, gateway *Gateway, logger *logrus.Logger, store *storage.Storage) *Server {
 	return &Server{
 		hub:     hub,

@@ -80,7 +80,6 @@
       </div>
     </header>
 
-    <!-- ГОЛОВНА ІГРОВА ЗОНА -->
     <main
       class="flex-1 flex flex-col justify-between my-1 gap-1 overflow-hidden w-full max-w-7xl mx-auto"
     >
@@ -117,19 +116,47 @@
             <div
               class="flex justify-center items-center h-36 w-full overflow-hidden pl-4 gap-4 relative"
             >
+              <div class="flex items-center justify-center relative flex-1">
+                <div
+                  v-for="cIdx in getOpponentHandCount(player)"
+                  :key="cIdx"
+                  class="w-20 h-28 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden -mr-8 relative transition-transform duration-300"
+                >
+                  <img
+                    :src="deckBackImage"
+                    :alt="$t('common.cardBackAlt')"
+                    class="w-full h-full object-cover rounded-sm select-none"
+                  />
+                </div>
+              </div>
+
               <div
-                v-for="cIdx in getOpponentHandCount(player)"
-                :key="cIdx"
-                class="w-24 h-36 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden -mr-10 relative"
-                :class="{
-                  'bg-slate-950': !player.is_protected,
-                }"
+                v-if="lastPlayedCardsByPlayer[player.id] !== undefined"
+                class="flex flex-col items-center justify-center flex-shrink-0 animate-fade-in z-20 px-1"
               >
-                <img
-                  :src="deckBackImage"
-                  :alt="$t('common.cardBackAlt')"
-                  class="w-full h-full object-cover rounded-sm select-none"
-                />
+                <span
+                  class="text-[8px] uppercase text-amber-400 font-bold tracking-wider mb-0.5 animate-pulse"
+                >
+                  {{ $t("board.lastMove") || "Хід" }}
+                </span>
+                <div
+                  class="game-card w-20 h-28 border-2 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.6)] bg-cover bg-center rounded-lg relative overflow-hidden transition-all duration-300"
+                  :class="getCardColor(lastPlayedCardsByPlayer[player.id])"
+                  :data-tooltip="getCardName(lastPlayedCardsByPlayer[player.id])"
+                >
+                  <img
+                    v-if="getCardImage(lastPlayedCardsByPlayer[player.id])"
+                    :src="getCardImage(lastPlayedCardsByPlayer[player.id])"
+                    :alt="getCardName(lastPlayedCardsByPlayer[player.id])"
+                    class="w-full h-full object-cover rounded-sm pointer-events-none"
+                  />
+                  <div
+                    v-else
+                    class="w-full h-full flex items-center justify-center text-[9px] text-center p-1 font-bold"
+                  >
+                    {{ getCardName(lastPlayedCardsByPlayer[player.id]) }}
+                  </div>
+                </div>
               </div>
 
               <div
@@ -456,6 +483,123 @@ const gameStore = useGameStore();
 const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
 
 const showLeaveConfirm = ref(false);
+const showActionModal = ref(false);
+const activePlay = ref({ cardType: "", handIndex: 0, targetID: "", guessCard: "" });
+
+// Локальне збереження останньої зіграної карти для кожного гравця
+const lastPlayedCardsByPlayer = ref({});
+
+
+const effectiveMyID = computed(() => {
+  const fromStore = storeMyID.value;
+  if (typeof fromStore === "string" && fromStore.length > 0) return fromStore;
+  return typeof props.myID === "string" ? props.myID : "";
+});
+
+const arrangedPlayers = computed(() => {
+  const playersData = props.gameState?.players;
+  if (!playersData) return [];
+  const list = Array.isArray(playersData)
+    ? props.gameState.players
+        .filter(
+          (p) => p && typeof p === "object" && typeof p.id === "string" && p.id.length > 0
+        )
+        .map((p) => ({ ...p }))
+    : Object.keys(playersData)
+        .map((id) => {
+          const raw = playersData[id];
+          if (!raw || typeof raw !== "object") return null;
+          return { ...raw, id };
+        })
+        .filter((p) => p !== null && typeof p.id === "string" && p.id.length > 0);
+
+  const turnOrder = props.gameState?.turn_order;
+  if (Array.isArray(turnOrder) && turnOrder.length > 0) {
+    const indexOf = new Map(turnOrder.map((id, i) => [id, i]));
+    list.sort((a, b) => {
+      const ai = indexOf.has(a.id) ? indexOf.get(a.id) : Number.MAX_SAFE_INTEGER;
+      const bi = indexOf.has(b.id) ? indexOf.get(b.id) : Number.MAX_SAFE_INTEGER;
+      return ai - bi;
+    });
+  }
+  return list;
+});
+
+const opponents = computed(() => {
+  const me = effectiveMyID.value;
+  return arrangedPlayers.value.filter((p) => p.id !== me);
+});
+
+const myPlayer = computed(() => {
+  const me = effectiveMyID.value;
+  if (!me) return null;
+  const playerObj = arrangedPlayers.value.find((p) => p.id === me) || null;
+  if (playerObj && (!playerObj.avatar_seed || playerObj.avatar_seed === "")) {
+    playerObj.avatar_seed = localStorage.getItem("avatar_seed") || "default_seed";
+  }
+  return playerObj;
+});
+
+const myHandCards = computed(() => {
+  const me = myPlayer.value;
+  if (me && Array.isArray(me.hand)) return me.hand;
+  const fallback = props.gameState?.my_hand;
+  return Array.isArray(fallback) ? fallback : [];
+});
+
+const isMyTurn = computed(() => {
+  const me = effectiveMyID.value;
+  if (!me) return false;
+  const turnOrder = props.gameState?.turn_order;
+  const currentTurnIdx = props.gameState?.current_turn;
+  if (Array.isArray(turnOrder) && typeof currentTurnIdx === "number") {
+    return turnOrder[currentTurnIdx] === me;
+  }
+  return props.gameState?.current_player_id === me;
+});
+
+
+watch(
+  [() => props.gameState?.players, () => props.gameState?.current_player_id],
+  ([newPlayers, currentPlayerId], [oldPlayers, oldPlayerId]) => {
+    if (!newPlayers) return;
+
+    const rawList = Array.isArray(newPlayers) ? newPlayers : Object.values(newPlayers);
+
+    // Якщо змінився гравець, очищуємо збережену карту того, до кого перейшов хід
+    if (currentPlayerId && currentPlayerId !== oldPlayerId) {
+      delete lastPlayedCardsByPlayer.value[currentPlayerId];
+    }
+
+    rawList.forEach((p) => {
+      if (!p || !p.id) return;
+
+      // Безпечно порівнюємо з вже ініціалізованим effectiveMyID
+      if (p.id === effectiveMyID.value) return;
+
+      if (Array.isArray(p.discard_pile) && p.discard_pile.length > 0) {
+        const lastIndex = p.discard_pile.length - 1;
+        const currentLastCard = p.discard_pile[lastIndex];
+
+        const oldPlayersList = oldPlayers
+          ? Array.isArray(oldPlayers)
+            ? oldPlayers
+            : Object.values(oldPlayers)
+          : [];
+        const oldP = oldPlayersList.find((o) => o && o.id === p.id);
+        const oldDiscardLength =
+          oldP && Array.isArray(oldP.discard_pile) ? oldP.discard_pile.length : 0;
+
+        if (p.discard_pile.length > oldDiscardLength) {
+          lastPlayedCardsByPlayer.value[p.id] = currentLastCard;
+        }
+      } else {
+        delete lastPlayedCardsByPlayer.value[p.id];
+      }
+    });
+  },
+  { deep: true, immediate: true }
+);
 
 watch(
   () => props.gameState?.round_number,
@@ -469,6 +613,7 @@ watch(
         `[BoardView] Раунд збільшився з ${oldRound} до ${newRound}. Закриваємо вікно дуелі.`
       );
       handleCloseRevealModal();
+      lastPlayedCardsByPlayer.value = {};
     }
   }
 );
@@ -481,15 +626,11 @@ watch(
         "[BoardView] Колоду перетасовано для нового раунду. Закриваємо вікно дуелі."
       );
       handleCloseRevealModal();
+      lastPlayedCardsByPlayer.value = {};
     }
   }
 );
 
-const effectiveMyID = computed(() => {
-  const fromStore = storeMyID.value;
-  if (typeof fromStore === "string" && fromStore.length > 0) return fromStore;
-  return typeof props.myID === "string" ? props.myID : "";
-});
 
 const handleCloseRevealModal = () => {
   gameStore.clearRevealedData();
@@ -499,7 +640,6 @@ const handleClearError = () => {
   gameStore.clearError();
 };
 
-const showActionModal = ref(false);
 const handleStartGame = () => emit("start-game");
 
 const getCardDesc = (type) => getCardInfoHelper(type)?.desc || t("cards.noDescription");
@@ -510,8 +650,6 @@ const getCardValue = (type) => {
   return val !== undefined ? val : "?";
 };
 const getCardImage = (type) => getCardInfoHelper(type)?.image || "";
-
-const activePlay = ref({ cardType: "", handIndex: 0, targetID: "", guessCard: "" });
 
 const globalDiscardPile = computed(() => {
   const playersData = props.gameState?.players;
@@ -565,57 +703,6 @@ const handleConfirmLeave = () => {
   emit("leave-game");
 };
 
-const arrangedPlayers = computed(() => {
-  const playersData = props.gameState?.players;
-  if (!playersData) return [];
-  const list = Array.isArray(playersData)
-    ? props.gameState.players
-        .filter(
-          (p) => p && typeof p === "object" && typeof p.id === "string" && p.id.length > 0
-        )
-        .map((p) => ({ ...p }))
-    : Object.keys(playersData)
-        .map((id) => {
-          const raw = playersData[id];
-          if (!raw || typeof raw !== "object") return null;
-          return { ...raw, id };
-        })
-        .filter((p) => p !== null && typeof p.id === "string" && p.id.length > 0);
-
-  const turnOrder = props.gameState?.turn_order;
-  if (Array.isArray(turnOrder) && turnOrder.length > 0) {
-    const indexOf = new Map(turnOrder.map((id, i) => [id, i]));
-    list.sort((a, b) => {
-      const ai = indexOf.has(a.id) ? indexOf.get(a.id) : Number.MAX_SAFE_INTEGER;
-      const bi = indexOf.has(b.id) ? indexOf.get(b.id) : Number.MAX_SAFE_INTEGER;
-      return ai - bi;
-    });
-  }
-  return list;
-});
-
-const opponents = computed(() => {
-  const me = effectiveMyID.value;
-  return arrangedPlayers.value.filter((p) => p.id !== me);
-});
-
-const myPlayer = computed(() => {
-  const me = effectiveMyID.value;
-  if (!me) return null;
-  const playerObj = arrangedPlayers.value.find((p) => p.id === me) || null;
-  if (playerObj && (!playerObj.avatar_seed || playerObj.avatar_seed === "")) {
-    playerObj.avatar_seed = localStorage.getItem("avatar_seed") || "default_seed";
-  }
-  return playerObj;
-});
-
-const myHandCards = computed(() => {
-  const me = myPlayer.value;
-  if (me && Array.isArray(me.hand)) return me.hand;
-  const fallback = props.gameState?.my_hand;
-  return Array.isArray(fallback) ? fallback : [];
-});
-
 const currentTurnPlayerName = computed(() => {
   const activeID = props.gameState?.current_player_id;
   if (!activeID) return t("common.opponent");
@@ -629,17 +716,6 @@ const getOpponentHandCount = (player) => {
   if (Array.isArray(player.hand)) return player.hand.length;
   return 0;
 };
-
-const isMyTurn = computed(() => {
-  const me = effectiveMyID.value;
-  if (!me) return false;
-  const turnOrder = props.gameState?.turn_order;
-  const currentTurnIdx = props.gameState?.current_turn;
-  if (Array.isArray(turnOrder) && typeof currentTurnIdx === "number") {
-    return turnOrder[currentTurnIdx] === me;
-  }
-  return props.gameState?.current_player_id === me;
-});
 
 const isTurnOfPlayer = (id) => {
   return props.gameState?.current_player_id === id;
@@ -677,17 +753,6 @@ const handleNextRoundRequest = () => {
 
 const handleRestartGameRequest = () => {
   emit("restart-game");
-};
-
-const handleChancellorSelect = ({ keepIndex, bottomOrder }) => {
-  const me = effectiveMyID.value;
-  if (!me) return;
-  const chancellorPayload = {
-    player_id: me,
-    keep_hand_index: Number(keepIndex),
-    bottom_order: bottomOrder.map((card) => Number(card)),
-  };
-  gameStore.sendWSMessage("CHANCELLOR_RESOLVE", null, null, chancellorPayload);
 };
 
 const showChancellorPanel = computed(() => {

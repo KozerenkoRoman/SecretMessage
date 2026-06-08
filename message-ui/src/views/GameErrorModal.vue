@@ -12,9 +12,8 @@
         >
           ⚠️
         </div>
-
-        <h3 class="text-lg font-bold text-rose-400 mb-1">Помилка ігрового ходу</h3>
-        <p class="text-xs text-slate-400 italic mb-4">Сервер відхилив вашу дію</p>
+        <h3 class="text-lg font-bold text-rose-400 mb-1">{{ $t("gameError.title") }}</h3>
+        <p class="text-xs text-slate-400 italic mb-4">{{ $t("gameError.server") }}</p>
 
         <div
           class="text-sm text-slate-200 bg-slate-900/60 p-3 rounded-xl border border-slate-700/50 text-center break-words leading-relaxed"
@@ -26,7 +25,7 @@
           v-if="errorCode"
           class="text-[10px] text-slate-500 font-mono mt-2 uppercase tracking-wider"
         >
-          код: {{ errorCode }}
+          {{ $t("gameError.codeLabel") }} {{ errorCode }}
         </p>
 
         <div class="mt-5 space-y-2">
@@ -35,7 +34,7 @@
             type="button"
             class="w-full py-2.5 bg-gradient-to-r from-slate-700 to-slate-700 hover:from-rose-600 hover:to-rose-700 text-white font-bold rounded-xl text-sm transition-all border border-slate-600 hover:border-rose-500 cursor-pointer shadow-lg active:scale-95"
           >
-            Зрозуміло
+            {{ $t("gameError.ok") }}
           </button>
 
           <button
@@ -44,7 +43,7 @@
             type="button"
             class="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-rose-500/10 cursor-pointer uppercase font-mono tracking-wider active:scale-95"
           >
-            Вийти в лобі
+            {{ $t("gameError.leave") }}
           </button>
         </div>
       </div>
@@ -66,6 +65,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["close"]);
+
 const gameStore = useGameStore();
 const router = useRouter();
 
@@ -110,7 +110,7 @@ const ERROR_TRANSLATIONS = Object.freeze({
   [EngineErrorCodes.BaronNoCardsToCompare]: "Немає карт для порівняння Бароном.",
 
   [EngineErrorCodes.ChancellorInvalidBottomOrder]:
-    "Невірний порядок повернення карт у колоду.",
+    "Неправильний порядок повернення карт у колоду.",
   [EngineErrorCodes.ChancellorWrongPhase]:
     "Канцлер не очікує вибору карти на поточному етапі.",
 });
@@ -150,9 +150,7 @@ const hasError = computed(() => {
   const raw = props.message;
   if (!raw) return false;
   if (typeof raw === "string") return raw.length > 0;
-  if (typeof raw === "object") {
-    return Boolean(raw.code || raw.message);
-  }
+  if (typeof raw === "object") return Boolean(raw.code || raw.message);
   return false;
 });
 

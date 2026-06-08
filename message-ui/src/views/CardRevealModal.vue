@@ -10,7 +10,7 @@
         <div
           class="text-amber-400 font-bold text-xl mb-6 flex items-center justify-center gap-2 font-mono uppercase tracking-wide"
         >
-          {{ isBaron ? "Дуель Барона" : "Ефект Священника" }}
+          {{ isBaron ? $t("reveal.duelBaron") : $t("reveal.priestEffect") }}
         </div>
 
         <div class="flex justify-center gap-6 flex-wrap my-auto items-stretch">
@@ -33,7 +33,7 @@
                         card.playerData?.id
                     )
                   "
-                  alt="Аватар гравця"
+                  :alt="$t('common.avatarAlt')"
                   class="w-full h-full object-cover rounded-full"
                 />
               </div>
@@ -66,7 +66,7 @@
           type="button"
           class="w-full mt-8 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black rounded-xl text-sm transition-all shadow-lg shadow-amber-500/10 active:scale-95 cursor-pointer transform font-mono uppercase tracking-wider"
         >
-          Закрити та продовжити
+          {{ $t("reveal.close") }}
         </button>
       </div>
     </div>
@@ -75,8 +75,11 @@
 
 <script setup>
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { getCardInfoHelper } from "../constants/cards.js";
 import { getAvatarUrl } from "../utils/avatar.js";
+
+const { t } = useI18n();
 
 const emit = defineEmits(["close"]);
 const props = defineProps({
@@ -104,8 +107,8 @@ const getPlayerData = (id) => {
 const getCardInfo = (id) => {
   return (
     getCardInfoHelper(id) || {
-      name: "Невідома карта",
-      desc: "Ефект оброблюється сервером",
+      name: t("cards.unknown"),
+      desc: t("cards.serverHandled"),
       color: "bg-slate-800",
       emoji: "❓",
       image: "",
@@ -121,13 +124,13 @@ const displayCards = computed(() => {
     return [
       {
         id: props.data.playerCard,
-        label: pData?.username || "Опонент",
+        label: pData?.username || t("common.opponent"),
         playerData: pData,
         info: getCardInfo(props.data.playerCard),
       },
       {
         id: props.data.targetCard,
-        label: tData?.username || "Опонент",
+        label: tData?.username || t("common.opponent"),
         playerData: tData,
         info: getCardInfo(props.data.targetCard),
       },
@@ -138,7 +141,7 @@ const displayCards = computed(() => {
   return [
     {
       id: props.data.cardType,
-      label: tData?.username || "Опонент",
+      label: tData?.username || t("common.opponent"),
       playerData: tData,
       info: getCardInfo(props.data.cardType),
     },

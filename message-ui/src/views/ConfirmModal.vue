@@ -10,11 +10,11 @@
         <h3
           class="text-amber-400 font-bold text-lg mb-3 flex items-center justify-center gap-2 font-mono uppercase tracking-wide"
         >
-          {{ title }}
+          {{ $t("modal.confirm.title") }}
         </h3>
 
         <p class="text-sm text-slate-300 font-sans leading-relaxed px-2 mb-6">
-          {{ message }}
+          {{ $t("modal.confirm.message") }}
         </p>
 
         <div class="flex gap-4 items-center justify-center">
@@ -23,7 +23,7 @@
             type="button"
             class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-sm transition-all border border-slate-700/60 active:scale-95 cursor-pointer font-mono uppercase tracking-wider"
           >
-            {{ cancelText }}
+            {{ $t("modal.confirm.cancel") }}
           </button>
 
           <button
@@ -31,7 +31,7 @@
             type="button"
             class="flex-1 py-2.5 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-red-500/10 active:scale-95 cursor-pointer font-mono uppercase tracking-wider"
           >
-            {{ confirmText }}
+            {{ $t("modal.confirm.ok") }}
           </button>
         </div>
       </div>

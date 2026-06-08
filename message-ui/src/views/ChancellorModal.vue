@@ -11,14 +11,14 @@
           <h3
             class="text-amber-400 font-black text-xl tracking-wide uppercase flex items-center justify-center gap-2"
           >
-            Ефект Канцлера
+            {{ $t("chancellor.title") }}
           </h3>
           <p class="text-sm text-slate-300 mt-2 font-medium">
             <span v-if="chosenKeepIndex === null" class="text-cyan-400">
-              Крок 1: Оберіть 1 карту, яку хочете ЗАЛИШИТИ у себе в руці
+              {{ $t("chancellor.step1") }}
             </span>
             <span v-else class="text-orange-400">
-              Крок 2: Оберіть послідовність карт для відправки на дно колоди
+              {{ $t("chancellor.step2") }}
             </span>
           </p>
         </div>
@@ -46,7 +46,7 @@
               <span
                 class="bg-emerald-500 text-slate-950 font-black text-xs px-2 py-1 rounded-md uppercase tracking-wider shadow"
               >
-                В Руку
+                {{ $t("chancellor.keepBadge") }}
               </span>
             </div>
 
@@ -73,7 +73,7 @@
           v-if="bottomSelection.length > 0"
           class="bg-slate-950/60 rounded-xl p-3 mb-4 border border-slate-800 text-center text-xxs text-slate-400"
         >
-          Порядок карт на дно:
+          {{ $t("chancellor.bottomOrderTitle") }}
           <span class="text-orange-400 font-bold">{{
             bottomSelection.map((idx) => getCardName(cards[idx])).join(" ➔ ")
           }}</span>
@@ -86,7 +86,7 @@
             :disabled="chosenKeepIndex === null"
             class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-semibold rounded-xl text-sm transition-all"
           >
-            Скинути вибір
+            {{ $t("chancellor.reset") }}
           </button>
           <button
             @click="handleSubmit"
@@ -94,7 +94,7 @@
             :disabled="!isReadyToSubmit"
             class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-700 disabled:to-slate-700 disabled:opacity-50 disabled:text-slate-500 disabled:cursor-not-allowed text-slate-950 font-black rounded-xl text-sm transition-all shadow-lg shadow-amber-500/10"
           >
-            Підтвердити хід
+            {{ $t("chancellor.submit") }}
           </button>
         </div>
       </div>
@@ -104,7 +104,10 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { getCardInfoHelper } from "../constants/cards";
+
+const { t } = useI18n();
 
 const props = defineProps({
   isOpen: { type: Boolean, required: true },
@@ -116,9 +119,9 @@ const emit = defineEmits(["submit"]);
 const chosenKeepIndex = ref(null);
 const bottomSelection = ref([]);
 
-const getCardDesc = (type) => getCardInfoHelper(type)?.desc || "Опис відсутній";
+const getCardDesc = (type) => getCardInfoHelper(type)?.desc || t("cards.noDescription");
 const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-slate-700";
-const getCardName = (type) => getCardInfoHelper(type)?.name || "Невідома карта";
+const getCardName = (type) => getCardInfoHelper(type)?.name || t("cards.unknown");
 const getCardValue = (type) => {
   const val = getCardInfoHelper(type)?.value;
   return val !== undefined ? val : "?";

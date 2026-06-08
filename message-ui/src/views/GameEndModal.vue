@@ -26,7 +26,7 @@
                 : 'bg-slate-800 text-slate-400 border-slate-700'
             "
           >
-            {{ gameState?.is_game_over ? "👑 ФІНАЛ ПАРТІЇ 👑" : "⚔️ КІНЕЦЬ РАУНДУ ⚔️" }}
+            {{ gameState?.is_game_over ? $t("gameEnd.final") : $t("gameEnd.roundEnd") }}
           </span>
         </div>
 
@@ -35,15 +35,15 @@
             v-if="isAmIWinner"
             class="text-2xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-500 uppercase animate-pulse"
           >
-            {{ gameState?.is_game_over ? "Ви абсолютний чемпіон!" : "Ви виграли раунд!" }}
+            {{ gameState?.is_game_over ? $t("gameEnd.winner") : $t("gameEnd.loser") }}
           </h2>
           <h2 v-else class="text-2xl font-black tracking-wide text-slate-200 uppercase">
-            {{ gameState?.is_game_over ? "Гру завершено" : "Раунд закінчено" }}
+            {{ gameState?.is_game_over ? $t("gameEnd.gameOver") : $t("gameEnd.roundOver") }}
           </h2>
 
           <p class="text-xs text-slate-400 mt-2">
-            Переможець:
-            <span class="text-amber-400 font-bold font-mono">{{ winnerName }}</span>
+            {{ $t("gameEnd.winnerLabel")
+            }}<span class="text-amber-400 font-bold font-mono">{{ winnerName }}</span>
           </p>
         </div>
 
@@ -59,7 +59,7 @@
           <h4
             class="text-[10px] uppercase text-slate-500 font-black tracking-wider mb-3 font-mono"
           >
-            Поточний рахунок у кімнаті:
+            {{ $t("gameEnd.scoreboardTitle") }}
           </h4>
           <div class="space-y-2">
             <div
@@ -79,11 +79,11 @@
                   class="text-sm font-medium truncate"
                   :class="p.id === myID ? 'text-amber-400 font-bold' : 'text-slate-300'"
                 >
-                  {{ p.username || "Опонент" }}
+                  {{ p.username || $t("common.opponent") }}
                   <span
                     v-if="p.id === myID"
                     class="text-[10px] text-slate-500 font-normal"
-                    >(Ви)</span
+                    >({{ $t("common.you") }})</span
                   >
                 </span>
               </div>
@@ -95,7 +95,7 @@
                     p.id === gameState?.winner_id ? 'text-amber-400' : 'text-slate-300'
                   "
                 >
-                  {{ p.score || 0 }} <span class="text-slate-600 text-xs">/ 7</span>
+                  {{ p.score || 0 }} <span class="text-slate-600 text-xs">{{ $t("gameEnd.scoreOutOf") }}</span>
                 </span>
               </div>
             </div>
@@ -115,15 +115,16 @@
                 : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black shadow-amber-500/10 cursor-pointer active:scale-95'
             "
           >
-            {{ hasOpponentLeft ? "Очікування гравців..." : "Наступний раунд" }}
+            {{ hasOpponentLeft ? $t("gameEnd.waitingForPlayers") : $t("gameEnd.nextRound") }}
           </button>
+
           <button
             v-if="hasOpponentLeft"
             type="button"
             @click="$emit('leave-game')"
             class="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-500/10 transition-all cursor-pointer text-sm uppercase tracking-wider active:scale-95"
           >
-            Вийти в лобі
+            {{ $t("gameError.leave") }}
           </button>
 
           <template v-else-if="gameState?.is_game_over">
@@ -133,10 +134,10 @@
               type="button"
               class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black rounded-xl shadow-lg shadow-amber-500/20 transition-all cursor-pointer text-sm uppercase tracking-wider active:scale-95"
             >
-              Грати знову 🔄
+              {{ $t("gameEnd.restart") }}
             </button>
             <div v-else class="text-xs text-slate-400 animate-pulse py-3">
-              Очікуємо, поки власник кімнати почне нову гру...
+              {{ $t("gameEnd.waitingForHost") }}
             </div>
           </template>
         </div>
@@ -147,6 +148,9 @@
 
 <script setup>
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const props = defineProps({
   isOpen: { type: Boolean, required: true },
@@ -163,14 +167,14 @@ const isAmIWinner = computed(() => {
 
 const winnerName = computed(() => {
   const wID = props.gameState?.winner_id;
-  if (!wID || !props.gameState?.players) return "Ніхто";
+  if (!wID || !props.gameState?.players) return t("common.nobody");
 
   const pList = props.gameState.players;
   if (Array.isArray(pList)) {
     const found = pList.find((p) => p && p.id === wID);
-    return found ? found.username : "Опонент";
+    return found ? found.username : t("common.opponent");
   }
-  return pList[wID]?.username || "Опонент";
+  return pList[wID]?.username || t("common.opponent");
 });
 
 const sortedPlayers = computed(() => {

@@ -51,7 +51,7 @@ const router = createRouter({
   routes
 });
 
-/* ===== Логіка гварда (Оновлена та безпечна) ===== */
+/* ===== Логіка гварда ===== */
 router.beforeEach((to, from) => {
   const authStore = useAuthStore();
 

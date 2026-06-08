@@ -2,11 +2,14 @@
   <div
     class="h-screen bg-slate-900 text-white p-2 flex flex-col justify-between overflow-hidden relative font-sans select-none"
   >
+    <!-- HEADER -->
     <header
       class="w-full flex justify-between items-center bg-slate-800/80 backdrop-blur px-3 py-2 rounded-xl border border-slate-700 flex-shrink-0 gap-4 z-10 h-[6vh]"
     >
       <div class="flex items-center gap-4">
-        <button @click="handleLeaveGame" type="button" class="btn-danger">Вийти</button>
+        <button @click="handleLeaveGame" type="button" class="btn-danger">
+          {{ $t("board.leave") }}
+        </button>
         <div class="h-6 w-[1px] bg-slate-700"></div>
         <div
           class="flex items-center gap-2 bg-slate-900/60 pl-2 pr-1.5 py-0.5 rounded-lg border border-slate-700/40"
@@ -14,27 +17,28 @@
           <span
             class="text-xs font-medium text-slate-300 hidden sm:inline max-w-[80px] truncate"
             :title="myPlayer?.username"
-            >{{ myPlayer?.username || "Гість" }}</span
           >
+            {{ myPlayer?.username || $t("common.guest") }}
+          </span>
           <div
             class="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 p-[1px] shadow-inner flex-shrink-0"
           >
             <img
               :src="getAvatarUrl(myPlayer?.avatar_seed)"
-              alt="Avatar"
+              :alt="$t('common.avatarAlt')"
               class="w-full h-full object-cover rounded-full bg-slate-800"
             />
           </div>
         </div>
         <div>
           <h2 class="text-sm font-bold text-yellow-400 font-mono leading-none mb-0.5">
-            Кімната: {{ roomID }}
+            {{ $t("board.room") }}{{ roomID }}
           </h2>
           <p class="text-xs text-slate-400">
-            Час:
-            <span class="text-amber-400 font-mono font-bold text-xs"
-              >{{ gameState?.seconds_left || 0 }}с</span
-            >
+            {{ $t("board.time") }}
+            <span class="text-amber-400 font-mono font-bold text-xs">
+              {{ gameState?.seconds_left || 0 }}{{ $t("board.timeUnit") }}
+            </span>
           </p>
         </div>
       </div>
@@ -42,13 +46,13 @@
         <div class="flex items-center gap-2">
           <template v-if="!gameState?.is_started">
             <button v-if="canStartGame" @click="handleStartGame" class="btn-primary">
-              Почати гру
+              {{ $t("board.waiting") }}
             </button>
             <div
               v-else
               class="status-pill bg-blue-500/20 text-blue-400 border-blue-500/40 animate-pulse"
             >
-              Очікування...
+              {{ $t("board.waiting") }}
             </div>
           </template>
           <template v-else>
@@ -56,19 +60,19 @@
               v-if="showChancellorPanel"
               class="status-pill bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-yellow-500/40 animate-pulse"
             >
-              Вибір Канцлера!
+              {{ $t("board.chancellorBadge") }}
             </div>
             <div
               v-else-if="isMyTurn"
               class="status-pill bg-emerald-500/20 text-emerald-400 border-emerald-500/40 animate-pulse"
             >
-              Ваш хід!
+              {{ $t("board.yourTurn") }}
             </div>
             <div
               v-else
               class="status-pill bg-slate-700 text-slate-300 border-transparent"
             >
-              Ходить: {{ currentTurnPlayerName }}
+              {{ $t("board.currentTurn") }}{{ currentTurnPlayerName }}
             </div>
           </template>
         </div>
@@ -99,12 +103,14 @@
               <span
                 class="font-bold text-[11px] truncate max-w-[130px] text-slate-200"
                 :title="player.username"
-                >{{ player.username || "Опонент" }}</span
               >
+                {{ player.username || $t("common.opponent") }}
+              </span>
               <span
                 class="text-[12px] bg-slate-700 text-yellow-400 px-1 py-0.5 rounded font-mono"
-                >★{{ player.score || 0 }}</span
               >
+                ★{{ player.score || 0 }}
+              </span>
             </div>
 
             <!-- Карти в руці опонента -->
@@ -121,14 +127,14 @@
               >
                 <img
                   :src="deckBackImage"
-                  alt="Сорочка карти"
+                  :alt="$t('common.cardBackAlt')"
                   class="w-full h-full object-cover rounded-sm select-none"
                 />
               </div>
 
               <div
                 v-if="player.is_protected"
-                class="absolute inset-0 flex items-center justify-center bg-slate-950/10 backdrop-blur-[0.5px] rounded-lgpointer-events-none z-10"
+                class="absolute inset-0 flex items-center justify-center bg-slate-950/10 backdrop-blur-[0.5px] rounded-lg pointer-events-none z-10"
               >
                 <div
                   class="game-card w-24 h-36 border-2 border-yellow-400 shadow-[0_0_14px_rgba(234,179,8,0.7)] bg-cover bg-center relative flex-shrink-0"
@@ -144,15 +150,18 @@
               <span
                 v-if="player.is_protected"
                 class="text-yellow-400 font-bold uppercase text-[8px]"
-                >Захист</span
               >
-
+                {{ $t("status.protected") }}
+              </span>
               <span
                 v-else-if="player.is_out"
                 class="text-rose-400 font-bold uppercase text-[8px]"
-                >Вибув</span
               >
-              <span v-else class="text-slate-500 text-[12px] italic">У грі</span>
+                {{ $t("status.out") }}
+              </span>
+              <span v-else class="text-slate-500 text-[12px] italic">
+                {{ $t("status.inGame") }}
+              </span>
             </div>
           </div>
         </template>
@@ -175,17 +184,19 @@
                 class="absolute inset-0 bg-slate-950/50 flex flex-col items-center justify-center p-1"
               >
                 <span
-                  class="text-[12px] font-bold uppercase text-amber-200 tracking-wider bg-slate-950/80 px-2 py-0.5 rounded backdrop-blur-[1px]"
-                  >Колода</span
+                  class="text-[12px] font-bold uppercase text-amber-200 tracking-wider bg-slate-950/80 px-2 py-1 rounded backdrop-blur-[1px]"
                 >
+                  {{ $t("board.deck") }}
+                </span>
                 <span
                   class="text-2xl font-black text-white leading-none mt-1.5 bg-slate-950/70 px-2.5 py-1 rounded font-mono shadow-md border border-white/5"
-                  >{{ gameState?.deck ? gameState.deck.length : 0 }}</span
                 >
+                  {{ gameState?.deck ? gameState.deck.length : 0 }}
+                </span>
               </div>
             </div>
             <div class="text-[16px] font-bold text-slate-400 font-mono mt-0.5">
-              Відбій: {{ globalDiscardPile.length }}
+              {{ $t("board.discardPile") }}{{ globalDiscardPile.length }}
             </div>
           </div>
 
@@ -201,7 +212,7 @@
               <span
                 class="text-[10px] uppercase text-amber-400 font-bold font-mono tracking-wider"
               >
-                Стіл відбою
+                {{ $t("board.table") }}
               </span>
             </div>
 
@@ -216,9 +227,12 @@
                   v-if="globalDiscardPile[slotIndex - 1]"
                   class="game-card game-card-discard w-24 h-36 p-0 border border-slate-700/50 overflow-hidden bg-slate-950 flex-shrink-0"
                   :class="getCardColor(globalDiscardPile[slotIndex - 1].type)"
-                  :data-tooltip="`${getCardName(
-                    globalDiscardPile[slotIndex - 1].type
-                  )} — Скинув ${globalDiscardPile[slotIndex - 1].owner}`"
+                  :data-tooltip="
+                    $t('board.discardTooltip', {
+                      name: getCardName(globalDiscardPile[slotIndex - 1].type),
+                      owner: globalDiscardPile[slotIndex - 1].owner,
+                    })
+                  "
                 >
                   <img
                     v-if="getCardImage(globalDiscardPile[slotIndex - 1].type)"
@@ -249,26 +263,28 @@
         <div
           v-if="myPlayer?.score > 0"
           class="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.1 items-center p-1.5"
-          title="Ваші фішки перемоги"
+          :title="$t('common.myChipsTitle')"
         >
           <img
             v-for="n in myPlayer.score"
             :key="`my-chip-${n}`"
             :src="chipImage"
-            alt="Фішка перемоги"
+            :alt="$t('common.chipAlt')"
             class="w-20 h-8 object-contain animate-fade-in"
           />
         </div>
 
+        <!-- CHANCELLOR PANEL -->
         <div
           v-if="showChancellorPanel"
           class="w-full flex flex-col items-center h-full justify-between"
         >
           <div class="text-center">
             <h4 class="text-amber-400 font-bold text-xs uppercase leading-none">
-              Оберіть карту собі
+              {{ $t("board.chancellorPickOwn") }}
             </h4>
           </div>
+
           <div
             class="flex justify-center gap-4 items-center flex-1 w-full overflow-hidden"
           >
@@ -302,7 +318,7 @@
           class="flex justify-center gap-4 relative z-10 items-center w-full h-full"
         >
           <div v-if="myHandCards.length === 0" class="text-slate-500 text-xs italic">
-            Очікування карт...
+            {{ $t("board.waitingForCards") }}
           </div>
 
           <div
@@ -339,13 +355,13 @@
                 ? { backgroundImage: `url(${getCardImage(4)})` }
                 : { backgroundColor: '#1e293b' }
             "
-            :data-tooltip="`${getCardName(4)} — Активний захист`"
+            :data-tooltip="$t('board.protectionTooltip', { name: getCardName(4) })"
           >
             <span
               class="absolute -top-2 -right-1 bg-yellow-500 text-slate-950 font-black text-[8px] px-1 rounded shadow uppercase tracking-wider z-20"
-              >Захист</span
             >
-
+              {{ $t("status.protected") }}
+            </span>
             <span
               class="text-[10px] font-bold font-mono text-center block bg-slate-950/80 p-0.5 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
             >
@@ -395,10 +411,10 @@
 
     <ConfirmModal
       :is-open="showLeaveConfirm"
-      title="Вихід з гри"
-      message="Ви впевнені, що хочете покинути поточну гру та повернутися в десктоп лобі?"
-      confirm-text="Вийти"
-      cancel-text="Залишитись"
+      :title="$t('board.leaveConfirm.title')"
+      :message="$t('board.leaveConfirm.message')"
+      :confirm-text="$t('board.leaveConfirm.confirm')"
+      :cancel-text="$t('board.leaveConfirm.cancel')"
       @confirm="handleConfirmLeave"
       @cancel="showLeaveConfirm = false"
     />
@@ -408,6 +424,7 @@
 <script setup>
 import { getCardInfoHelper } from "../constants/cards";
 import { ref, computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { useGameStore } from "../stores/gameStore";
 import { storeToRefs } from "pinia";
 import { getAvatarUrl } from "../utils/avatar";
@@ -434,8 +451,10 @@ const emit = defineEmits([
   "restart-game",
 ]);
 
+const { t } = useI18n();
 const gameStore = useGameStore();
 const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
+
 const showLeaveConfirm = ref(false);
 
 watch(
@@ -447,7 +466,7 @@ watch(
       newRound > oldRound
     ) {
       console.log(
-        `[BoardView] Раунд збільшився з ${oldRound} на ${newRound}. Закриваємо вікно дуелі.`
+        `[BoardView] Раунд збільшився з ${oldRound} до ${newRound}. Закриваємо вікно дуелі.`
       );
       handleCloseRevealModal();
     }
@@ -475,6 +494,7 @@ const effectiveMyID = computed(() => {
 const handleCloseRevealModal = () => {
   gameStore.clearRevealedData();
 };
+
 const handleClearError = () => {
   gameStore.clearError();
 };
@@ -482,9 +502,9 @@ const handleClearError = () => {
 const showActionModal = ref(false);
 const handleStartGame = () => emit("start-game");
 
-const getCardDesc = (type) => getCardInfoHelper(type)?.desc || "Опис відсутній";
+const getCardDesc = (type) => getCardInfoHelper(type)?.desc || t("cards.noDescription");
 const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-slate-700";
-const getCardName = (type) => getCardInfoHelper(type)?.name || "Невідома карта";
+const getCardName = (type) => getCardInfoHelper(type)?.name || t("cards.unknown");
 const getCardValue = (type) => {
   const val = getCardInfoHelper(type)?.value;
   return val !== undefined ? val : "?";
@@ -504,7 +524,7 @@ const globalDiscardPile = computed(() => {
         p.discard_pile.forEach((cardType) => {
           allDiscards.push({
             type: cardType,
-            owner: p.username || "Гравець",
+            owner: p.username || t("common.player"),
             playerId: id,
           });
         });
@@ -516,7 +536,7 @@ const globalDiscardPile = computed(() => {
         p.discard_pile.forEach((cardType) => {
           allDiscards.push({
             type: cardType,
-            owner: p.username || "Гравець",
+            owner: p.username || t("common.player"),
             playerId: p.id,
           });
         });
@@ -598,9 +618,9 @@ const myHandCards = computed(() => {
 
 const currentTurnPlayerName = computed(() => {
   const activeID = props.gameState?.current_player_id;
-  if (!activeID) return "Опонент";
+  if (!activeID) return t("common.opponent");
   const found = arrangedPlayers.value.find((p) => p.id === activeID);
-  return found?.username || "Опонент";
+  return found?.username || t("common.opponent");
 });
 
 const getOpponentHandCount = (player) => {

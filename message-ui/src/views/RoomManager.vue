@@ -10,10 +10,7 @@
         <div
           class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"
         ></div>
-
-        <p class="text-slate-300 font-medium text-sm mb-1">
-          Підключення до ігрової кімнати
-        </p>
+        <p class="text-slate-300 font-medium text-sm mb-1">{{ $t("room.connecting") }}</p>
         <p
           class="text-amber-400 font-mono text-xs tracking-wider mb-6 truncate px-2"
           :title="roomID"
@@ -26,7 +23,7 @@
           type="button"
           class="px-5 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-700/80 text-slate-300 hover:text-white font-bold rounded-xl text-xs transition-all border border-slate-700/60 shadow-md active:scale-95 cursor-pointer font-mono uppercase tracking-wider"
         >
-          Скасувати підключення
+          {{ $t("room.cancel") }}
         </button>
       </div>
     </div>

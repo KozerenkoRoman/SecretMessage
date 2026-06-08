@@ -8,10 +8,10 @@
       <h3
         class="text-lg font-bold text-yellow-400 font-mono mb-2 text-center uppercase tracking-wider"
       >
-        Налаштування профілю
+        {{ $t("profile.title") }}
       </h3>
       <p class="text-xs text-slate-400 text-center mb-6">
-        Змініть свій ігровий аватар, ім'я або пароль
+        {{ $t("profile.subtitle") }}
       </p>
 
       <form @submit.prevent="saveProfile" class="space-y-5">
@@ -23,7 +23,7 @@
           >
             <img
               :src="avatarUrl"
-              alt="Аватар користувача"
+              :alt="$t('profile.avatarAlt')"
               class="w-full h-full object-cover rounded-full"
             />
           </div>
@@ -33,7 +33,7 @@
             type="button"
             class="px-4 py-1.5 bg-slate-800 text-slate-200 border border-slate-700 font-bold text-xs uppercase rounded-xl hover:bg-slate-700 transition"
           >
-            🎲 Випадковий аватар
+            🎲 {{ $t("profile.avatarChange") }}
           </button>
         </div>
 
@@ -41,13 +41,13 @@
           <label
             class="block text-xs font-bold font-mono text-slate-400 uppercase mb-1.5 tracking-wider"
           >
-            Ім'я користувача (Username)
+            {{ $t("profile.usernameLabel") }}
           </label>
           <input
             v-model="form.username"
             type="text"
             required
-            placeholder="Введіть нікнейм"
+            :placeholder="$t('profile.usernamePlaceholder')"
             class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-amber-500 transition"
           />
         </div>
@@ -56,7 +56,7 @@
           <div class="flex-grow border-t border-slate-800"></div>
           <span
             class="flex-shrink mx-4 text-[10px] font-mono uppercase text-slate-500 tracking-widest"
-            >Зміна пароля</span
+            >{{ $t("profile.passwordSectionDivider") }}</span
           >
           <div class="flex-grow border-t border-slate-800"></div>
         </div>
@@ -65,13 +65,14 @@
           <label
             class="block text-xs font-bold font-mono text-slate-400 uppercase mb-1.5 tracking-wider"
           >
-            Поточний пароль <span v-if="form.password" class="text-rose-500">*</span>
+            {{ $t("profile.currentPassword") }}
+            <span v-if="form.password" class="text-rose-500">*</span>
           </label>
           <input
             v-model="form.password_old"
             type="password"
             :required="!!form.password"
-            placeholder="Необхідно для зміни пароля"
+            :placeholder="$t('profile.currentPasswordPlaceholder')"
             class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-amber-500 transition"
           />
         </div>
@@ -80,12 +81,12 @@
           <label
             class="block text-xs font-bold font-mono text-slate-400 uppercase mb-1.5 tracking-wider"
           >
-            Новий пароль
+            {{ $t("profile.newPassword") }}
           </label>
           <input
             v-model="form.password"
             type="password"
-            placeholder="Введіть новий пароль"
+            :placeholder="$t('profile.newPasswordPlaceholder')"
             class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-amber-500 transition"
           />
         </div>
@@ -103,15 +104,14 @@
             type="button"
             class="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 font-bold text-xs uppercase rounded-xl hover:bg-slate-700 transition"
           >
-            Скасувати
+            {{ $t("profile.cancel") }}
           </button>
-
           <button
             type="submit"
             :disabled="isSaving"
             class="flex-1 btn-primary py-2.5 font-bold text-xs uppercase rounded-xl transition"
           >
-            {{ isSaving ? "Збереження..." : "Зберегти все ✨" }}
+            {{ isSaving ? $t("profile.saving") : $t("profile.save") }}
           </button>
         </div>
       </form>
@@ -128,8 +128,11 @@
 
 <script setup>
 import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../stores/auth";
 import { getAvatarUrl, generateRandomSeed } from "../utils/avatar";
+
+const { t } = useI18n();
 
 const props = defineProps({
   currentUsername: { type: String, default: "" },
@@ -138,6 +141,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["close", "updated"]);
+
 const authStore = useAuthStore();
 
 const currentSeedState = ref(props.currentSeed || generateRandomSeed());
@@ -162,7 +166,7 @@ const saveProfile = async () => {
   localError.value = null;
 
   if (form.value.password && !form.value.password_old) {
-    localError.value = "Будь ласка, вкажіть ваш поточний пароль для встановлення нового.";
+    localError.value = t("profile.errors.currentRequired");
     return;
   }
 
@@ -187,7 +191,7 @@ const saveProfile = async () => {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || "Не вдалося зберегти зміни профілю.");
+      throw new Error(data.error || t("profile.errors.saveFailed"));
     }
 
     if (data.status === "no_changes") {
@@ -219,7 +223,7 @@ const saveProfile = async () => {
     emit("close");
   } catch (error) {
     console.error("Profile save error:", error);
-    localError.value = error.message || "Помилка з'єднання з сервером";
+    localError.value = error.message || t("profile.errors.networkError");
   } finally {
     isSaving.value = false;
   }

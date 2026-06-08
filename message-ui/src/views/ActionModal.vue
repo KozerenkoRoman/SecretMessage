@@ -11,7 +11,7 @@
         ]"
       >
         <h3 class="text-lg font-bold text-amber-400 mb-2">
-          Розіграш карти: {{ cardInfo?.name || cardType }}
+          {{ $t("action.title") }} {{ cardInfo?.name || cardType }}
         </h3>
 
         <div v-if="requiresTargetSelection" class="mb-4">
@@ -36,7 +36,7 @@
                 >
                   <img
                     :src="getAvatarUrl(p.avatar_seed || p.username || p.id)"
-                    alt="Аватар гравця"
+                    :alt="$t('common.avatarAlt')"
                     class="w-full h-full object-cover rounded-full"
                   />
                 </div>
@@ -48,7 +48,7 @@
                       : 'text-slate-300 group-hover:text-white',
                   ]"
                 >
-                  {{ p.username }}{{ p.id === myID ? " (Ви)" : "" }}
+                  {{ p.username }}{{ p.id === myID ? $t("action.youSuffix") : "" }}
                 </span>
               </button>
             </div>
@@ -57,10 +57,9 @@
             v-else
             class="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg flex flex-col gap-1"
           >
-            <span class="font-bold">Немає доступних цілей!</span>
+            <span class="font-bold">{{ $t("action.noTargets") }}</span>
             <span>
-              Усі інші гравці захищені ефектом Служниці або вибули. Карта буде скинута в
-              загальний відбій без застосування ефекту.
+              {{ $t("action.noTargetsHint") }}
             </span>
           </div>
         </div>
@@ -69,14 +68,14 @@
           v-if="!requiresTargetSelection"
           class="mb-4 text-sm text-amber-400 bg-amber-500/5 p-3 rounded-lg border border-amber-500/20"
         >
-          Ця карта застосовується автоматично на вас або скидається в стіл.
+          {{ $t("action.autoApply") }}
         </div>
 
         <div v-if="isGuardGuessRequired && availableTargets.length > 0" class="mb-5 mt-4">
           <label
             class="block text-xs uppercase text-slate-400 font-bold mb-2 tracking-wider font-mono"
           >
-            Виберіть карту опонента:
+            {{ $t("action.guardGuess") }}
           </label>
 
           <div
@@ -99,13 +98,13 @@
                   : {}
               "
               :data-tooltip="`${card.info.name}(${card.info.value}) — ${
-                card.info.desc || 'Опис відсутній'
+                card.info.desc || $t('cards.noDescription')
               }`"
             >
               <span
                 class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
               >
-                {{ guessCard === card.type ? "Обрано" : card.info.name }}
+                {{ guessCard === card.type ? $t("action.chosen") : card.info.name }}
               </span>
             </div>
           </div>
@@ -117,7 +116,7 @@
             type="button"
             class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-500 hover:text-amber-400 font-bold border border-slate-700 rounded-xl shadow-md cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
           >
-            Скасувати
+            {{ $t("action.cancel") }}
           </button>
           <button
             @click="handleSubmit"
@@ -125,7 +124,7 @@
             type="button"
             class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black rounded-xl shadow-lg shadow-amber-950/20 cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
           >
-            Підтвердити Хід
+            {{ $t("action.submit") }}
           </button>
         </div>
       </div>

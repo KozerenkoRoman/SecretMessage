@@ -134,12 +134,15 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   CARD_INFO_NUMBERS,
   CARD_INFO_NAMES,
   getCardInfoHelper,
 } from "../constants/cards";
 import { getAvatarUrl } from "../utils/avatar";
+
+const { t } = useI18n();
 
 const props = defineProps({
   isOpen: { type: Boolean, required: true },
@@ -154,7 +157,7 @@ const emit = defineEmits(["close", "submit"]);
 const targetID = ref("");
 const guessCard = ref("");
 
-const cardInfo = computed(() => getCardInfoHelper(props.cardType));
+const cardInfo = computed(() => getCardInfoHelper(props.cardType, t));
 
 const getCardColor = (type) => {
   return getCardInfoHelper(type)?.color || "bg-slate-700";
@@ -187,7 +190,12 @@ const filteredCardOptions = computed(() => {
   const uniqueCards = {};
   Object.keys(CARD_INFO_NAMES).forEach((key) => {
     if (key === "GUARD") return;
-    uniqueCards[key] = CARD_INFO_NAMES[key];
+    const raw = CARD_INFO_NAMES[key];
+    uniqueCards[key] = {
+      ...raw,
+      name: t(raw.nameKey),
+      desc: t(raw.descKey),
+    };
   });
   return uniqueCards;
 });

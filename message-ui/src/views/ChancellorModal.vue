@@ -119,9 +119,9 @@ const emit = defineEmits(["submit"]);
 const chosenKeepIndex = ref(null);
 const bottomSelection = ref([]);
 
-const getCardDesc = (type) => getCardInfoHelper(type)?.desc || t("cards.noDescription");
+const getCardDesc = (type) => getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
 const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-slate-700";
-const getCardName = (type) => getCardInfoHelper(type)?.name || t("cards.unknown");
+const getCardName = (type) => getCardInfoHelper(type, t)?.name || t("cards.unknown");
 const getCardValue = (type) => {
   const val = getCardInfoHelper(type)?.value;
   return val !== undefined ? val : "?";

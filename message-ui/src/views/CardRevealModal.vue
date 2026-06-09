@@ -106,7 +106,7 @@ const getPlayerData = (id) => {
 
 const getCardInfo = (id) => {
   return (
-    getCardInfoHelper(id) || {
+    getCardInfoHelper(id, t) || {
       name: t("cards.unknown"),
       desc: t("cards.serverHandled"),
       color: "bg-slate-800",

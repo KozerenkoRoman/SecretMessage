@@ -647,9 +647,9 @@ const handleClearError = () => {
 
 const handleStartGame = () => emit("start-game");
 
-const getCardDesc = (type) => getCardInfoHelper(type)?.desc || t("cards.noDescription");
+const getCardDesc = (type) => getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
 const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-slate-700";
-const getCardName = (type) => getCardInfoHelper(type)?.name || t("cards.unknown");
+const getCardName = (type) => getCardInfoHelper(type, t)?.name || t("cards.unknown");
 const getCardImage = (type) => getCardInfoHelper(type)?.image || "";
 const getCardValue = (type) => {
   const val = getCardInfoHelper(type)?.value;

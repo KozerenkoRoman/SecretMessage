@@ -81,7 +81,7 @@ export const en = {
     title: "Registration",
     username: "Login / Username",
     email: "Email address",
-    emailPlaceholder: "example@domain.com",
+    emailPlaceholder: "user{'@'}localhost.com",
     password: "Password",
     submit: "Register",
     loginPrompt: "Already have an account?",

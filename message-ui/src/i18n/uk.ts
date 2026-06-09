@@ -81,7 +81,7 @@ export const uk = {
     title: "Реєстрація",
     username: "Логін / Нікнейм",
     email: "Email-адреса",
-    emailPlaceholder: "example@domain.com",
+    emailPlaceholder: "user{'@'}localhost.com",
     password: "Пароль",
     submit: "Зареєструватися",
     loginPrompt: "Вже маєте акаунт?",

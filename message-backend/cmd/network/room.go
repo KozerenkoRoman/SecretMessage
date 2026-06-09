@@ -423,30 +423,7 @@ func (r *Room) HandlePlayerLeave(ctx context.Context, playerID string) error {
 	if len(r.state.TurnOrder) > 0 {
 		currIdx := r.state.CurrentTurn
 		if currIdx >= 0 && currIdx < len(r.state.TurnOrder) && r.state.TurnOrder[currIdx] == playerID {
-			next := (currIdx + 1) % len(r.state.TurnOrder)
-			for r.state.Players[r.state.TurnOrder[next]].IsOut {
-				next = (next + 1) % len(r.state.TurnOrder)
-			}
-			r.state.CurrentTurn = next
-			newActiveID := r.state.TurnOrder[next]
-			newActive := r.state.Players[newActiveID]
-			newActive.IsProtected = false
-
-			// ВИПРАВЛЕНО: Якщо гра продовжується, добираємо карту та ОБОВ'ЯЗКОВО генеруємо EventCardDrawn
-			if len(r.state.Deck) > 0 && len(newActive.Hand) < 2 {
-				draw := r.state.Deck[0]
-				r.state.Deck = r.state.Deck[1:]
-				newActive.Hand = append(newActive.Hand, draw)
-
-				events = append(events, engine.DomainEvent{
-					EventID:   r.state.Sequence*1000 + 5,
-					Type:      engine.EventCardDrawn,
-					Payload:   engine.CardDrawnPayload{PlayerID: newActiveID, Card: draw},
-					Timestamp: r.clock.Now(),
-				})
-			}
-			r.state.Players[newActiveID] = newActive
-			r.state.Phase = engine.PhaseMainAction
+			r.switchToNextActivePlayerAndDraw(&events)
 		}
 	}
 
@@ -1195,14 +1172,28 @@ func (r *Room) eliminatePlayer(playerID string) error {
 
 	r.log.WithField("player_id", playerID).Info("Автоматичне виключення гравця (дисконект)")
 
-	// Позначаємо як вибулого
+	// Очищаємо руку гравця та міняємо статус
+	for _, card := range player.Hand {
+		if card != engine.CardSpy {
+			player.DiscardPile = append(player.DiscardPile, card)
+		}
+	}
 	player.Hand = nil
 	player.IsOut = true
 	player.IsProtected = false
 	r.state.Players[playerID] = player
 	r.state.Sequence++
 
-	// Перевіряємо, чи залишився хтось живий
+	events := []engine.DomainEvent{
+		{
+			EventID:   r.state.Sequence * 1000,
+			Type:      engine.EventPlayerLeft,
+			Payload:   engine.PlayerLeftPayload{PlayerID: playerID},
+			Timestamp: r.clock.Now(),
+		},
+	}
+
+	// Перевіряємо, скільки гравців залишилось
 	aliveIDs := make([]string, 0)
 	for _, p := range r.state.Players {
 		if !p.IsOut {
@@ -1210,15 +1201,80 @@ func (r *Room) eliminatePlayer(playerID string) error {
 		}
 	}
 
-	// Якщо залишився 1 або 0 гравців — завершуємо раунд
+	// Якщо залишився один або нуль гравців — завершуємо раунд
 	if len(aliveIDs) <= 1 {
 		startEventID := r.state.Sequence * 1000
 		roundResult := engine.ResolveRoundEnd(r.state, r.clock, startEventID)
 		r.state = roundResult.NewState
-
-		// Логуємо подію (можна додати в евенти)
+		events = append(events, roundResult.DomainEvents...)
 		r.log.Info("Раунд автоматично завершено через дисконект гравця")
+
+		// Оскільки це викликається з UnregisterClient, нам потрібно
+		// самостійно зробити Broadcast оновленого стану
+		go r.BroadcastState(UpdateTypeRoomUpdated, events)
+		return nil
 	}
 
+	// КРИТИЧНЕ ВИПРАВЛЕННЯ: Якщо відключився гравець, чий зараз був хід,
+	// передаємо хід наступному активному гравцю.
+	currIdx := r.state.CurrentTurn
+	if currIdx >= 0 && currIdx < len(r.state.TurnOrder) && r.state.TurnOrder[currIdx] == playerID {
+		r.switchToNextActivePlayerAndDraw(&events)
+	}
+
+	// Перевірка на випадок, якщо закінчилися карти в колоді
+	if len(r.state.Deck) == 0 {
+		startEventID := r.state.Sequence * 1000
+		roundResult := engine.ResolveRoundEnd(r.state, r.clock, startEventID+50)
+		r.state = roundResult.NewState
+		events = append(events, roundResult.DomainEvents...)
+	}
+
+	// Надсилаємо оновлений стан усім гравцям кімнати
+	go r.BroadcastState(UpdateTypeRoomUpdated, events)
 	return nil
+}
+
+// ПРИМІТКА: Додай цей метод до структури Room у файлі network/room.go
+// Він інкапсулює логіку переходу ходу, яка дублювалася.
+func (r *Room) switchToNextActivePlayerAndDraw(events *[]engine.DomainEvent) {
+	currIdx := r.state.CurrentTurn
+	totalPlayers := len(r.state.TurnOrder)
+	if totalPlayers == 0 {
+		return
+	}
+
+	// Шукаємо наступного гравця, який не вибув
+	next := (currIdx + 1) % totalPlayers
+	startingIdx := currIdx
+
+	for r.state.Players[r.state.TurnOrder[next]].IsOut {
+		next = (next + 1) % totalPlayers
+		// Якщо пройшли повне коло і не знайшли активних гравців
+		if next == startingIdx {
+			return
+		}
+	}
+
+	r.state.CurrentTurn = next
+	newActiveID := r.state.TurnOrder[next]
+	newActive := r.state.Players[newActiveID]
+	newActive.IsProtected = false
+
+	// Новий гравець бере карту з колоди
+	if len(r.state.Deck) > 0 && len(newActive.Hand) < 2 {
+		draw := r.state.Deck[0]
+		r.state.Deck = r.state.Deck[1:]
+		newActive.Hand = append(newActive.Hand, draw)
+
+		*events = append(*events, engine.DomainEvent{
+			EventID:   r.state.Sequence*1000 + 5,
+			Type:      engine.EventCardDrawn,
+			Payload:   engine.CardDrawnPayload{PlayerID: newActiveID, Card: draw},
+			Timestamp: r.clock.Now(),
+		})
+	}
+
+	r.state.Players[newActiveID] = newActive
+	r.state.Phase = engine.PhaseMainAction
 }

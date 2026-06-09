@@ -124,6 +124,7 @@ export const uk = {
     room: "Кімната:",
     time: "Час:",
     timeUnit: "с",
+    start: "Почати гру",
     waiting: "Очікування...",
     yourTurn: "Ваш хід!",
     currentTurn: "Ходить:",

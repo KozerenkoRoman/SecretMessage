@@ -124,6 +124,7 @@ export const en = {
     room: "Room:",
     time: "Time:",
     timeUnit: "s",
+    start: "Start game",
     waiting: "Waiting...",
     yourTurn: "Your turn!",
     currentTurn: "Turn:",

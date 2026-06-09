@@ -123,6 +123,7 @@
 
                 <template v-if="player.is_out"> ({{ $t("status.out") }})</template>
               </span>
+
               <span
                 class="text-[12px] bg-slate-700 text-yellow-400 px-1 py-0.5 rounded font-mono"
               >
@@ -132,16 +133,16 @@
 
             <!-- Карти в руці опонента (Центровані з динамічним накладанням без виходу за межі) -->
             <div
-              class="flex justify-center items-center h-36 w-full overflow-hidden relative px-2"
+              class="flex justify-center items-center h-36 w-full overflow-hidden relative px-5"
             >
               <div
-                class="flex flex-row items-center justify-center relative w-full gap-x-[-1.5rem] -space-x-4"
+                class="flex flex-row items-center justify-center relative w-full gap-x-[-1.5rem] -space-x-4 flex-shrink-0"
               >
                 <!-- Сорочки карт в руці (можуть злегка перекриватися, flex-shrink дозволяє адаптацію) -->
                 <div
                   v-for="cIdx in getOpponentHandCount(player)"
                   :key="cIdx"
-                  class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative transition-transform duration-300 flex-shrink"
+                  class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative flex-shrink"
                 >
                   <img
                     :src="deckBackImage"
@@ -151,6 +152,7 @@
                 </div>
 
                 <!-- Остання зіграна карта (Завжди поверх інших z-20, не стискається flex-shrink-0, показується повністю) -->
+
                 <div
                   v-if="lastPlayedCardsByPlayer[player.id] !== undefined"
                   class="flex flex-col items-center justify-center flex-shrink-0 z-20 ml-2"
@@ -166,6 +168,7 @@
                       :alt="getCardName(lastPlayedCardsByPlayer[player.id])"
                       class="w-full h-full rounded-sm pointer-events-none"
                     />
+
                     <div
                       v-else
                       class="w-full h-full flex items-center justify-center text-[9px] text-center p-1 font-bold"
@@ -178,7 +181,7 @@
             </div>
 
             <!-- Нижній відступ замість видаленого блоку статусів для збереження пропорцій геометрії -->
-            <div class="h-1 w-full flex-shrink-0"></div>
+            <div class="w-full h-0"></div>
           </div>
         </template>
       </div>
@@ -647,7 +650,8 @@ const handleClearError = () => {
 
 const handleStartGame = () => emit("start-game");
 
-const getCardDesc = (type) => getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
+const getCardDesc = (type) =>
+  getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
 const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-slate-700";
 const getCardName = (type) => getCardInfoHelper(type, t)?.name || t("cards.unknown");
 const getCardImage = (type) => getCardInfoHelper(type)?.image || "";

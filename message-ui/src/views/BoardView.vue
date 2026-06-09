@@ -46,7 +46,7 @@
         <div class="flex items-center gap-2">
           <template v-if="!gameState?.is_started">
             <button v-if="canStartGame" @click="handleStartGame" class="btn-primary">
-              {{ $t("board.waiting") }}
+              {{ $t("board.start") }}
             </button>
             <div
               v-else
@@ -93,17 +93,35 @@
               isTurnOfPlayer(player.id)
                 ? 'border-yellow-400 bg-slate-800 ring-2 ring-yellow-400/30'
                 : 'border-slate-700 bg-slate-800/60',
+              player.is_out ? 'opacity-40 grayscale-[30%]' : '',
             ]"
             class="flex flex-col items-center p-2 rounded-xl border transition-all duration-300 w-64 h-full justify-between shadow-md relative"
           >
+            <!-- Рядок статусу гравця -->
             <div
-              class="flex items-center justify-between w-full border-b border-slate-700 pb-0.5 flex-shrink-0"
+              class="flex items-center justify-between w-full border-b border-slate-700 pb-1 flex-shrink-0 min-h-[28px]"
             >
               <span
-                class="font-bold text-[11px] truncate max-w-[130px] text-slate-200"
+                class="font-bold text-[11px] truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded"
+                :class="[
+                  player.is_out
+                    ? 'bg-rose-900 text-rose-100 font-black'
+                    : 'text-slate-200',
+                ]"
                 :title="player.username"
               >
                 {{ player.username || $t("common.opponent") }}
+
+                <template v-if="player.is_protected">
+                  <span
+                    class="font-bold text-[11px] truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded"
+                    :class="['bg-yellow-500 text-slate-950 font-black shadow']"
+                  >
+                    {{ $t("board.protection") }}
+                  </span>
+                </template>
+
+                <template v-if="player.is_out"> ({{ $t("status.out") }})</template>
               </span>
               <span
                 class="text-[12px] bg-slate-700 text-yellow-400 px-1 py-0.5 rounded font-mono"
@@ -112,15 +130,18 @@
               </span>
             </div>
 
-            <!-- Карти в руці опонента -->
+            <!-- Карти в руці опонента (Центровані з динамічним накладанням без виходу за межі) -->
             <div
-              class="flex justify-center items-center h-36 w-full overflow-hidden pl-4 gap-4 relative"
+              class="flex justify-center items-center h-36 w-full overflow-hidden relative px-2"
             >
-              <div class="flex items-center justify-center relative flex-1">
+              <div
+                class="flex flex-row items-center justify-center relative w-full gap-x-[-1.5rem] -space-x-4"
+              >
+                <!-- Сорочки карт в руці (можуть злегка перекриватися, flex-shrink дозволяє адаптацію) -->
                 <div
                   v-for="cIdx in getOpponentHandCount(player)"
                   :key="cIdx"
-                  class="w-20 h-28 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden -mr-8 relative transition-transform duration-300"
+                  class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative transition-transform duration-300 flex-shrink"
                 >
                   <img
                     :src="deckBackImage"
@@ -128,68 +149,36 @@
                     class="w-full h-full object-cover rounded-sm select-none"
                   />
                 </div>
-              </div>
 
-              <div
-                v-if="lastPlayedCardsByPlayer[player.id] !== undefined"
-                class="flex flex-col items-center justify-center flex-shrink-0 animate-fade-in z-20 px-1"
-              >
-                <span
-                  class="text-[8px] uppercase text-amber-400 font-bold tracking-wider mb-0.5 animate-pulse"
-                >
-                  {{ $t("board.lastMove") || "Хід" }}
-                </span>
+                <!-- Остання зіграна карта (Завжди поверх інших z-20, не стискається flex-shrink-0, показується повністю) -->
                 <div
-                  class="game-card w-20 h-28 border-2 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.6)] bg-cover bg-center rounded-lg relative overflow-hidden transition-all duration-300"
-                  :class="getCardColor(lastPlayedCardsByPlayer[player.id])"
-                  :data-tooltip="getCardName(lastPlayedCardsByPlayer[player.id])"
+                  v-if="lastPlayedCardsByPlayer[player.id] !== undefined"
+                  class="flex flex-col items-center justify-center flex-shrink-0 z-20 ml-2"
                 >
-                  <img
-                    v-if="getCardImage(lastPlayedCardsByPlayer[player.id])"
-                    :src="getCardImage(lastPlayedCardsByPlayer[player.id])"
-                    :alt="getCardName(lastPlayedCardsByPlayer[player.id])"
-                    class="w-full h-full object-cover rounded-sm pointer-events-none"
-                  />
                   <div
-                    v-else
-                    class="w-full h-full flex items-center justify-center text-[9px] text-center p-1 font-bold"
+                    class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative transition-transform duration-300 flex-shrink"
+                    :class="getCardColor(lastPlayedCardsByPlayer[player.id])"
+                    :data-tooltip="getCardName(lastPlayedCardsByPlayer[player.id])"
                   >
-                    {{ getCardName(lastPlayedCardsByPlayer[player.id]) }}
+                    <img
+                      v-if="getCardImage(lastPlayedCardsByPlayer[player.id])"
+                      :src="getCardImage(lastPlayedCardsByPlayer[player.id])"
+                      :alt="getCardName(lastPlayedCardsByPlayer[player.id])"
+                      class="w-full h-full rounded-sm pointer-events-none"
+                    />
+                    <div
+                      v-else
+                      class="w-full h-full flex items-center justify-center text-[9px] text-center p-1 font-bold"
+                    >
+                      {{ getCardName(lastPlayedCardsByPlayer[player.id]) }}
+                    </div>
                   </div>
                 </div>
               </div>
-
-              <div
-                v-if="player.is_protected"
-                class="absolute inset-0 flex items-center justify-center bg-slate-950/10 backdrop-blur-[0.5px] rounded-lg pointer-events-none z-10"
-              >
-                <div
-                  class="game-card w-24 h-36 border-2 border-yellow-400 shadow-[0_0_14px_rgba(234,179,8,0.7)] bg-cover bg-center relative flex-shrink-0"
-                  :class="getCardColor(4)"
-                  :style="
-                    getCardImage(4) ? { backgroundImage: `url(${getCardImage(4)})` } : {}
-                  "
-                ></div>
-              </div>
             </div>
 
-            <div class="w-full text-center text-[10px] flex-shrink-0">
-              <span
-                v-if="player.is_protected"
-                class="text-yellow-400 font-bold uppercase text-[8px]"
-              >
-                {{ $t("status.protected") }}
-              </span>
-              <span
-                v-else-if="player.is_out"
-                class="text-rose-400 font-bold uppercase text-[8px]"
-              >
-                {{ $t("status.out") }}
-              </span>
-              <span v-else class="text-slate-500 text-[12px] italic">
-                {{ $t("status.inGame") }}
-              </span>
-            </div>
+            <!-- Нижній відступ замість видаленого блоку статусів для збереження пропорцій геометрії -->
+            <div class="h-1 w-full flex-shrink-0"></div>
           </div>
         </template>
       </div>
@@ -286,7 +275,6 @@
       class="w-full max-w-2xl mx-auto bg-slate-950/90 backdrop-blur-md p-2 rounded-t-2xl border-t border-x border-slate-800 flex flex-col items-center shadow-2xl flex-shrink-0 z-10 h-[28vh] min-h-[280px] relative"
     >
       <div class="w-full h-full relative">
-        <!--  Вертикальний стовпчик фішок перемоги нашого гравця (ліворуч від карт) -->
         <div
           v-if="myPlayer?.score > 0"
           class="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.1 items-center p-1.5"
@@ -486,14 +474,32 @@ const showLeaveConfirm = ref(false);
 const showActionModal = ref(false);
 const activePlay = ref({ cardType: "", handIndex: 0, targetID: "", guessCard: "" });
 
-// Локальне збереження останньої зіграної карти для кожного гравця
 const lastPlayedCardsByPlayer = ref({});
-
 
 const effectiveMyID = computed(() => {
   const fromStore = storeMyID.value;
   if (typeof fromStore === "string" && fromStore.length > 0) return fromStore;
   return typeof props.myID === "string" ? props.myID : "";
+});
+
+const totalCardsInHands = computed(() => {
+  const playersData = props.gameState?.players;
+  if (!playersData) return 0;
+
+  const playersList = Array.isArray(playersData)
+    ? playersData
+    : Object.values(playersData);
+
+  return playersList.reduce((sum, p) => {
+    if (!p) return sum;
+    const count =
+      typeof p.hand_count === "number"
+        ? p.hand_count
+        : Array.isArray(p.hand)
+        ? p.hand.length
+        : 0;
+    return sum + count;
+  }, 0);
 });
 
 const arrangedPlayers = computed(() => {
@@ -558,47 +564,53 @@ const isMyTurn = computed(() => {
   return props.gameState?.current_player_id === me;
 });
 
-
 watch(
-  [() => props.gameState?.players, () => props.gameState?.current_player_id],
-  ([newPlayers, currentPlayerId], [oldPlayers, oldPlayerId]) => {
-    if (!newPlayers) return;
+  () => props.gameState,
+  (newGameState, oldGameState) => {
+    if (!newGameState || !newGameState.players || !newGameState.turn_order) return;
+    const currentPlayers = Array.isArray(newGameState.players)
+      ? newGameState.players
+      : Object.values(newGameState.players);
 
-    const rawList = Array.isArray(newPlayers) ? newPlayers : Object.values(newPlayers);
-
-    // Якщо змінився гравець, очищуємо збережену карту того, до кого перейшов хід
-    if (currentPlayerId && currentPlayerId !== oldPlayerId) {
-      delete lastPlayedCardsByPlayer.value[currentPlayerId];
-    }
-
-    rawList.forEach((p) => {
+    const oldPlayers = oldGameState?.players
+      ? Array.isArray(oldGameState.players)
+        ? oldGameState.players
+        : Object.values(oldGameState.players)
+      : [];
+    const currentActiveID = newGameState.turn_order[newGameState.current_turn];
+    currentPlayers.forEach((p) => {
       if (!p || !p.id) return;
 
-      // Безпечно порівнюємо з вже ініціалізованим effectiveMyID
       if (p.id === effectiveMyID.value) return;
 
-      if (Array.isArray(p.discard_pile) && p.discard_pile.length > 0) {
-        const lastIndex = p.discard_pile.length - 1;
-        const currentLastCard = p.discard_pile[lastIndex];
+      const oldP = oldPlayers.find((o) => o && o.id === p.id);
+      const currentDiscardLength = Array.isArray(p.discard_pile)
+        ? p.discard_pile.length
+        : 0;
+      const oldDiscardLength =
+        oldP && Array.isArray(oldP.discard_pile) ? oldP.discard_pile.length : 0;
 
-        const oldPlayersList = oldPlayers
-          ? Array.isArray(oldPlayers)
-            ? oldPlayers
-            : Object.values(oldPlayers)
-          : [];
-        const oldP = oldPlayersList.find((o) => o && o.id === p.id);
-        const oldDiscardLength =
-          oldP && Array.isArray(oldP.discard_pile) ? oldP.discard_pile.length : 0;
-
-        if (p.discard_pile.length > oldDiscardLength) {
-          lastPlayedCardsByPlayer.value[p.id] = currentLastCard;
-        }
-      } else {
+      if (currentDiscardLength > oldDiscardLength) {
+        const lastCard = p.discard_pile[currentDiscardLength - 1];
+        lastPlayedCardsByPlayer.value[p.id] = lastCard;
+      } else if (p.id === currentActiveID) {
+        delete lastPlayedCardsByPlayer.value[p.id];
+      }
+      if (currentDiscardLength === 0) {
         delete lastPlayedCardsByPlayer.value[p.id];
       }
     });
   },
   { deep: true, immediate: true }
+);
+
+watch(
+  () => totalCardsInHands.value,
+  (newCount, oldCount) => {
+    if (newCount > oldCount) {
+      lastPlayedCardsByPlayer.value = {};
+    }
+  }
 );
 
 watch(
@@ -609,9 +621,6 @@ watch(
       typeof oldRound === "number" &&
       newRound > oldRound
     ) {
-      console.log(
-        `[BoardView] Раунд збільшився з ${oldRound} до ${newRound}. Закриваємо вікно дуелі.`
-      );
       handleCloseRevealModal();
       lastPlayedCardsByPlayer.value = {};
     }
@@ -622,15 +631,11 @@ watch(
   () => props.gameState?.deck?.length,
   (newDeckLength, oldDeckLength) => {
     if (newDeckLength && oldDeckLength && newDeckLength > oldDeckLength) {
-      console.log(
-        "[BoardView] Колоду перетасовано для нового раунду. Закриваємо вікно дуелі."
-      );
       handleCloseRevealModal();
       lastPlayedCardsByPlayer.value = {};
     }
   }
 );
-
 
 const handleCloseRevealModal = () => {
   gameStore.clearRevealedData();
@@ -645,43 +650,44 @@ const handleStartGame = () => emit("start-game");
 const getCardDesc = (type) => getCardInfoHelper(type)?.desc || t("cards.noDescription");
 const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-slate-700";
 const getCardName = (type) => getCardInfoHelper(type)?.name || t("cards.unknown");
+const getCardImage = (type) => getCardInfoHelper(type)?.image || "";
 const getCardValue = (type) => {
   const val = getCardInfoHelper(type)?.value;
   return val !== undefined ? val : "?";
 };
-const getCardImage = (type) => getCardInfoHelper(type)?.image || "";
 
 const globalDiscardPile = computed(() => {
   const playersData = props.gameState?.players;
   if (!playersData) return [];
   const allDiscards = [];
+
+  const processPlayerDiscard = (p, id) => {
+    if (p && Array.isArray(p.discard_pile)) {
+      p.discard_pile.forEach((card, index) => {
+        const isObject = typeof card === "object" && card !== null;
+        const cardType = isObject ? card.type : card;
+        const turnOrder = isObject ? card.turn || card.timestamp || index : index;
+
+        allDiscards.push({
+          type: cardType,
+          owner: p.username || t("common.player"),
+          playerId: id,
+          turn: turnOrder,
+        });
+      });
+    }
+  };
+
   if (typeof playersData === "object" && !Array.isArray(playersData)) {
     Object.keys(playersData).forEach((id) => {
-      const p = playersData[id];
-      if (p && Array.isArray(p.discard_pile)) {
-        p.discard_pile.forEach((cardType) => {
-          allDiscards.push({
-            type: cardType,
-            owner: p.username || t("common.player"),
-            playerId: id,
-          });
-        });
-      }
+      processPlayerDiscard(playersData[id], id);
     });
   } else if (Array.isArray(playersData)) {
     playersData.forEach((p) => {
-      if (p && Array.isArray(p.discard_pile)) {
-        p.discard_pile.forEach((cardType) => {
-          allDiscards.push({
-            type: cardType,
-            owner: p.username || t("common.player"),
-            playerId: p.id,
-          });
-        });
-      }
+      if (p) processPlayerDiscard(p, p.id);
     });
   }
-  return allDiscards;
+  return allDiscards.sort((a, b) => a.turn - b.turn);
 });
 
 const canStartGame = computed(() => {

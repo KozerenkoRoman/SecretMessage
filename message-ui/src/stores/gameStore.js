@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
+import { CARD_INFO_NUMBERS } from '../constants/cards';
 
+const gameLog = ref([]);
 const EMPTY_GAME_STATE = Object.freeze({
   is_started: false,
   players: {},
@@ -181,6 +183,17 @@ export const useGameStore = defineStore('gameStore', () => {
 
           // 1. Повністю ізольовано клонуємо стан від сервера
           let updatedState = JSON.parse(JSON.stringify(rawState));
+          const getPlayerName = (id) => {
+            if (!id) return '...';
+            return updatedState.players?.[id]?.username || `Гравець (${id.substring(0, 4)})`;
+          };
+
+
+          const getCardKey = (cardType) => {
+            const cardData = CARD_INFO_NUMBERS[Number(cardType)];
+            return cardData ? cardData.nameKey : 'cards.unknown';
+          };
+
           const currentUuid = myID.value;
 
           // 2. Гарантуємо повне очищення та синхронізацію дублюючих полів
@@ -193,45 +206,123 @@ export const useGameStore = defineStore('gameStore', () => {
           if (Array.isArray(packet.events)) {
             packet.events.forEach((ev) => {
               if (!ev || typeof ev !== 'object') return;
+              const payload = ev.payload || {};
 
-              // Обробка ефекту Барона
-              if (ev.type === 'ROUND_COMPARED') {
-                const payload = ev.payload || {};
-                revealedCardData.value = {
-                  eventType: 'ROUND_COMPARED',
-                  playerCard: Number(payload.player_card),
-                  targetCard: Number(payload.target_card),
-                  targetId: payload.target_id,
-                  playerId: payload.player_id,
-                };
-              }
-              // Обробка ефекту Священника
-              else if (ev.type === 'PRIEST_EFFECT' || ev.type === 'CARD_REVEALED') {
-                const payload = ev.payload || {};
-                if (payload.viewer_id === currentUuid) {
-                  const revealedCard = payload.card !== undefined ? payload.card : payload.card_type;
-                  if (revealedCard !== undefined && revealedCard !== null) {
-                    revealedCardData.value = {
-                      eventType: 'CARD_REVEALED',
-                      cardType: Number(revealedCard),
-                      targetId: payload.target_id
-                    };
+              console.log(`[WS] Обробляємо подію: ${ev.type}`);
+
+              switch (ev.type) {
+                case 'ROUND_COMPARED':
+                  revealedCardData.value = {
+                    eventType: 'ROUND_COMPARED',
+                    playerCard: Number(payload.player_card),
+                    targetCard: Number(payload.target_card),
+                    targetId: payload.target_id,
+                    playerId: payload.player_id,
+                  };
+                  addToLog('log.round_compared', {
+                    player: getPlayerName(payload.player_id),
+                    target: getPlayerName(payload.target_id)
+                  });
+                  break;
+
+                case 'CARD_REVEALED':
+                case 'PRIEST_EFFECT':
+                  if (currentUuid === payload.viewer_id || currentUuid === payload.target_id) {
+                    if (payload.card) {
+                      revealedCardData.value = {
+                        eventType: 'PRIEST_EFFECT',
+                        cardType: Number(payload.card),
+                        targetId: payload.target_id,
+                        viewerId: payload.viewer_id
+                      };
+                    }
                   }
-                }
-              }
-              // Обробка ефекту Канцлера
-              else if (ev.type === 'CHANCELLOR_DRAWN') {
-                const payload = ev.payload || {};
-                if (payload.player_id === currentUuid) {
-                  console.log('[WS DEBUG] Подія Канцлера: відкриваємо інтерфейс вибору карт.');
-                  // Тут за потреби можна виставити локальний флаг увімкнення вікна Канцлера:
-                  // isChancellorModalOpen.value = true;
-                }
+                  addToLog('log.priest_effect', {
+                    player: getPlayerName(payload.viewer_id),
+                    target: getPlayerName(payload.target_id)
+                  });
+                  break;
+
+                case 'CARD_PLAYED':
+                  addToLog('log.card_played', {
+                    player: getPlayerName(payload.player_id),
+                    card: getCardKey(payload.card),
+                    hasTarget: !!payload.target_id,
+                    target: getPlayerName(payload.target_id)
+                  });
+                  break;
+
+                case 'GUARD_HIT':
+                  addToLog('log.guard_hit', {
+                    player: getPlayerName(payload.player_id),
+                    target: getPlayerName(payload.target_id),
+                    guess: getCardKey(payload.guess)
+                  });
+                  break;
+
+                case 'GUARD_MISS':
+                  addToLog('log.guard_miss', {
+                    player: getPlayerName(payload.player_id),
+                    target: getPlayerName(payload.target_id),
+                    guess: getCardKey(payload.guess)
+                  });
+                  break;
+
+                case 'BARON_RESULT':
+                  addToLog('log.baron_result', {
+                    winner: getPlayerName(payload.winner_id),
+                    loser: getPlayerName(payload.loser_id)
+                  });
+                  break;
+
+                case 'PLAYER_ELIMINATED':
+                  addToLog('log.player_eliminated', {
+                    player: getPlayerName(payload.player_id),
+                    reason: `reasons.${payload.reason}`
+                  });
+                  break;
+
+                case 'HANDS_SWAPPED':
+                  addToLog('log.hands_swapped', {
+                    player: getPlayerName(payload.player_id),
+                    target: getPlayerName(payload.target_id)
+                  });
+                  break;
+
+                case 'SPY_BONUS':
+                  addToLog('log.spy_bonus', {
+                    player: getPlayerName(payload.player_id),
+                    points: payload.points
+                  });
+                  break;
+
+                case 'ROUND_END':
+                  addToLog('log.round_end', {
+                    winner: getPlayerName(payload.winner_id),
+                    reason: `reasons.${payload.reason}`
+                  });
+                  break;
+
+                case 'PLAYER_LEFT':
+                  addToLog('log.player_left', {
+                    player: getPlayerName(payload.player_id)
+                  });
+                  break;
+
+                case 'CARD_DRAWN':
+                  addToLog('log.card_drawn', {
+                    player: getPlayerName(payload.player_id)
+                  });
+                  break;
+
+                case 'CHANCELLOR_DRAWN':
+                case 'CHANCELLOR_RESOLVED':
+                  console.log(`[WS] Подія канцлера ${ev.type} зафіксована, але лог не реалізовано.`);
+                  break;
               }
             });
           }
 
-          // 4. Записуємо чистий стан у стор. Старі карти затираються повністю!
           gameState.value = updatedState;
         }
       } catch (err) {
@@ -303,8 +394,18 @@ export const useGameStore = defineStore('gameStore', () => {
     currentRoomID.value = '';
   }
 
+  function addToLog(messageKey, namedArgs = {}) {
+    gameLog.value.push({
+      id: crypto?.randomUUID ? crypto.randomUUID() : Math.random().toString(),
+      timestamp: new Date().toLocaleTimeString(),
+      messageKey,
+      namedArgs
+    });
+  }
+
   return {
     gameState,
+    gameLog,
     lobbyRooms,
     revealedCardData,
     isConnected,

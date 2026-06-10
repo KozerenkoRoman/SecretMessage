@@ -1,10 +1,36 @@
-/* === src/style.css === */
+/* https://play.tailwindcss.com/ */
 @import "tailwindcss";
 
 @theme {
   --color-poker-dark: #0f172a;
   --color-poker-card: #1e293b;
   --color-poker-gold: #f59e0b;
+
+  --color-brand-bg: #0f172a;
+  --color-brand-bg-dark: #020617;
+  --color-brand-surface: #1e293b;
+  --color-brand-surface-dim: #334155;
+  --color-brand-text-primary: #f1f5f9;
+  --color-brand-text-muted: #e2e8f0;
+  --color-brand-text-subtle: #cbd5e1;
+  --color-brand-border: #334155;
+  --color-brand-accent: #f59e0b;
+  --color-brand-accent-light: #fbbf24;
+  --color-brand-warning: #eab308;
+  --color-brand-info: #3b82f6;
+  --color-brand-success: #10b981;
+  --color-brand-danger: #ef4444;
+
+  --color-brand-card-gray: #374151;
+  --color-brand-card-red: #b91c1c;
+  --color-brand-card-blue: #2563eb;
+  --color-brand-card-green: #16a34a;
+  --color-brand-card-yellow: #ca8a04;
+  --color-brand-card-cyan: #0891b2;
+  --color-brand-card-purple: #7c3aed;
+  --color-brand-card-amber: #b45309;
+  --color-brand-card-orange: #f97316;
+  --color-brand-card-pink: #d946ef;
 }
 
 /* ===========================================================

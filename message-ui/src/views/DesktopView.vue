@@ -1,13 +1,13 @@
 <template>
-  <div class="min-h-screen bg-slate-950 text-white p-6">
+  <div class="min-h-screen bg-brand-bg-dark text-white p-6">
     <div class="max-w-4xl mx-auto">
       <div
-        class="lobby-header flex items-center justify-between bg-slate-900 border border-slate-800 p-4 rounded-xl mb-6"
+        class="lobby-header flex items-center justify-between bg-brand-bg border border-slate-800 p-4 rounded-xl mb-6"
       >
         <div class="flex items-center gap-3">
           <div
             @click="openAvatarModal"
-            class="relative w-16 h-16 bg-slate-950 border-2 border-amber-500/80 rounded-full p-0.5 overflow-hidden shadow-md cursor-pointer group transition-transform hover:scale-105"
+            class="relative w-16 h-16 bg-brand-bg-dark border-2 border-amber-500/80 rounded-full p-0.5 overflow-hidden shadow-md cursor-pointer group transition-transform hover:scale-105"
             :title="$t('desktop.profileTitle')"
           >
             <img
@@ -53,7 +53,7 @@
         {{ apiError }}
       </div>
 
-      <h2 class="text-lg font-bold mb-4 font-mono text-slate-300">
+      <h2 class="text-lg font-bold mb-4 font-mono text-brand-text-subtle">
         {{ $t("desktop.lobbyHeader") }}
       </h2>
 
@@ -64,11 +64,11 @@
         <div
           v-for="room in gameStore.lobbyRooms"
           :key="room.room_id || room.ID"
-          class="lobby-card flex items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-slate-700 transition-all"
+          class="lobby-card flex items-center justify-between p-4 bg-brand-bg border border-slate-800 rounded-xl hover:border-brand-border transition-all"
         >
           <div class="flex items-center gap-3 truncate">
             <div
-              class="w-12 h-12 rounded-full border-2 border-amber-500/40 p-0.5 bg-slate-950 overflow-hidden flex-shrink-0 shadow-md"
+              class="w-12 h-12 rounded-full border-2 border-amber-500/40 p-0.5 bg-brand-bg-dark overflow-hidden flex-shrink-0 shadow-md"
             >
               <img
                 :src="

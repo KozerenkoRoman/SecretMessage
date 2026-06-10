@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen bg-slate-950 text-white p-6">
+  <div class="min-h-screen bg-brand-bg-dark text-white p-6">
     <div class="max-w-5xl mx-auto">
       <div
-        class="flex justify-between items-center mb-8 bg-slate-900 p-4 rounded-xl border border-slate-800"
+        class="flex justify-between items-center mb-8 bg-brand-bg p-4 rounded-xl border border-slate-800"
       >
         <div>
           <h1 class="text-2xl font-bold text-rose-500 font-mono tracking-wide">
@@ -12,7 +12,7 @@
         </div>
         <router-link
           to="/desktop"
-          class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-amber-500 hover:text-amber-400 text-xs font-bold uppercase tracking-wider font-mono rounded-xl transition-all border border-slate-700 shadow-md active:scale-95"
+          class="px-4 py-2 bg-brand-surface hover:bg-brand-surface-dim text-amber-500 hover:text-amber-400 text-xs font-bold uppercase tracking-wider font-mono rounded-xl transition-all border border-brand-border shadow-md active:scale-95"
         >
           {{ $t("admin.backToDesktop") }}
         </router-link>
@@ -32,15 +32,15 @@
       </div>
 
       <div
-        class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl"
+        class="bg-brand-bg border border-slate-800 rounded-xl overflow-hidden shadow-xl"
       >
         <div class="p-4 border-b border-slate-800 flex justify-between items-center">
-          <h2 class="font-mono text-slate-300 font-bold">
+          <h2 class="font-mono text-brand-text-subtle font-bold">
             {{ $t("admin.table.title") }}
           </h2>
           <button
             @click="fetchUsers"
-            class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-amber-500 hover:text-amber-400 text-[10px] font-bold font-mono rounded-lg border border-slate-700 cursor-pointer transition-all"
+            class="px-2.5 py-1 bg-brand-surface hover:bg-brand-surface-dim text-amber-500 hover:text-amber-400 text-[10px] font-bold font-mono rounded-lg border border-brand-border cursor-pointer transition-all"
           >
             {{ $t("admin.refresh") }}
           </button>
@@ -50,7 +50,7 @@
           <table class="w-full text-left border-collapse">
             <thead>
               <tr
-                class="bg-slate-950/50 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800"
+                class="bg-brand-bg-dark/50 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800"
               >
                 <th class="p-4 font-semibold">{{ $t("admin.table.id") }}</th>
                 <th class="p-4 font-semibold">{{ $t("admin.table.username") }}</th>
@@ -65,7 +65,7 @@
               <tr
                 v-for="user in users"
                 :key="user.id"
-                class="hover:bg-slate-800/30 transition-colors"
+                class="hover:bg-brand-surface/30 transition-colors"
               >
                 <td
                   class="p-4 font-mono text-xs text-slate-500 max-w-[120px] truncate"
@@ -73,7 +73,7 @@
                 >
                   {{ user.id }}
                 </td>
-                <td class="p-4 font-semibold text-slate-200">{{ user.username }}</td>
+                <td class="p-4 font-semibold text-brand-text-muted">{{ user.username }}</td>
                 <td class="p-4 text-slate-400">{{ user.email || "—" }}</td>
                 <td class="p-4">
                   <span
@@ -81,7 +81,7 @@
                       'px-2 py-0.5 text-xs rounded-md font-medium',
                       user.role === 'admin'
                         ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                        : 'bg-slate-800 text-slate-400',
+                        : 'bg-brand-surface text-slate-400',
                     ]"
                   >
                     {{ user.role }}

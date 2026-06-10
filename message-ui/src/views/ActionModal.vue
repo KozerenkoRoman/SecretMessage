@@ -5,7 +5,7 @@
       class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
     >
       <div
-        class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar transition-all duration-300"
+        class="bg-brand-surface border border-brand-border rounded-2xl p-6 w-full shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar transition-all duration-300"
         :class="[
           isGuardGuessRequired && availableTargets.length > 0 ? 'max-w-5xl' : 'max-w-xl',
         ]"
@@ -17,7 +17,7 @@
         <div v-if="requiresTargetSelection" class="mb-4">
           <div v-if="availableTargets.length > 0">
             <div
-              class="flex flex-wrap justify-center gap-6 bg-slate-900/40 p-4 rounded-xl border border-slate-700/30"
+              class="flex flex-wrap justify-center gap-6 bg-brand-bg/40 p-4 rounded-xl border border-brand-border/30"
             >
               <button
                 v-for="p in availableTargets"
@@ -31,7 +31,7 @@
                   :class="[
                     targetID === p.id
                       ? 'border-amber-400 bg-amber-950/40 scale-105 shadow-lg shadow-amber-500/20'
-                      : 'border-slate-600 bg-slate-950/60 group-hover:border-slate-400 group-hover:scale-102',
+                      : 'border-slate-600 bg-brand-bg-dark/60 group-hover:border-slate-400 group-hover:scale-102',
                   ]"
                 >
                   <img
@@ -45,7 +45,7 @@
                   :class="[
                     targetID === p.id
                       ? 'text-amber-400 font-bold'
-                      : 'text-slate-300 group-hover:text-white',
+                      : 'text-brand-text-subtle group-hover:text-white',
                   ]"
                 >
                   {{ p.username }}{{ p.id === myID ? $t("action.youSuffix") : "" }}
@@ -55,7 +55,7 @@
           </div>
           <div
             v-else
-            class="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/30 p-3 rounded-lg flex flex-col gap-1"
+            class="text-sm text-amber-400 bg-brand-accent/10 border border-amber-500/30 p-3 rounded-lg flex flex-col gap-1"
           >
             <span class="font-bold">{{ $t("action.noTargets") }}</span>
             <span>
@@ -66,7 +66,7 @@
 
         <div
           v-if="!requiresTargetSelection"
-          class="mb-4 text-sm text-amber-400 bg-amber-500/5 p-3 rounded-lg border border-amber-500/20"
+          class="mb-4 text-sm text-amber-400 bg-brand-accent/5 p-3 rounded-lg border border-amber-500/20"
         >
           {{ $t("action.autoApply") }}
         </div>
@@ -79,7 +79,7 @@
           </label>
 
           <div
-            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 bg-slate-900/60 p-6 rounded-xl border border-slate-700/50 justify-items-center"
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 bg-brand-bg/60 p-6 rounded-xl border border-brand-border/50 justify-items-center"
           >
             <div
               v-for="card in allCards"
@@ -102,7 +102,7 @@
               }`"
             >
               <span
-                class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
+                class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
               >
                 {{ guessCard === card.type ? $t("action.chosen") : card.info.name }}
               </span>
@@ -110,11 +110,11 @@
           </div>
         </div>
 
-        <div class="flex gap-3 justify-end mt-6 border-t border-slate-700/40 pt-4">
+        <div class="flex gap-3 justify-end mt-6 border-t border-brand-border/40 pt-4">
           <button
             @click="handleCancel"
             type="button"
-            class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-500 hover:text-amber-400 font-bold border border-slate-700 rounded-xl shadow-md cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
+            class="px-5 py-2.5 bg-brand-surface hover:bg-brand-surface-dim text-amber-500 hover:text-amber-400 font-bold border border-brand-border rounded-xl shadow-md cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
           >
             {{ $t("action.cancel") }}
           </button>
@@ -160,7 +160,7 @@ const guessCard = ref("");
 const cardInfo = computed(() => getCardInfoHelper(props.cardType, t));
 
 const getCardColor = (type) => {
-  return getCardInfoHelper(type)?.color || "bg-slate-700";
+  return getCardInfoHelper(type)?.color || "bg-brand-surface-dim";
 };
 
 const getCardImage = (type) => {

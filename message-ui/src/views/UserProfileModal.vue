@@ -1,9 +1,9 @@
 <template>
   <div
-    class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto"
+    class="fixed inset-0 bg-brand-bg-dark/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto"
   >
     <div
-      class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative my-8"
+      class="bg-brand-bg border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative my-8"
     >
       <h3
         class="text-lg font-bold text-yellow-400 font-mono mb-2 text-center uppercase tracking-wider"
@@ -16,10 +16,10 @@
 
       <form @submit.prevent="saveProfile" class="space-y-5">
         <div
-          class="flex flex-col items-center gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-800/60"
+          class="flex flex-col items-center gap-4 bg-brand-bg-dark/40 p-4 rounded-xl border border-slate-800/60"
         >
           <div
-            class="w-28 h-28 bg-slate-950 border-2 border-amber-500 rounded-full p-1 overflow-hidden shadow-xl shadow-amber-950/20"
+            class="w-28 h-28 bg-brand-bg-dark border-2 border-amber-500 rounded-full p-1 overflow-hidden shadow-xl shadow-amber-950/20"
           >
             <img
               :src="avatarUrl"
@@ -31,7 +31,7 @@
           <button
             @click="randomizeAvatar"
             type="button"
-            class="px-4 py-1.5 bg-slate-800 text-slate-200 border border-slate-700 font-bold text-xs uppercase rounded-xl hover:bg-slate-700 transition"
+            class="px-4 py-1.5 bg-brand-surface text-brand-text-muted border border-brand-border font-bold text-xs uppercase rounded-xl hover:bg-brand-surface-dim transition"
           >
             🎲 {{ $t("profile.avatarChange") }}
           </button>
@@ -48,7 +48,7 @@
             type="text"
             required
             :placeholder="$t('profile.usernamePlaceholder')"
-            class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-amber-500 transition"
+            class="w-full px-4 py-2.5 bg-brand-bg-dark border border-slate-800 rounded-xl text-brand-text-primary text-sm focus:outline-none focus:border-amber-500 transition"
           />
         </div>
 
@@ -73,7 +73,7 @@
             type="password"
             :required="!!form.password"
             :placeholder="$t('profile.currentPasswordPlaceholder')"
-            class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-amber-500 transition"
+            class="w-full px-4 py-2.5 bg-brand-bg-dark border border-slate-800 rounded-xl text-brand-text-primary text-sm focus:outline-none focus:border-amber-500 transition"
           />
         </div>
 
@@ -87,7 +87,7 @@
             v-model="form.password"
             type="password"
             :placeholder="$t('profile.newPasswordPlaceholder')"
-            class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-amber-500 transition"
+            class="w-full px-4 py-2.5 bg-brand-bg-dark border border-slate-800 rounded-xl text-brand-text-primary text-sm focus:outline-none focus:border-amber-500 transition"
           />
         </div>
 
@@ -102,7 +102,7 @@
           <button
             @click="$emit('close')"
             type="button"
-            class="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 font-bold text-xs uppercase rounded-xl hover:bg-slate-700 transition"
+            class="flex-1 px-4 py-2.5 bg-brand-surface text-brand-text-subtle font-bold text-xs uppercase rounded-xl hover:bg-brand-surface-dim transition"
           >
             {{ $t("profile.cancel") }}
           </button>

@@ -5,7 +5,7 @@
       class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50"
     >
       <div
-        class="bg-slate-900 border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-xl shadow-2xl text-center flex flex-col"
+        class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-xl shadow-2xl text-center flex flex-col"
       >
         <div
           class="text-amber-400 font-bold text-xl mb-6 flex items-center justify-center gap-2 font-mono uppercase tracking-wide"
@@ -20,10 +20,10 @@
             class="flex flex-col gap-3 items-center flex-1 max-w-[190px]"
           >
             <div
-              class="flex items-center gap-2 bg-slate-800/60 pl-1.5 pr-3 py-1 rounded-full border border-slate-700/50 w-full justify-center"
+              class="flex items-center gap-2 bg-brand-surface/60 pl-1.5 pr-3 py-1 rounded-full border border-brand-border/50 w-full justify-center"
             >
               <div
-                class="w-16 h-16 rounded-full border border-slate-600 bg-slate-950/60 overflow-hidden flex-shrink-0"
+                class="w-16 h-16 rounded-full border border-slate-600 bg-brand-bg-dark/60 overflow-hidden flex-shrink-0"
               >
                 <img
                   :src="
@@ -38,7 +38,7 @@
                 />
               </div>
               <span
-                class="text-xs text-slate-300 font-bold tracking-wide font-mono truncate max-w-[120px]"
+                class="text-xs text-brand-text-subtle font-bold tracking-wide font-mono truncate max-w-[120px]"
               >
                 {{ card.label }}
               </span>
@@ -53,7 +53,7 @@
               :data-tooltip="`${card.info.name} (${card.id}) — ${card.info.desc}`"
             >
               <span
-                class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 z-10 relative text-amber-300 uppercase tracking-wider rounded-b-xl border-t border-white/5 w-full"
+                class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 z-10 relative text-amber-300 uppercase tracking-wider rounded-b-xl border-t border-white/5 w-full"
               >
                 {{ card.info.name }}
               </span>
@@ -109,7 +109,7 @@ const getCardInfo = (id) => {
     getCardInfoHelper(id, t) || {
       name: t("cards.unknown"),
       desc: t("cards.serverHandled"),
-      color: "bg-slate-800",
+      color: "bg-brand-surface",
       emoji: "❓",
       image: "",
     }
@@ -155,16 +155,16 @@ const displayCards = computed(() => {
 .scale-leave-to {
   opacity: 0;
 }
-.scale-enter-from .bg-slate-900,
-.scale-leave-to .bg-slate-900 {
+.scale-enter-from .bg-brand-bg,
+.scale-leave-to .bg-brand-bg {
   transform: scale(0.9) translateY(10px);
 }
 .scale-enter-active,
 .scale-leave-active {
   transition: opacity 0.3s ease;
 }
-.scale-enter-active .bg-slate-900,
-.scale-leave-active .bg-slate-900 {
+.scale-enter-active .bg-brand-bg,
+.scale-leave-active .bg-brand-bg {
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
 }
 </style>

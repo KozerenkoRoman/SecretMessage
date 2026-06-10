@@ -5,7 +5,7 @@
       class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50"
     >
       <div
-        class="bg-slate-900 border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-2xl shadow-2xl"
+        class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-2xl shadow-2xl"
       >
         <div class="text-center mb-6">
           <h3
@@ -13,7 +13,7 @@
           >
             {{ $t("chancellor.title") }}
           </h3>
-          <p class="text-sm text-slate-300 mt-2 font-medium">
+          <p class="text-sm text-brand-text-subtle mt-2 font-medium">
             <span v-if="chosenKeepIndex === null" class="text-cyan-400">
               {{ $t("chancellor.step1") }}
             </span>
@@ -52,17 +52,17 @@
 
             <div
               v-if="getBottomOrderIndex(index) !== -1"
-              class="absolute inset-0 bg-orange-500/30 rounded-xl border-2 border-orange-400 flex items-center justify-center z-20 backdrop-blur-[1px]"
+              class="absolute inset-0 bg-brand-card-orange/30 rounded-xl border-2 border-orange-400 flex items-center justify-center z-20 backdrop-blur-[1px]"
             >
               <span
-                class="bg-orange-500 text-white font-black text-sm w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
+                class="bg-brand-card-orange text-white font-black text-sm w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
               >
                 #{{ getBottomOrderIndex(index) + 1 }}
               </span>
             </div>
 
             <span
-              class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+              class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
             >
               {{ getCardName(cardType) }}
             </span>
@@ -71,7 +71,7 @@
 
         <div
           v-if="bottomSelection.length > 0"
-          class="bg-slate-950/60 rounded-xl p-3 mb-4 border border-slate-800 text-center text-xxs text-slate-400"
+          class="bg-brand-bg-dark/60 rounded-xl p-3 mb-4 border border-slate-800 text-center text-xxs text-slate-400"
         >
           {{ $t("chancellor.bottomOrderTitle") }}
           <span class="text-orange-400 font-bold">{{
@@ -84,7 +84,7 @@
             @click="resetSelection"
             type="button"
             :disabled="chosenKeepIndex === null"
-            class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-semibold rounded-xl text-sm transition-all"
+            class="flex-1 py-2.5 bg-brand-surface hover:bg-brand-surface-dim disabled:opacity-40 disabled:cursor-not-allowed text-brand-text-subtle font-semibold rounded-xl text-sm transition-all"
           >
             {{ $t("chancellor.reset") }}
           </button>
@@ -120,7 +120,7 @@ const chosenKeepIndex = ref(null);
 const bottomSelection = ref([]);
 
 const getCardDesc = (type) => getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
-const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-slate-700";
+const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-brand-surface-dim";
 const getCardName = (type) => getCardInfoHelper(type, t)?.name || t("cards.unknown");
 const getCardValue = (type) => {
   const val = getCardInfoHelper(type)?.value;

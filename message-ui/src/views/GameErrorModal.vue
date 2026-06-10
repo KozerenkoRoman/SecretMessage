@@ -5,7 +5,7 @@
       class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]"
     >
       <div
-        class="bg-slate-800 border border-rose-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center transform scale-100 transition-all"
+        class="bg-brand-surface border border-rose-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center transform scale-100 transition-all"
       >
         <div
           class="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl border border-rose-500/20"
@@ -16,7 +16,7 @@
         <p class="text-xs text-slate-400 italic mb-4">{{ $t("gameError.server") }}</p>
 
         <div
-          class="text-sm text-slate-200 bg-slate-900/60 p-3 rounded-xl border border-slate-700/50 text-center break-words leading-relaxed"
+          class="text-sm text-brand-text-muted bg-brand-bg/60 p-3 rounded-xl border border-brand-border/50 text-center break-words leading-relaxed"
         >
           {{ translatedMessage }}
         </div>

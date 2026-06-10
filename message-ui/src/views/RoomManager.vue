@@ -1,16 +1,16 @@
 <template>
-  <div class="room-manager-container min-h-screen bg-slate-900">
+  <div class="room-manager-container min-h-screen bg-brand-bg">
     <div
       v-if="loading || !gameState"
       class="flex h-screen items-center justify-center text-white p-4"
     >
       <div
-        class="text-center max-w-sm w-full bg-slate-950/40 p-6 rounded-2xl border border-slate-800/60 backdrop-blur-sm shadow-xl"
+        class="text-center max-w-sm w-full bg-brand-bg-dark/40 p-6 rounded-2xl border border-slate-800/60 backdrop-blur-sm shadow-xl"
       >
         <div
           class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"
         ></div>
-        <p class="text-slate-300 font-medium text-sm mb-1">{{ $t("room.connecting") }}</p>
+        <p class="text-brand-text-subtle font-medium text-sm mb-1">{{ $t("room.connecting") }}</p>
         <p
           class="text-amber-400 font-mono text-xs tracking-wider mb-6 truncate px-2"
           :title="roomID"
@@ -21,7 +21,7 @@
         <button
           @click="handleLeaveRoom"
           type="button"
-          class="px-5 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-700/80 text-slate-300 hover:text-white font-bold rounded-xl text-xs transition-all border border-slate-700/60 shadow-md active:scale-95 cursor-pointer font-mono uppercase tracking-wider"
+          class="px-5 py-2 bg-brand-surface hover:bg-brand-surface-dim active:bg-brand-surface-dim/80 text-brand-text-subtle hover:text-white font-bold rounded-xl text-xs transition-all border border-brand-border/60 shadow-md active:scale-95 cursor-pointer font-mono uppercase tracking-wider"
         >
           {{ $t("room.cancel") }}
         </button>

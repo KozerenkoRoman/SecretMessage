@@ -1,6 +1,6 @@
 <template>
   <div
-    class="inline-flex items-center gap-0.5 bg-slate-900/80 backdrop-blur-sm border border-slate-700/60 rounded-xl p-0.5 shadow-md select-none"
+    class="inline-flex items-center gap-0.5 bg-brand-bg/80 backdrop-blur-sm border border-brand-border/60 rounded-xl p-0.5 shadow-md select-none"
     role="group"
     :aria-label="$t('language.switcherAriaLabel')"
   >
@@ -14,7 +14,7 @@
       :class="[
         'px-2.5 py-1 text-[11px] font-mono font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer active:scale-95',
         locale === lang.code
-          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/40 shadow-inner'
+          ? 'bg-brand-accent/15 text-amber-400 border border-amber-500/40 shadow-inner'
           : 'text-slate-400 hover:text-amber-300 border border-transparent',
       ]"
     >

@@ -1,21 +1,21 @@
 <template>
   <div
-    class="h-screen bg-slate-900 text-white p-2 flex flex-col justify-between overflow-hidden relative font-sans select-none"
+    class="h-screen bg-brand-bg text-white p-2 flex flex-col justify-between overflow-hidden relative font-sans select-none"
   >
     <!-- HEADER -->
     <header
-      class="w-full flex justify-between items-center bg-slate-800/80 backdrop-blur px-3 py-2 rounded-xl border border-slate-700 flex-shrink-0 gap-4 z-10 h-[6vh]"
+      class="w-full flex justify-between items-center bg-brand-surface/80 backdrop-blur px-3 py-2 rounded-xl border border-brand-border flex-shrink-0 gap-4 z-10 h-[6vh]"
     >
       <div class="flex items-center gap-4">
         <button @click="handleLeaveGame" type="button" class="btn-danger">
           {{ $t("board.leave") }}
         </button>
-        <div class="h-6 w-[1px] bg-slate-700"></div>
+        <div class="h-6 w-[1px] bg-brand-surface-dim"></div>
         <div
-          class="flex items-center gap-2 bg-slate-900/60 pl-2 pr-1.5 py-0.5 rounded-lg border border-slate-700/40"
+          class="flex items-center gap-2 bg-brand-bg/60 pl-2 pr-1.5 py-0.5 rounded-lg border border-brand-border/40"
         >
           <span
-            class="text-xs font-medium text-slate-300 hidden sm:inline max-w-[80px] truncate"
+            class="text-xs font-medium text-brand-text-subtle hidden sm:inline max-w-[80px] truncate"
             :title="myPlayer?.username"
           >
             {{ myPlayer?.username || $t("common.guest") }}
@@ -26,7 +26,7 @@
             <img
               :src="getAvatarUrl(myPlayer?.avatar_seed)"
               :alt="$t('common.avatarAlt')"
-              class="w-full h-full object-cover rounded-full bg-slate-800"
+              class="w-full h-full object-cover rounded-full bg-brand-surface"
             />
           </div>
         </div>
@@ -50,7 +50,7 @@
             </button>
             <div
               v-else
-              class="status-pill bg-blue-500/20 text-blue-400 border-blue-500/40 animate-pulse"
+              class="status-pill bg-brand-info/20 text-blue-400 border-blue-500/40 animate-pulse"
             >
               {{ $t("board.waiting") }}
             </div>
@@ -70,13 +70,13 @@
             </div>
             <div
               v-else
-              class="status-pill bg-slate-700 text-slate-300 border-transparent"
+              class="status-pill bg-brand-surface-dim text-brand-text-subtle border-transparent"
             >
               {{ $t("board.currentTurn") }}{{ currentTurnPlayerName }}
             </div>
           </template>
         </div>
-        <div class="h-6 w-[1px] bg-slate-700"></div>
+        <div class="h-6 w-[1px] bg-brand-surface-dim"></div>
       </div>
     </header>
 
@@ -91,22 +91,22 @@
           <div
             :class="[
               isTurnOfPlayer(player.id)
-                ? 'border-yellow-400 bg-slate-800 ring-2 ring-yellow-400/30'
-                : 'border-slate-700 bg-slate-800/60',
+                ? 'border-yellow-400 bg-brand-surface ring-2 ring-yellow-400/30'
+                : 'border-brand-border bg-brand-surface/60',
               player.is_out ? 'opacity-40 grayscale-[30%]' : '',
             ]"
             class="flex flex-col items-center p-2 rounded-xl border transition-all duration-300 w-64 h-full justify-between shadow-md relative"
           >
             <!-- Рядок статусу гравця -->
             <div
-              class="flex items-center justify-between w-full border-b border-slate-700 pb-1 flex-shrink-0 min-h-[28px]"
+              class="flex items-center justify-between w-full border-b border-brand-border pb-1 flex-shrink-0 min-h-[28px]"
             >
               <span
                 class="font-bold text-[11px] truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded"
                 :class="[
                   player.is_out
                     ? 'bg-rose-900 text-rose-100 font-black'
-                    : 'text-slate-200',
+                    : 'text-brand-text-muted',
                 ]"
                 :title="player.username"
               >
@@ -115,7 +115,7 @@
                 <template v-if="player.is_protected">
                   <span
                     class="font-bold text-[11px] truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded"
-                    :class="['bg-yellow-500 text-slate-950 font-black shadow']"
+                    :class="['bg-brand-warning text-slate-950 font-black shadow']"
                   >
                     {{ $t("board.protection") }}
                   </span>
@@ -125,7 +125,7 @@
               </span>
 
               <span
-                class="text-[12px] bg-slate-700 text-yellow-400 px-1 py-0.5 rounded font-mono"
+                class="text-[12px] bg-brand-surface-dim text-yellow-400 px-1 py-0.5 rounded font-mono"
               >
                 ★{{ player.score || 0 }}
               </span>
@@ -142,7 +142,7 @@
                 <div
                   v-for="cIdx in getOpponentHandCount(player)"
                   :key="cIdx"
-                  class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative flex-shrink"
+                  class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative flex-shrink"
                 >
                   <img
                     :src="deckBackImage"
@@ -158,7 +158,7 @@
                   class="flex flex-col items-center justify-center flex-shrink-0 z-20 ml-2"
                 >
                   <div
-                    class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-slate-950 p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative transition-transform duration-300 flex-shrink"
+                    class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative transition-transform duration-300 flex-shrink"
                     :class="getCardColor(lastPlayedCardsByPlayer[player.id])"
                     :data-tooltip="getCardName(lastPlayedCardsByPlayer[player.id])"
                   >
@@ -188,7 +188,7 @@
 
       <!-- Центральна частина: Колода та Стіл відбою -->
       <div
-        class="h-[40vh] flex items-center justify-center p-3 bg-slate-950/40 rounded-2xl border border-slate-800/60 w-full overflow-hidden"
+        class="h-[40vh] flex items-center justify-center p-3 bg-brand-bg-dark/40 rounded-2xl border border-slate-800/60 w-full overflow-hidden"
       >
         <div
           class="flex gap-6 items-center w-full max-w-none mx-auto justify-between h-full"
@@ -200,15 +200,15 @@
               :style="{ backgroundImage: `url(${deckBackImage})` }"
             >
               <div
-                class="absolute inset-0 bg-slate-950/50 flex flex-col items-center justify-center p-1"
+                class="absolute inset-0 bg-brand-bg-dark/50 flex flex-col items-center justify-center p-1"
               >
                 <span
-                  class="text-[12px] font-bold uppercase text-amber-200 tracking-wider bg-slate-950/80 px-2 py-1 rounded backdrop-blur-[1px]"
+                  class="text-[12px] font-bold uppercase text-amber-200 tracking-wider bg-brand-bg-dark/80 px-2 py-1 rounded backdrop-blur-[1px]"
                 >
                   {{ $t("board.deck") }}
                 </span>
                 <span
-                  class="text-2xl font-black text-white leading-none mt-1.5 bg-slate-950/70 px-2.5 py-1 rounded font-mono shadow-md border border-white/5"
+                  class="text-2xl font-black text-white leading-none mt-1.5 bg-brand-bg-dark/70 px-2.5 py-1 rounded font-mono shadow-md border border-white/5"
                 >
                   {{ gameState?.deck ? gameState.deck.length : 0 }}
                 </span>
@@ -219,7 +219,7 @@
             </div>
           </div>
 
-          <div class="h-full max-h-[220px] w-[1px] bg-slate-800 flex-shrink-0"></div>
+          <div class="h-full max-h-[220px] w-[1px] bg-brand-surface flex-shrink-0"></div>
 
           <!-- Стіл відбою -->
           <div
@@ -244,7 +244,7 @@
               >
                 <div
                   v-if="globalDiscardPile[slotIndex - 1]"
-                  class="game-card game-card-discard w-24 h-36 p-0 border border-slate-700/50 overflow-hidden bg-slate-950 flex-shrink-0"
+                  class="game-card game-card-discard w-24 h-36 p-0 border border-brand-border/50 overflow-hidden bg-brand-bg-dark flex-shrink-0"
                   :class="getCardColor(globalDiscardPile[slotIndex - 1].type)"
                   :data-tooltip="
                     $t('board.discardTooltip', {
@@ -275,7 +275,7 @@
 
     <!-- НИЖНЯ ПАНЕЛЬ (РУКА ВЛАСНОГО ГРАВЦЯ) -->
     <footer
-      class="w-full max-w-2xl mx-auto bg-slate-950/90 backdrop-blur-md p-2 rounded-t-2xl border-t border-x border-slate-800 flex flex-col items-center shadow-2xl flex-shrink-0 z-10 h-[28vh] min-h-[280px] relative"
+      class="w-full max-w-2xl mx-auto bg-brand-bg-dark/90 backdrop-blur-md p-2 rounded-t-2xl border-t border-x border-slate-800 flex flex-col items-center shadow-2xl flex-shrink-0 z-10 h-[28vh] min-h-[280px] relative"
     >
       <div class="w-full h-full relative">
         <div
@@ -322,7 +322,7 @@
               )}) — ${getCardDesc(cardType)}`"
             >
               <span
-                class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+                class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
               >
                 {{ getCardName(cardType) }}
               </span>
@@ -358,7 +358,7 @@
             )}) — ${getCardDesc(cardType)}`"
           >
             <span
-              class="text-[12px] font-bold font-mono text-center block bg-slate-950/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+              class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
             >
               {{ getCardName(cardType) }}
             </span>
@@ -376,12 +376,12 @@
             :data-tooltip="$t('board.protectionTooltip', { name: getCardName(4) })"
           >
             <span
-              class="absolute -top-2 -right-1 bg-yellow-500 text-slate-950 font-black text-[8px] px-1 rounded shadow uppercase tracking-wider z-20"
+              class="absolute -top-2 -right-1 bg-brand-warning text-slate-950 font-black text-[8px] px-1 rounded shadow uppercase tracking-wider z-20"
             >
               {{ $t("status.protected") }}
             </span>
             <span
-              class="text-[10px] font-bold font-mono text-center block bg-slate-950/80 p-0.5 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+              class="text-[10px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-0.5 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
             >
               {{ getCardName(4) }}
             </span>
@@ -446,6 +446,7 @@ import { useI18n } from "vue-i18n";
 import { useGameStore } from "../stores/gameStore";
 import { storeToRefs } from "pinia";
 import { getAvatarUrl } from "../utils/avatar";
+import GameLogPanel from "../components/GameLogPanel.vue";
 import ChancellorModal from "./ChancellorModal.vue";
 import ActionModal from "./ActionModal.vue";
 import CardRevealModal from "./CardRevealModal.vue";
@@ -652,7 +653,7 @@ const handleStartGame = () => emit("start-game");
 
 const getCardDesc = (type) =>
   getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
-const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-slate-700";
+const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-brand-surface-dim";
 const getCardName = (type) => getCardInfoHelper(type, t)?.name || t("cards.unknown");
 const getCardImage = (type) => getCardInfoHelper(type)?.image || "";
 const getCardValue = (type) => {

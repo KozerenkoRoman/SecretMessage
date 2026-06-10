@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4 bg-slate-950">
+  <div class="min-h-screen flex items-center justify-center p-4 bg-brand-bg-dark">
     <div
-      class="relative w-full max-w-md bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700"
+      class="relative w-full max-w-md bg-brand-surface p-6 rounded-2xl shadow-xl border border-brand-border"
     >
       <div class="absolute top-4 right-4 z-10">
         <LanguageSwitcher />
@@ -29,7 +29,7 @@
             v-model="username"
             type="text"
             required
-            class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-500 text-white font-medium"
+            class="w-full p-2.5 rounded-lg bg-brand-bg border border-brand-border focus:outline-none focus:border-amber-500 text-white font-medium"
           />
         </div>
 
@@ -41,7 +41,7 @@
             v-model="password"
             type="password"
             required
-            class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-500 text-white font-medium"
+            class="w-full p-2.5 rounded-lg bg-brand-bg border border-brand-border focus:outline-none focus:border-amber-500 text-white font-medium"
           />
         </div>
 

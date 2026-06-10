@@ -2,7 +2,7 @@
   <Transition name="fade">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 font-sans animate-fade-in"
+      class="fixed inset-0 bg-brand-bg-dark/80 backdrop-blur-md flex items-center justify-center p-4 z-50 font-sans animate-fade-in"
     >
       <div
         class="bg-gradient-to-b from-slate-900 to-slate-950 border rounded-2xl w-full max-w-md p-6 shadow-2xl text-center transform scale-100 transition-all duration-300 relative overflow-hidden border-slate-800"
@@ -10,11 +10,11 @@
       >
         <div
           v-if="isAmIWinner"
-          class="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/10 blur-3xl rounded-full"
+          class="absolute -top-12 -left-12 w-32 h-32 bg-brand-accent/10 blur-3xl rounded-full"
         ></div>
         <div
           v-if="isAmIWinner"
-          class="absolute -top-12 -right-12 w-32 h-32 bg-yellow-500/10 blur-3xl rounded-full"
+          class="absolute -top-12 -right-12 w-32 h-32 bg-brand-warning/10 blur-3xl rounded-full"
         ></div>
 
         <div class="mb-4">
@@ -22,8 +22,8 @@
             class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full font-mono border"
             :class="
               gameState?.is_game_over
-                ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                : 'bg-slate-800 text-slate-400 border-slate-700'
+                ? 'bg-brand-accent/20 text-amber-400 border-amber-500/30'
+                : 'bg-brand-surface text-slate-400 border-brand-border'
             "
           >
             {{ gameState?.is_game_over ? $t("gameEnd.final") : $t("gameEnd.roundEnd") }}
@@ -37,7 +37,7 @@
           >
             {{ gameState?.is_game_over ? $t("gameEnd.winner") : $t("gameEnd.loser") }}
           </h2>
-          <h2 v-else class="text-2xl font-black tracking-wide text-slate-200 uppercase">
+          <h2 v-else class="text-2xl font-black tracking-wide text-brand-text-muted uppercase">
             {{ gameState?.is_game_over ? $t("gameEnd.gameOver") : $t("gameEnd.roundOver") }}
           </h2>
 
@@ -54,7 +54,7 @@
         </div>
 
         <div
-          class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 my-5 text-left"
+          class="bg-brand-bg-dark/60 border border-slate-800 rounded-xl p-4 my-5 text-left"
         >
           <h4
             class="text-[10px] uppercase text-slate-500 font-black tracking-wider mb-3 font-mono"
@@ -68,8 +68,8 @@
               class="flex items-center justify-between p-2 rounded-lg border transition-all"
               :class="
                 p.id === gameState?.winner_id
-                  ? 'bg-amber-500/5 border-amber-500/20 shadow-sm'
-                  : 'bg-slate-900/40 border-transparent'
+                  ? 'bg-brand-accent/5 border-amber-500/20 shadow-sm'
+                  : 'bg-brand-bg/40 border-transparent'
               "
             >
               <div class="flex items-center gap-2 truncate">
@@ -77,7 +77,7 @@
                 <span v-else class="text-xs opacity-40">👤</span>
                 <span
                   class="text-sm font-medium truncate"
-                  :class="p.id === myID ? 'text-amber-400 font-bold' : 'text-slate-300'"
+                  :class="p.id === myID ? 'text-amber-400 font-bold' : 'text-brand-text-subtle'"
                 >
                   {{ p.username || $t("common.opponent") }}
                   <span
@@ -92,7 +92,7 @@
                 <span class="text-amber-400">★</span>
                 <span
                   :class="
-                    p.id === gameState?.winner_id ? 'text-amber-400' : 'text-slate-300'
+                    p.id === gameState?.winner_id ? 'text-amber-400' : 'text-brand-text-subtle'
                   "
                 >
                   {{ p.score || 0 }} <span class="text-slate-600 text-xs">{{ $t("gameEnd.scoreOutOf") }}</span>
@@ -111,7 +111,7 @@
             class="w-full py-3 font-bold rounded-xl shadow-lg transition-all text-sm uppercase tracking-wider"
             :class="
               hasOpponentLeft
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700 shadow-none'
+                ? 'bg-brand-surface text-slate-500 cursor-not-allowed border border-brand-border shadow-none'
                 : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black shadow-amber-500/10 cursor-pointer active:scale-95'
             "
           >

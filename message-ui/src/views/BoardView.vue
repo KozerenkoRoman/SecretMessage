@@ -1,10 +1,10 @@
 <template>
   <!-- Головний контейнер ділить весь екран на ігрову зону (ліворуч, 4/5) та лог (праворуч, 1/5) -->
   <div
-    class="h-screen bg-brand-bg text-white p-2 grid grid-cols-1 xl:grid-cols-5 overflow-hidden relative font-sans select-none gap-3"
+    class="h-screen bg-brand-bg text-white p-2 grid grid-cols-1 xl:grid-cols-12 overflow-hidden relative font-sans select-none gap-3"
   >
     <!-- ЛІВА ЗОНА: Вся гра (Header, Стіл, Рука гравця) — займає 80% ширини -->
-    <div class="xl:col-span-4 flex flex-col justify-between h-full overflow-hidden">
+    <div class="xl:col-span-8 flex flex-col justify-between h-full overflow-hidden">
       <!-- HEADER -->
       <header
         class="w-full flex justify-between items-center bg-brand-surface/80 backdrop-blur px-3 py-2 rounded-xl border border-brand-border flex-shrink-0 gap-4 z-10 h-[6vh]"
@@ -366,8 +366,7 @@
       </footer>
     </div>
 
-    <!-- ПРАВА ЗОНА: Панель логів (займає колишній оранжевий простір) -->
-    <div class="xl:col-span-1 h-full max-h-[98vh] overflow-hidden hidden xl:block pt-1">
+    <div class="xl:col-span-4 h-full max-h-[98vh] overflow-hidden hidden xl:block pt-1">
       <GameLogPanel />
     </div>
 

@@ -288,7 +288,9 @@ export const uk = {
     round_end: "🏆 Раунд завершено! Переможець: {winner} (Умова: {reason}).",
     player_left: "🚪 Гравець {player} залишив кімнату.",
     chancellor_drawn: "{player} зіграв Канцлера і взяв 2 карти з колоди.",
-    chancellor_resolved: "{player} залишив одну карту собі, а решту повернув на дно колоди."
+    chancellor_resolved: "{player} залишив одну карту собі, а решту повернув на дно колоди.",
+    history: "Історія гри",
+    empty: "Тут відображатимуться ходи гравців..."
   },
 
   // ==== Текстові повідомлення, що вже в i18n (error dictionary) =====

@@ -288,7 +288,9 @@ export const en = {
     round_end: "🏆 Round over! Winner: {winner} (Condition: {reason}).",
     player_left: "🚪 Player {player} left the room.",
     chancellor_drawn: "{player} played a Chancellor and drew 2 cards from the deck.",
-    chancellor_resolved: "{player} kept one card and returned the rest to the bottom of the deck."
+    chancellor_resolved: "{player} kept one card and returned the rest to the bottom of the deck.",
+    history: "Game History",
+    empty: "No game history yet...",
   },
 
   // ==== Text messages already in i18n (error dictionary) =====

@@ -8,7 +8,7 @@
       <span
         class="text-[10px] uppercase font-bold tracking-wider text-amber-400 font-mono flex items-center gap-1.5"
       >
-        📜 Історія подій
+        {{ $t("log.history") }}
       </span>
       <span
         class="text-[10px] font-mono text-slate-500 bg-brand-bg-dark px-1.5 py-0.5 rounded"
@@ -25,7 +25,7 @@
         v-if="gameLog.length === 0"
         class="text-slate-500 italic text-center py-4 text-[11px]"
       >
-        Тут відображатимуться ходи гравців...
+        {{ $t("log.empty") }}
       </div>
 
       <!-- Додаємо унікальний рядковий префікс до ключа log- -->

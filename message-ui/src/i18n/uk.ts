@@ -260,18 +260,23 @@ export const uk = {
     COUNTESS: { name: "Графиня", desc: "Скиньте, якщо в руці є Принц або Король." },
     PRINCESS: { name: "Принцеса", desc: "Якщо ви скинете цю карту - ви вилітаєте." },
   },
+
   // Причини подій
   reasons: {
     guard_hit: "вгадано Вартовим",
     baron_lost: "програш у дуелі Баронів",
     princess_played: "скидання Принцеси",
-    deck_empty: "закінчилися карти в колоді",
-    left: "вихід з гри"
+    left: "вихід з гри",
+    last_standing: "залишився єдиним у грі",
+    deck_empty: "вичерпано колоду карт",
+    baron_loss: "програв дуель Барону"
   },
+
   // Лог подій
   log: {
     card_drawn: "{player} бере карту з колоди.",
-    card_played: "{player} грає {card}{hasTarget ? ' проти ' + target : ''}.",
+    card_played: "{player} грає {card}.",
+    card_played_targeted: "{player} грає {card} проти {target}.",
     guard_hit: "🎯 {player} грає Вартового проти {target} і успішно вгадує карту {guess}!",
     guard_miss: "💨 {player} грає Вартового проти {target}, намагаючись вгадати {guess}, але невдало.",
     priest_effect: "👁️ {player} використовує Священика, щоб таємно подивитися карту у {target}.",
@@ -281,8 +286,10 @@ export const uk = {
     hands_swapped: "🔄 {player} грає Короля і обмінюється картами з {target}.",
     spy_bonus: "✨ {player} отримує бонусні очки ({points} шт.) за Шпигуна!",
     round_end: "🏆 Раунд завершено! Переможець: {winner} (Умова: {reason}).",
-    player_left: "🚪 Гравець {player} залишив кімнату."
-  }
+    player_left: "🚪 Гравець {player} залишив кімнату.",
+    chancellor_drawn: "{player} зіграв Канцлера і взяв 2 карти з колоди.",
+    chancellor_resolved: "{player} залишив одну карту собі, а решту повернув на дно колоди."
+  },
 
   // ==== Текстові повідомлення, що вже в i18n (error dictionary) =====
   // (перенесено в файл i18n/errorMessages.ts – залиште без змін)

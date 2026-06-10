@@ -1,317 +1,331 @@
 <template>
+  <!-- Головний контейнер ділить весь екран на ігрову зону (ліворуч, 4/5) та лог (праворуч, 1/5) -->
   <div
-    class="h-screen bg-brand-bg text-white p-2 flex flex-col justify-between overflow-hidden relative font-sans select-none"
+    class="h-screen bg-brand-bg text-white p-2 grid grid-cols-1 xl:grid-cols-5 overflow-hidden relative font-sans select-none gap-3"
   >
-    <!-- HEADER -->
-    <header
-      class="w-full flex justify-between items-center bg-brand-surface/80 backdrop-blur px-3 py-2 rounded-xl border border-brand-border flex-shrink-0 gap-4 z-10 h-[6vh]"
-    >
-      <div class="flex items-center gap-4">
-        <button @click="handleLeaveGame" type="button" class="btn-danger">
-          {{ $t("board.leave") }}
-        </button>
-        <div class="h-6 w-[1px] bg-brand-surface-dim"></div>
-        <div
-          class="flex items-center gap-2 bg-brand-bg/60 pl-2 pr-1.5 py-0.5 rounded-lg border border-brand-border/40"
-        >
-          <span
-            class="text-xs font-medium text-brand-text-subtle hidden sm:inline max-w-[80px] truncate"
-            :title="myPlayer?.username"
-          >
-            {{ myPlayer?.username || $t("common.guest") }}
-          </span>
+    <!-- ЛІВА ЗОНА: Вся гра (Header, Стіл, Рука гравця) — займає 80% ширини -->
+    <div class="xl:col-span-4 flex flex-col justify-between h-full overflow-hidden">
+      <!-- HEADER -->
+      <header
+        class="w-full flex justify-between items-center bg-brand-surface/80 backdrop-blur px-3 py-2 rounded-xl border border-brand-border flex-shrink-0 gap-4 z-10 h-[6vh]"
+      >
+        <div class="flex items-center gap-4">
+          <button @click="handleLeaveGame" type="button" class="btn-danger">
+            {{ $t("board.leave") }}
+          </button>
+          <div class="h-6 w-[1px] bg-brand-surface-dim"></div>
           <div
-            class="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 p-[1px] shadow-inner flex-shrink-0"
+            class="flex items-center gap-2 bg-brand-bg/60 pl-2 pr-1.5 py-0.5 rounded-lg border border-brand-border/40"
           >
-            <img
-              :src="getAvatarUrl(myPlayer?.avatar_seed)"
-              :alt="$t('common.avatarAlt')"
-              class="w-full h-full object-cover rounded-full bg-brand-surface"
-            />
+            <span
+              class="text-xs font-medium text-brand-text-subtle hidden sm:inline max-w-[80px] truncate"
+              :title="myPlayer?.username"
+              >{{ myPlayer?.username || $t("common.guest") }}</span
+            >
+            <div
+              class="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 p-[1px] shadow-inner flex-shrink-0"
+            >
+              <img
+                :src="getAvatarUrl(myPlayer?.avatar_seed)"
+                :alt="$t('common.avatarAlt')"
+                class="w-full h-full object-cover rounded-full bg-brand-surface"
+              />
+            </div>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-yellow-400 font-mono leading-none mb-0.5">
+              {{ $t("board.room") }}{{ roomID }}
+            </h2>
+            <p class="text-xs text-slate-400">
+              {{ $t("board.time")
+              }}<span class="text-amber-400 font-mono font-bold text-xs"
+                >{{ gameState?.seconds_left || 0 }}{{ $t("board.timeUnit") }}</span
+              >
+            </p>
           </div>
         </div>
-        <div>
-          <h2 class="text-sm font-bold text-yellow-400 font-mono leading-none mb-0.5">
-            {{ $t("board.room") }}{{ roomID }}
-          </h2>
-          <p class="text-xs text-slate-400">
-            {{ $t("board.time") }}
-            <span class="text-amber-400 font-mono font-bold text-xs">
-              {{ gameState?.seconds_left || 0 }}{{ $t("board.timeUnit") }}
-            </span>
-          </p>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <template v-if="!gameState?.is_started">
+              <button v-if="canStartGame" @click="handleStartGame" class="btn-primary">
+                {{ $t("board.start") }}
+              </button>
+              <div
+                v-else
+                class="status-pill bg-brand-info/20 text-blue-400 border-blue-500/40 animate-pulse"
+              >
+                {{ $t("board.waiting") }}
+              </div>
+            </template>
+            <template v-else>
+              <div
+                v-if="showChancellorPanel"
+                class="status-pill bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-yellow-500/40 animate-pulse"
+              >
+                {{ $t("board.chancellorBadge") }}
+              </div>
+              <div
+                v-else-if="isMyTurn"
+                class="status-pill bg-emerald-500/20 text-emerald-400 border-emerald-500/40 animate-pulse"
+              >
+                {{ $t("board.yourTurn") }}
+              </div>
+              <div
+                v-else
+                class="status-pill bg-brand-surface-dim text-brand-text-subtle border-transparent"
+              >
+                {{ $t("board.currentTurn") }}{{ currentTurnPlayerName }}
+              </div>
+            </template>
+          </div>
+          <div class="h-6 w-[1px] bg-brand-surface-dim"></div>
         </div>
-      </div>
-      <div class="flex items-center gap-4">
-        <div class="flex items-center gap-2">
-          <template v-if="!gameState?.is_started">
-            <button v-if="canStartGame" @click="handleStartGame" class="btn-primary">
-              {{ $t("board.start") }}
-            </button>
-            <div
-              v-else
-              class="status-pill bg-brand-info/20 text-blue-400 border-blue-500/40 animate-pulse"
-            >
-              {{ $t("board.waiting") }}
-            </div>
-          </template>
-          <template v-else>
-            <div
-              v-if="showChancellorPanel"
-              class="status-pill bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-yellow-500/40 animate-pulse"
-            >
-              {{ $t("board.chancellorBadge") }}
-            </div>
-            <div
-              v-else-if="isMyTurn"
-              class="status-pill bg-emerald-500/20 text-emerald-400 border-emerald-500/40 animate-pulse"
-            >
-              {{ $t("board.yourTurn") }}
-            </div>
-            <div
-              v-else
-              class="status-pill bg-brand-surface-dim text-brand-text-subtle border-transparent"
-            >
-              {{ $t("board.currentTurn") }}{{ currentTurnPlayerName }}
-            </div>
-          </template>
-        </div>
-        <div class="h-6 w-[1px] bg-brand-surface-dim"></div>
-      </div>
-    </header>
+      </header>
 
-    <main
-      class="flex-1 flex flex-col justify-between my-1 gap-1 overflow-hidden w-full max-w-7xl mx-auto"
-    >
-      <!-- Блок Опонентів верхній -->
-      <div
-        class="w-full flex justify-center items-center gap-6 flex-shrink-0 h-[26vh] max-h-[210px] overflow-hidden"
+      <!-- MAIN: Ігровий стіл -->
+      <main
+        class="flex-1 flex flex-col justify-between my-1 gap-1 overflow-hidden w-full mx-auto"
       >
-        <template v-for="player in opponents" :key="player.id">
-          <div
-            :class="[
-              isTurnOfPlayer(player.id)
-                ? 'border-yellow-400 bg-brand-surface ring-2 ring-yellow-400/30'
-                : 'border-brand-border bg-brand-surface/60',
-              player.is_out ? 'opacity-40 grayscale-[30%]' : '',
-            ]"
-            class="flex flex-col items-center p-2 rounded-xl border transition-all duration-300 w-64 h-full justify-between shadow-md relative"
-          >
-            <!-- Рядок статусу гравця -->
+        <div
+          class="w-full flex justify-center items-center gap-6 flex-shrink-0 h-[26vh] max-h-[210px] overflow-hidden"
+        >
+          <template v-for="player in opponents" :key="player.id">
             <div
-              class="flex items-center justify-between w-full border-b border-brand-border pb-1 flex-shrink-0 min-h-[28px]"
-            >
-              <span
-                class="font-bold text-[11px] truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded"
-                :class="[
-                  player.is_out
-                    ? 'bg-rose-900 text-rose-100 font-black'
-                    : 'text-brand-text-muted',
-                ]"
-                :title="player.username"
-              >
-                {{ player.username || $t("common.opponent") }}
-
-                <template v-if="player.is_protected">
-                  <span
-                    class="font-bold text-[11px] truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded"
-                    :class="['bg-brand-warning text-slate-950 font-black shadow']"
-                  >
-                    {{ $t("board.protection") }}
-                  </span>
-                </template>
-
-                <template v-if="player.is_out"> ({{ $t("status.out") }})</template>
-              </span>
-
-              <span
-                class="text-[12px] bg-brand-surface-dim text-yellow-400 px-1 py-0.5 rounded font-mono"
-              >
-                ★{{ player.score || 0 }}
-              </span>
-            </div>
-
-            <!-- Карти в руці опонента (Центровані з динамічним накладанням без виходу за межі) -->
-            <div
-              class="flex justify-center items-center h-36 w-full overflow-hidden relative px-5"
+              :class="[
+                isTurnOfPlayer(player.id)
+                  ? 'border-yellow-400 bg-brand-surface ring-2 ring-yellow-400/30'
+                  : 'border-brand-border bg-brand-surface/60',
+                player.is_out ? 'opacity-40 grayscale-[30%]' : '',
+              ]"
+              class="flex flex-col items-center p-2 rounded-xl border transition-all duration-300 w-64 h-full justify-between shadow-md relative"
             >
               <div
-                class="flex flex-row items-center justify-center relative w-full gap-x-[-1.5rem] -space-x-4 flex-shrink-0"
+                class="flex items-center justify-between w-full border-b border-brand-border pb-1 flex-shrink-0 min-h-[28px]"
               >
-                <!-- Сорочки карт в руці (можуть злегка перекриватися, flex-shrink дозволяє адаптацію) -->
-                <div
-                  v-for="cIdx in getOpponentHandCount(player)"
-                  :key="cIdx"
-                  class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative flex-shrink"
+                <span
+                  class="font-bold text-[11px] truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded"
+                  :class="[
+                    player.is_out
+                      ? 'bg-rose-900 text-rose-100 font-black'
+                      : 'text-brand-text-muted',
+                  ]"
+                  :title="player.username"
                 >
-                  <img
-                    :src="deckBackImage"
-                    :alt="$t('common.cardBackAlt')"
-                    class="w-full h-full object-cover rounded-sm select-none"
-                  />
-                </div>
+                  {{ player.username || $t("common.opponent") }}
+                  <template v-if="player.is_protected">
+                    <span
+                      class="font-bold text-[11px] truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded bg-brand-warning text-slate-950 font-black shadow"
+                      >{{ $t("board.protection") }}</span
+                    >
+                  </template>
+                  <template v-if="player.is_out"> ({{ $t("status.out") }})</template>
+                </span>
+                <span
+                  class="text-[12px] bg-brand-surface-dim text-yellow-400 px-1 py-0.5 rounded font-mono"
+                >
+                  ★{{ player.score || 0 }}</span
+                >
+              </div>
 
-                <!-- Остання зіграна карта (Завжди поверх інших z-20, не стискається flex-shrink-0, показується повністю) -->
-
+              <div
+                class="flex justify-center items-center h-36 w-full overflow-hidden relative px-5"
+              >
                 <div
-                  v-if="lastPlayedCardsByPlayer[player.id] !== undefined"
-                  class="flex flex-col items-center justify-center flex-shrink-0 z-20 ml-2"
+                  class="flex flex-row items-center justify-center relative w-full gap-x-[-1.5rem] -space-x-4 flex-shrink-0"
                 >
                   <div
-                    class="w-24 h-36 sm:w-24 sm:h-36 rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative transition-transform duration-300 flex-shrink"
-                    :class="getCardColor(lastPlayedCardsByPlayer[player.id])"
-                    :data-tooltip="getCardName(lastPlayedCardsByPlayer[player.id])"
+                    v-for="cIdx in getOpponentHandCount(player)"
+                    :key="cIdx"
+                    class="w-24 h-36 rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative flex-shrink"
                   >
                     <img
-                      v-if="getCardImage(lastPlayedCardsByPlayer[player.id])"
-                      :src="getCardImage(lastPlayedCardsByPlayer[player.id])"
-                      :alt="getCardName(lastPlayedCardsByPlayer[player.id])"
-                      class="w-full h-full rounded-sm pointer-events-none"
+                      :src="deckBackImage"
+                      :alt="$t('common.cardBackAlt')"
+                      class="w-full h-full object-cover rounded-sm select-none"
                     />
-
+                  </div>
+                  <div
+                    v-if="lastPlayedCardsByPlayer[player.id] !== undefined"
+                    class="flex flex-col items-center justify-center flex-shrink-0 z-20 ml-2"
+                  >
                     <div
-                      v-else
-                      class="w-full h-full flex items-center justify-center text-[9px] text-center p-1 font-bold"
+                      class="w-24 h-36 rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative transition-transform duration-300 flex-shrink"
+                      :class="getCardColor(lastPlayedCardsByPlayer[player.id])"
+                      :data-tooltip="getCardName(lastPlayedCardsByPlayer[player.id])"
                     >
-                      {{ getCardName(lastPlayedCardsByPlayer[player.id]) }}
+                      <img
+                        v-if="getCardImage(lastPlayedCardsByPlayer[player.id])"
+                        :src="getCardImage(lastPlayedCardsByPlayer[player.id])"
+                        :alt="getCardName(lastPlayedCardsByPlayer[player.id])"
+                        class="w-full h-full rounded-sm pointer-events-none"
+                      />
+                      <div
+                        v-else
+                        class="w-full h-full flex items-center justify-center text-[9px] text-center p-1 font-bold"
+                      >
+                        {{ getCardName(lastPlayedCardsByPlayer[player.id]) }}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+              <div class="w-full h-0"></div>
             </div>
+          </template>
+        </div>
 
-            <!-- Нижній відступ замість видаленого блоку статусів для збереження пропорцій геометрії -->
-            <div class="w-full h-0"></div>
-          </div>
-        </template>
-      </div>
-
-      <!-- Центральна частина: Колода та Стіл відбою -->
-      <div
-        class="h-[40vh] flex items-center justify-center p-3 bg-brand-bg-dark/40 rounded-2xl border border-slate-800/60 w-full overflow-hidden"
-      >
         <div
-          class="flex gap-6 items-center w-full max-w-none mx-auto justify-between h-full"
+          class="h-[40vh] flex items-center justify-center p-3 bg-brand-bg-dark/40 rounded-2xl border border-slate-800/60 w-full overflow-hidden"
         >
-          <!-- Колода -->
-          <div class="flex flex-col items-center justify-center gap-1 flex-shrink-0">
-            <div
-              class="relative w-44 h-64 bg-gradient-to-br from-yellow-800 to-indigo-900 rounded-xl border-2 border-amber-500 shadow-lg shadow-amber-950/20 flex flex-col items-center justify-center bg-cover bg-center overflow-hidden p-[2px]"
-              :style="{ backgroundImage: `url(${deckBackImage})` }"
-            >
-              <div
-                class="absolute inset-0 bg-brand-bg-dark/50 flex flex-col items-center justify-center p-1"
-              >
-                <span
-                  class="text-[12px] font-bold uppercase text-amber-200 tracking-wider bg-brand-bg-dark/80 px-2 py-1 rounded backdrop-blur-[1px]"
-                >
-                  {{ $t("board.deck") }}
-                </span>
-                <span
-                  class="text-2xl font-black text-white leading-none mt-1.5 bg-brand-bg-dark/70 px-2.5 py-1 rounded font-mono shadow-md border border-white/5"
-                >
-                  {{ gameState?.deck ? gameState.deck.length : 0 }}
-                </span>
-              </div>
-            </div>
-            <div class="text-[16px] font-bold text-slate-400 font-mono mt-0.5">
-              {{ $t("board.discardPile") }}{{ globalDiscardPile.length }}
-            </div>
-          </div>
-
-          <div class="h-full max-h-[220px] w-[1px] bg-brand-surface flex-shrink-0"></div>
-
-          <!-- Стіл відбою -->
           <div
-            class="flex-1 flex flex-col justify-start gap-1 pl-1 h-full overflow-hidden"
+            class="flex gap-6 items-center w-full max-w-none mx-auto justify-between h-full"
           >
-            <div
-              class="flex justify-between items-center border-b border-slate-800 pb-1 flex-shrink-0"
-            >
-              <span
-                class="text-[10px] uppercase text-amber-400 font-bold font-mono tracking-wider"
-              >
-                {{ $t("board.table") }}
-              </span>
-            </div>
-
-            <div
-              class="flex flex-wrap gap-1 justify-start items-start content-start w-full overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 px-1 pt-4 pb-1 h-[16rem]"
-            >
-              <template
-                v-for="slotIndex in globalDiscardPile.length"
-                :key="`discard-slot-${slotIndex}`"
+            <div class="flex flex-col items-center justify-center gap-1 flex-shrink-0">
+              <div
+                class="relative w-44 h-64 bg-gradient-to-br from-yellow-800 to-indigo-900 rounded-xl border-2 border-amber-500 shadow-lg shadow-amber-950/20 flex flex-col items-center justify-center bg-cover bg-center overflow-hidden p-[2px]"
+                :style="{ backgroundImage: `url(${deckBackImage})` }"
               >
                 <div
-                  v-if="globalDiscardPile[slotIndex - 1]"
-                  class="game-card game-card-discard w-24 h-36 p-0 border border-brand-border/50 overflow-hidden bg-brand-bg-dark flex-shrink-0"
-                  :class="getCardColor(globalDiscardPile[slotIndex - 1].type)"
-                  :data-tooltip="
-                    $t('board.discardTooltip', {
-                      name: getCardName(globalDiscardPile[slotIndex - 1].type),
-                      owner: globalDiscardPile[slotIndex - 1].owner,
-                    })
-                  "
+                  class="absolute inset-0 bg-brand-bg-dark/50 flex flex-col items-center justify-center p-1"
                 >
-                  <img
-                    v-if="getCardImage(globalDiscardPile[slotIndex - 1].type)"
-                    :src="getCardImage(globalDiscardPile[slotIndex - 1].type)"
-                    :alt="getCardName(globalDiscardPile[slotIndex - 1].type)"
-                    class="w-full h-full object-cover pointer-events-none rounded-[0.4rem]"
-                  />
-                  <div
-                    v-else
-                    class="w-full h-full flex items-center justify-center text-[10px] text-center p-1"
+                  <span
+                    class="text-[12px] font-bold uppercase text-amber-200 tracking-wider bg-brand-bg-dark/80 px-2 py-1 rounded backdrop-blur-[1px]"
+                    >{{ $t("board.deck") }}</span
                   >
-                    {{ getCardName(globalDiscardPile[slotIndex - 1].type) }}
-                  </div>
+                  <span
+                    class="text-2xl font-black text-white leading-none mt-1.5 bg-brand-bg-dark/70 px-2.5 py-1 rounded font-mono shadow-md border border-white/5"
+                    >{{ gameState?.deck ? gameState.deck.length : 0 }}</span
+                  >
                 </div>
-              </template>
+              </div>
+              <div class="text-[16px] font-bold text-slate-400 font-mono mt-0.5">
+                {{ $t("board.discardPile") }}{{ globalDiscardPile.length }}
+              </div>
+            </div>
+            <div
+              class="h-full max-h-[220px] w-[1px] bg-brand-surface flex-shrink-0"
+            ></div>
+            <div
+              class="flex-1 flex flex-col justify-start gap-1 pl-1 h-full overflow-hidden"
+            >
+              <div
+                class="flex justify-between items-center border-b border-slate-800 pb-1 flex-shrink-0"
+              >
+                <span
+                  class="text-[10px] uppercase text-amber-400 font-bold font-mono tracking-wider"
+                  >{{ $t("board.table") }}</span
+                >
+              </div>
+              <div
+                class="flex flex-wrap gap-1 justify-start items-start content-start w-full overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 px-1 pt-4 pb-1 h-[16rem]"
+              >
+                <template
+                  v-for="slotIndex in globalDiscardPile.length"
+                  :key="`discard-slot-${slotIndex}`"
+                >
+                  <div
+                    v-if="globalDiscardPile[slotIndex - 1]"
+                    class="game-card game-card-discard w-24 h-36 p-0 border border-brand-border/50 overflow-hidden bg-brand-bg-dark flex-shrink-0"
+                    :class="getCardColor(globalDiscardPile[slotIndex - 1].type)"
+                    :data-tooltip="
+                      $t('board.discardTooltip', {
+                        name: getCardName(globalDiscardPile[slotIndex - 1].type),
+                        owner: globalDiscardPile[slotIndex - 1].owner,
+                      })
+                    "
+                  >
+                    <img
+                      v-if="getCardImage(globalDiscardPile[slotIndex - 1].type)"
+                      :src="getCardImage(globalDiscardPile[slotIndex - 1].type)"
+                      :alt="getCardName(globalDiscardPile[slotIndex - 1].type)"
+                      class="w-full h-full object-cover pointer-events-none rounded-[0.4rem]"
+                    />
+                    <div
+                      v-else
+                      class="w-full h-full flex items-center justify-center text-[10px] text-center p-1"
+                    >
+                      {{ getCardName(globalDiscardPile[slotIndex - 1].type) }}
+                    </div>
+                  </div>
+                </template>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
 
-    <!-- НИЖНЯ ПАНЕЛЬ (РУКА ВЛАСНОГО ГРАВЦЯ) -->
-    <footer
-      class="w-full max-w-2xl mx-auto bg-brand-bg-dark/90 backdrop-blur-md p-2 rounded-t-2xl border-t border-x border-slate-800 flex flex-col items-center shadow-2xl flex-shrink-0 z-10 h-[28vh] min-h-[280px] relative"
-    >
-      <div class="w-full h-full relative">
-        <div
-          v-if="myPlayer?.score > 0"
-          class="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.1 items-center p-1.5"
-          :title="$t('common.myChipsTitle')"
-        >
-          <img
-            v-for="n in myPlayer.score"
-            :key="`my-chip-${n}`"
-            :src="chipImage"
-            :alt="$t('common.chipAlt')"
-            class="w-20 h-8 object-contain animate-fade-in"
-          />
-        </div>
-
-        <!-- CHANCELLOR PANEL -->
-        <div
-          v-if="showChancellorPanel"
-          class="w-full flex flex-col items-center h-full justify-between"
-        >
-          <div class="text-center">
-            <h4 class="text-amber-400 font-bold text-xs uppercase leading-none">
-              {{ $t("board.chancellorPickOwn") }}
-            </h4>
+      <!-- FOOTER: Карти у руці гравця -->
+      <footer
+        class="w-full max-w-2xl mx-auto bg-brand-bg-dark/90 backdrop-blur-md p-2 rounded-t-2xl border-t border-x border-slate-800 flex flex-col items-center shadow-2xl flex-shrink-0 z-10 h-[28vh] min-h-[280px] relative"
+      >
+        <div class="w-full h-full relative">
+          <div
+            v-if="myPlayer?.score > 0"
+            class="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.1 items-center p-1.5"
+            :title="$t('common.myChipsTitle')"
+          >
+            <img
+              v-for="n in myPlayer.score"
+              :key="`my-chip-${n}`"
+              :src="chipImage"
+              :alt="$t('common.chipAlt')"
+              class="w-20 h-8 object-contain animate-fade-in"
+            />
           </div>
 
+          <!-- CHANCELLOR PANEL -->
           <div
-            class="flex justify-center gap-4 items-center flex-1 w-full overflow-hidden"
+            v-if="showChancellorPanel"
+            class="w-full flex flex-col items-center h-full justify-between"
           >
+            <div class="text-center">
+              <h4 class="text-amber-400 font-bold text-xs uppercase leading-none">
+                {{ $t("board.chancellorPickOwn") }}
+              </h4>
+            </div>
+            <div
+              class="flex justify-center gap-4 items-center flex-1 w-full overflow-hidden"
+            >
+              <div
+                v-for="(cardType, cIdx) in myHandCards"
+                :key="`chancellor-card-${cIdx}-${cardType}`"
+                @click="handleChancellorClick(cIdx)"
+                class="game-card w-44 ring-2 ring-amber-500/50 bg-cover bg-center transition-all duration-200 hover:scale-105 cursor-pointer flex flex-col justify-between overflow-hidden"
+                :class="getCardColor(cardType)"
+                :style="
+                  getCardImage(cardType)
+                    ? { backgroundImage: `url(${getCardImage(cardType)})` }
+                    : {}
+                "
+                :data-tooltip="`${getCardName(cardType)}(${getCardValue(
+                  cardType
+                )}) — ${getCardDesc(cardType)}`"
+              >
+                <span
+                  class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+                  >{{ getCardName(cardType) }}</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Контент руки (Стандартний стан) -->
+          <div
+            v-else
+            class="flex justify-center gap-4 relative z-10 items-center w-full h-full"
+          >
+            <div v-if="myHandCards.length === 0" class="text-slate-500 text-xs italic">
+              {{ $t("board.waitingForCards") }}
+            </div>
             <div
               v-for="(cardType, cIdx) in myHandCards"
-              :key="`chancellor-card-${cIdx}-${cardType}`"
-              @click="handleChancellorClick(cIdx)"
-              class="game-card w-44 ring-2 ring-amber-500/50 bg-cover bg-center transition-all duration-200 hover:scale-105 cursor-pointer flex flex-col justify-between overflow-hidden"
-              :class="getCardColor(cardType)"
+              :key="`hand-card-${cIdx}-${cardType}`"
+              @click="isMyTurn ? handleCardClick(cardType, cIdx) : null"
+              class="game-card w-44 bg-cover bg-center flex flex-col justify-between overflow-hidden"
+              :class="[
+                getCardColor(cardType),
+                isMyTurn ? 'game-card-playable' : 'game-card-disabled',
+              ]"
               :style="
                 getCardImage(cardType)
                   ? { backgroundImage: `url(${getCardImage(cardType)})` }
@@ -323,73 +337,41 @@
             >
               <span
                 class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+                >{{ getCardName(cardType) }}</span
               >
-                {{ getCardName(cardType) }}
-              </span>
+            </div>
+
+            <!-- Карта захисту у себе -->
+            <div
+              v-if="myPlayer?.is_protected"
+              class="game-card w-24 h-36 border-2 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] bg-cover bg-center animate-fade-in self-center relative flex-shrink-0 flex flex-col justify-between overflow-hidden"
+              :style="
+                getCardImage(4)
+                  ? { backgroundImage: `url(${getCardImage(4)})` }
+                  : { backgroundColor: '#1e293b' }
+              "
+              :data-tooltip="$t('board.protectionTooltip', { name: getCardName(4) })"
+            >
+              <span
+                class="absolute -top-2 -right-1 bg-brand-warning text-slate-950 font-black text-[8px] px-1 rounded shadow uppercase tracking-wider z-20"
+                >{{ $t("status.protected") }}</span
+              >
+              <span
+                class="text-[10px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-0.5 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+                >{{ getCardName(4) }}</span
+              >
             </div>
           </div>
         </div>
+      </footer>
+    </div>
 
-        <!-- Контент руки (Стандартний стан) -->
-        <div
-          v-else
-          class="flex justify-center gap-4 relative z-10 items-center w-full h-full"
-        >
-          <div v-if="myHandCards.length === 0" class="text-slate-500 text-xs italic">
-            {{ $t("board.waitingForCards") }}
-          </div>
+    <!-- ПРАВА ЗОНА: Панель логів (займає колишній оранжевий простір) -->
+    <div class="xl:col-span-1 h-full max-h-[98vh] overflow-hidden hidden xl:block pt-1">
+      <GameLogPanel />
+    </div>
 
-          <div
-            v-for="(cardType, cIdx) in myHandCards"
-            :key="`hand-card-${cIdx}-${cardType}`"
-            @click="isMyTurn ? handleCardClick(cardType, cIdx) : null"
-            class="game-card w-44 bg-cover bg-center flex flex-col justify-between overflow-hidden"
-            :class="[
-              getCardColor(cardType),
-              isMyTurn ? 'game-card-playable' : 'game-card-disabled',
-            ]"
-            :style="
-              getCardImage(cardType)
-                ? { backgroundImage: `url(${getCardImage(cardType)})` }
-                : {}
-            "
-            :data-tooltip="`${getCardName(cardType)}(${getCardValue(
-              cardType
-            )}) — ${getCardDesc(cardType)}`"
-          >
-            <span
-              class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
-            >
-              {{ getCardName(cardType) }}
-            </span>
-          </div>
-
-          <!-- Карта захисту у себе -->
-          <div
-            v-if="myPlayer?.is_protected"
-            class="game-card w-24 h-36 border-2 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] bg-cover bg-center animate-fade-in self-center relative flex-shrink-0 flex flex-col justify-between overflow-hidden"
-            :style="
-              getCardImage(4)
-                ? { backgroundImage: `url(${getCardImage(4)})` }
-                : { backgroundColor: '#1e293b' }
-            "
-            :data-tooltip="$t('board.protectionTooltip', { name: getCardName(4) })"
-          >
-            <span
-              class="absolute -top-2 -right-1 bg-brand-warning text-slate-950 font-black text-[8px] px-1 rounded shadow uppercase tracking-wider z-20"
-            >
-              {{ $t("status.protected") }}
-            </span>
-            <span
-              class="text-[10px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-0.5 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
-            >
-              {{ getCardName(4) }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </footer>
-
+    <!-- Модальні вікна -->
     <ActionModal
       :is-open="showActionModal"
       :card-type="String(activePlay.cardType)"
@@ -399,7 +381,6 @@
       @close="showActionModal = false"
       @submit="handleActionModalSubmit"
     />
-
     <CardRevealModal
       :is-open="!!revealedCardData"
       v-if="revealedCardData"
@@ -407,13 +388,11 @@
       :players="props.gameState.players"
       @close="handleCloseRevealModal"
     />
-
     <ChancellorModal
       :is-open="showChancellorPanel"
       :cards="myHandCards"
       @submit="handleChancellorModalSubmit"
     />
-
     <GameEndModal
       v-if="!revealedCardData"
       :is-open="showGameEndModal"
@@ -424,9 +403,7 @@
       @restart-game="handleRestartGameRequest"
       @leave-game="emit('leave-game')"
     />
-
     <GameErrorModal :message="gameStore.error" @close="handleClearError" />
-
     <ConfirmModal
       :is-open="showLeaveConfirm"
       :title="$t('board.leaveConfirm.title')"
@@ -569,43 +546,45 @@ const isMyTurn = computed(() => {
 });
 
 watch(
-  () => props.gameState,
-  (newGameState, oldGameState) => {
-    if (!newGameState || !newGameState.players || !newGameState.turn_order) return;
-    const currentPlayers = Array.isArray(newGameState.players)
-      ? newGameState.players
-      : Object.values(newGameState.players);
+  ...[
+    () => props.gameState,
+    (newGameState, oldGameState) => {
+      if (!newGameState || !newGameState.players || !newGameState.turn_order) return;
+      const currentPlayers = Array.isArray(newGameState.players)
+        ? newGameState.players
+        : Object.values(newGameState.players);
 
-    const oldPlayers = oldGameState?.players
-      ? Array.isArray(oldGameState.players)
-        ? oldGameState.players
-        : Object.values(oldGameState.players)
-      : [];
-    const currentActiveID = newGameState.turn_order[newGameState.current_turn];
-    currentPlayers.forEach((p) => {
-      if (!p || !p.id) return;
+      const oldPlayers = oldGameState?.players
+        ? Array.isArray(oldGameState.players)
+          ? oldGameState.players
+          : Object.values(oldGameState.players)
+        : [];
+      const currentActiveID = newGameState.turn_order[newGameState.current_turn];
+      currentPlayers.forEach((p) => {
+        if (!p || !p.id) return;
 
-      if (p.id === effectiveMyID.value) return;
+        if (p.id === effectiveMyID.value) return;
 
-      const oldP = oldPlayers.find((o) => o && o.id === p.id);
-      const currentDiscardLength = Array.isArray(p.discard_pile)
-        ? p.discard_pile.length
-        : 0;
-      const oldDiscardLength =
-        oldP && Array.isArray(oldP.discard_pile) ? oldP.discard_pile.length : 0;
+        const oldP = oldPlayers.find((o) => o && o.id === p.id);
+        const currentDiscardLength = Array.isArray(p.discard_pile)
+          ? p.discard_pile.length
+          : 0;
+        const oldDiscardLength =
+          oldP && Array.isArray(oldP.discard_pile) ? oldP.discard_pile.length : 0;
 
-      if (currentDiscardLength > oldDiscardLength) {
-        const lastCard = p.discard_pile[currentDiscardLength - 1];
-        lastPlayedCardsByPlayer.value[p.id] = lastCard;
-      } else if (p.id === currentActiveID) {
-        delete lastPlayedCardsByPlayer.value[p.id];
-      }
-      if (currentDiscardLength === 0) {
-        delete lastPlayedCardsByPlayer.value[p.id];
-      }
-    });
-  },
-  { deep: true, immediate: true }
+        if (currentDiscardLength > oldDiscardLength) {
+          const lastCard = p.discard_pile[currentDiscardLength - 1];
+          lastPlayedCardsByPlayer.value[p.id] = lastCard;
+        } else if (p.id === currentActiveID) {
+          delete lastPlayedCardsByPlayer.value[p.id];
+        }
+        if (currentDiscardLength === 0) {
+          delete lastPlayedCardsByPlayer.value[p.id];
+        }
+      });
+    },
+    { deep: true, immediate: true },
+  ]
 );
 
 watch(
@@ -780,6 +759,10 @@ const isOpponentLeft = computed(() => {
     : Object.values(playersData);
   return playersList.length < 2;
 });
+
+const handleChancellorClick = (index) => {
+  // Заглушка для кліку по карті канцлера
+};
 
 const handleChancellorModalSubmit = ({ keepHandIndex, bottomOrder }) => {
   const me = effectiveMyID.value;

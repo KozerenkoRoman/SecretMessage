@@ -4,6 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 import { CARD_INFO_NUMBERS } from '../constants/cards';
 
 const gameLog = ref([]);
+
 const EMPTY_GAME_STATE = Object.freeze({
   is_started: false,
   players: {},
@@ -50,7 +51,6 @@ export const useGameStore = defineStore('gameStore', () => {
   const revealedCardData = ref(null);
   const authToken = ref(localStorage.getItem('token') || '');
 
-  // Обчислювальний ID нашого користувача з JWT-токену
   const myID = computed(() => extractUserIdFromToken(authToken.value));
 
   const isGameStarted = computed(() => {
@@ -61,7 +61,6 @@ export const useGameStore = defineStore('gameStore', () => {
     );
   });
 
-  // Обчислювальна властивість для отримання карт у нашій руці
   const myCards = computed(() => {
     const id = myID.value;
     const playersData = gameState.value?.players;
@@ -100,7 +99,10 @@ export const useGameStore = defineStore('gameStore', () => {
       error.value = { code: 'ERR_INTERNAL', message: 'Unknown error', details: null };
       return;
     }
-    const code = (typeof packet.error_code === 'string' && packet.error_code) || (typeof packet.code === 'string' && packet.code) || 'ERR_INTERNAL';
+    const code =
+      (typeof packet.error_code === 'string' && packet.error_code) ||
+      (typeof packet.code === 'string' && packet.code) ||
+      'ERR_INTERNAL';
     error.value = {
       code,
       message: typeof packet.message === 'string' ? packet.message : '',
@@ -120,27 +122,22 @@ export const useGameStore = defineStore('gameStore', () => {
       }
       return;
     }
-
     if (socket.value && socket.value.readyState === WebSocket.CONNECTING) {
       console.log(`[WS] Сокет зараз підключається. Оновлюємо цільову кімнату на: ${targetRoomID}`);
       currentRoomID.value = targetRoomID;
       return;
     }
-
     currentRoomID.value = targetRoomID;
     isIntentionallyClosed.value = false;
     refreshAuthToken();
-
     const token = authToken.value;
     if (!token) {
       console.warn('[WS] Спроба підключення без JWT токена');
       return;
     }
-
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const backendHost = window.location.hostname === 'localhost' ? 'localhost:3000' : window.location.host;
-    const wsUrl = `${protocol}//${window.location.host}/ws?token=${token}`;
-
+    const wsUrl = `${protocol}//${backendHost}/ws?token=${token}`;
     console.log(`[WS] Створення нового підключення до шлюзу: ${wsUrl}`);
     try {
       socket.value = new WebSocket(wsUrl);
@@ -166,28 +163,23 @@ export const useGameStore = defineStore('gameStore', () => {
       try {
         const packet = JSON.parse(event.data);
         console.log('[WS] Отримано пакунок події від Go:', packet);
-
         if (packet.status === 'error' || packet.type === 'ERROR') {
           setErrorFromPacket(packet);
           return;
         }
-
         if (packet.type === 'LOBBY_LIST_UPDATED' || packet.type === 'LOBBY_UPDATED') {
           lobbyRooms.value = Array.isArray(packet.data) ? packet.data : (packet.payload || []);
           return;
         }
-
         if (packet.type === 'ROOM_UPDATED' || packet.type === 'STATE_UPDATE' || packet.state) {
           let rawState = packet.state || packet.payload;
           if (!rawState || typeof rawState !== 'object') return;
-
-          // 1. Повністю ізольовано клонуємо стан від сервера
           let updatedState = JSON.parse(JSON.stringify(rawState));
+
           const getPlayerName = (id) => {
             if (!id) return '...';
             return updatedState.players?.[id]?.username || `Гравець (${id.substring(0, 4)})`;
           };
-
 
           const getCardKey = (cardType) => {
             const cardData = CARD_INFO_NUMBERS[Number(cardType)];
@@ -195,19 +187,14 @@ export const useGameStore = defineStore('gameStore', () => {
           };
 
           const currentUuid = myID.value;
-
-          // 2. Гарантуємо повне очищення та синхронізацію дублюючих полів
           if (updatedState.players && updatedState.players[currentUuid]) {
-            // Синхронізуємо my_hand суворо з тим, що знає сервер про нашу руку
             updatedState.my_hand = [...updatedState.players[currentUuid].hand];
           }
 
-          // 3. Обробляємо події (тільки для збереження даних у діалоги/нотифікації)
           if (Array.isArray(packet.events)) {
             packet.events.forEach((ev) => {
               if (!ev || typeof ev !== 'object') return;
               const payload = ev.payload || {};
-
               console.log(`[WS] Обробляємо подію: ${ev.type}`);
 
               switch (ev.type) {
@@ -221,10 +208,9 @@ export const useGameStore = defineStore('gameStore', () => {
                   };
                   addToLog('log.round_compared', {
                     player: getPlayerName(payload.player_id),
-                    target: getPlayerName(payload.target_id)
+                    target: getPlayerName(payload.target_id),
                   });
                   break;
-
                 case 'CARD_REVEALED':
                 case 'PRIEST_EFFECT':
                   if (currentUuid === payload.viewer_id || currentUuid === payload.target_id) {
@@ -233,96 +219,91 @@ export const useGameStore = defineStore('gameStore', () => {
                         eventType: 'PRIEST_EFFECT',
                         cardType: Number(payload.card),
                         targetId: payload.target_id,
-                        viewerId: payload.viewer_id
+                        viewerId: payload.viewer_id,
                       };
                     }
                   }
                   addToLog('log.priest_effect', {
                     player: getPlayerName(payload.viewer_id),
-                    target: getPlayerName(payload.target_id)
+                    target: getPlayerName(payload.target_id),
                   });
                   break;
-
                 case 'CARD_PLAYED':
-                  addToLog('log.card_played', {
+                  const messageKey = payload.target_id ? 'log.card_played_targeted' : 'log.card_played';
+
+                  addToLog(messageKey, {
                     player: getPlayerName(payload.player_id),
                     card: getCardKey(payload.card),
-                    hasTarget: !!payload.target_id,
                     target: getPlayerName(payload.target_id)
                   });
                   break;
-
                 case 'GUARD_HIT':
                   addToLog('log.guard_hit', {
                     player: getPlayerName(payload.player_id),
                     target: getPlayerName(payload.target_id),
-                    guess: getCardKey(payload.guess)
+                    guess: getCardKey(payload.guess),
                   });
                   break;
-
                 case 'GUARD_MISS':
                   addToLog('log.guard_miss', {
                     player: getPlayerName(payload.player_id),
                     target: getPlayerName(payload.target_id),
-                    guess: getCardKey(payload.guess)
+                    guess: getCardKey(payload.guess),
                   });
                   break;
-
                 case 'BARON_RESULT':
                   addToLog('log.baron_result', {
                     winner: getPlayerName(payload.winner_id),
-                    loser: getPlayerName(payload.loser_id)
+                    loser: getPlayerName(payload.loser_id),
                   });
                   break;
-
                 case 'PLAYER_ELIMINATED':
                   addToLog('log.player_eliminated', {
                     player: getPlayerName(payload.player_id),
-                    reason: `reasons.${payload.reason}`
+                    reason: `reasons.${payload.reason}`,
                   });
                   break;
-
                 case 'HANDS_SWAPPED':
                   addToLog('log.hands_swapped', {
                     player: getPlayerName(payload.player_id),
-                    target: getPlayerName(payload.target_id)
+                    target: getPlayerName(payload.target_id),
                   });
                   break;
-
                 case 'SPY_BONUS':
                   addToLog('log.spy_bonus', {
                     player: getPlayerName(payload.player_id),
-                    points: payload.points
+                    points: payload.points,
                   });
                   break;
-
                 case 'ROUND_END':
                   addToLog('log.round_end', {
                     winner: getPlayerName(payload.winner_id),
-                    reason: `reasons.${payload.reason}`
+                    reason: `reasons.${payload.reason}`,
                   });
                   break;
-
                 case 'PLAYER_LEFT':
                   addToLog('log.player_left', {
-                    player: getPlayerName(payload.player_id)
+                    player: getPlayerName(payload.player_id),
                   });
                   break;
-
                 case 'CARD_DRAWN':
                   addToLog('log.card_drawn', {
-                    player: getPlayerName(payload.player_id)
+                    player: getPlayerName(payload.player_id),
                   });
                   break;
-
                 case 'CHANCELLOR_DRAWN':
+                  addToLog('log.chancellor_drawn', {
+                    player: getPlayerName(payload.player_id),
+                  });
+                  break;
                 case 'CHANCELLOR_RESOLVED':
-                  console.log(`[WS] Подія канцлера ${ev.type} зафіксована, але лог не реалізовано.`);
+                  addToLog('log.chancellor_resolved', {
+                    player: getPlayerName(payload.player_id),
+                  });
                   break;
               }
             });
           }
-
           gameState.value = updatedState;
         }
       } catch (err) {
@@ -395,12 +376,14 @@ export const useGameStore = defineStore('gameStore', () => {
   }
 
   function addToLog(messageKey, namedArgs = {}) {
-    gameLog.value.push({
-      id: crypto?.randomUUID ? crypto.randomUUID() : Math.random().toString(),
-      timestamp: new Date().toLocaleTimeString(),
-      messageKey,
-      namedArgs
-    });
+    setTimeout(() => {
+      gameLog.value.push({
+        id: typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        messageKey,
+        namedArgs,
+      });
+    }, 0);
   }
 
   return {

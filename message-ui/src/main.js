@@ -17,6 +17,8 @@ const i18n = createI18n({
     locale: initialLocale,
     fallbackLocale: 'en',
     messages: { uk, en },
+    missingWarn: false,
+    fallbackWarn: false,
 })
 
 if (typeof document !== 'undefined') {

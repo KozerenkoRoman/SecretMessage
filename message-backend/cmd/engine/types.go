@@ -26,7 +26,7 @@ const (
 	PhaseRoundEnd          Phase         = "ROUND_END"
 	PhaseResolveChancellor Phase         = "RESOLVE_CHANCELLOR"
 	PhaseFinished          Phase         = "FINISHED"
-	TurnDuration           time.Duration = 5 * time.Minute
+	TurnDuration           time.Duration = 1 * time.Minute
 )
 
 type GameState struct {
@@ -43,6 +43,7 @@ type GameState struct {
 	WinnerID       string        `json:"winner_id,omitempty"`
 	TransitionHash string        `json:"transition_hash,omitempty"`
 	BurnCard       *CardType     `json:"burn_card,omitempty"` // карта, вилучена з колоди на початку партії
+	SecondsLeft    int           `json:"seconds_left,omitempty"`
 }
 
 type Player struct {

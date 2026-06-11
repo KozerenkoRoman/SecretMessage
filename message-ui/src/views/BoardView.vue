@@ -37,10 +37,10 @@
               {{ $t("board.room") }}{{ roomID }}
             </h2>
             <p class="text-xs text-slate-400">
-              {{ $t("board.time")
-              }}<span class="text-amber-400 font-mono font-bold text-xs"
-                >{{ gameState?.seconds_left || 0 }}{{ $t("board.timeUnit") }}</span
-              >
+              {{ $t("board.time") }}
+              <span class="text-amber-400 font-mono font-bold text-sm">
+                {{ gameStore.gameState?.seconds_left ?? 0 }}{{ $t("board.timeUnit") }}
+              </span>
             </p>
           </div>
         </div>
@@ -417,7 +417,7 @@
 
 <script setup>
 import { getCardInfoHelper } from "../constants/cards";
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useGameStore } from "../stores/gameStore";
 import { storeToRefs } from "pinia";
@@ -449,12 +449,12 @@ const emit = defineEmits([
 const { t } = useI18n();
 const gameStore = useGameStore();
 const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
-
 const showLeaveConfirm = ref(false);
 const showActionModal = ref(false);
 const activePlay = ref({ cardType: "", handIndex: 0, targetID: "", guessCard: "" });
-
 const lastPlayedCardsByPlayer = ref({});
+const localSecondsLeft = ref(0);
+let localTimerInterval = null;
 
 const effectiveMyID = computed(() => {
   const fromStore = storeMyID.value;
@@ -544,6 +544,10 @@ const isMyTurn = computed(() => {
   return props.gameState?.current_player_id === me;
 });
 
+onUnmounted(() => {
+  if (localTimerInterval) clearInterval(localTimerInterval);
+});
+
 watch(
   ...[
     () => props.gameState,
@@ -617,6 +621,28 @@ watch(
       lastPlayedCardsByPlayer.value = {};
     }
   }
+);
+
+watch(
+  () => gameStore.gameState?.seconds_left,
+  (newSeconds) => {
+    if (localTimerInterval) clearInterval(localTimerInterval);
+    localSecondsLeft.value = typeof newSeconds === "number" ? newSeconds : 0;
+    if (localSecondsLeft.value > 0) {
+      localTimerInterval = setInterval(() => {
+        if (localSecondsLeft.value > 0) {
+          localSecondsLeft.value--;
+
+          if (gameStore.gameState) {
+            gameStore.gameState.seconds_left = localSecondsLeft.value;
+          }
+        } else {
+          clearInterval(localTimerInterval);
+        }
+      }, 1000);
+    }
+  },
+  { immediate: true }
 );
 
 const handleCloseRevealModal = () => {

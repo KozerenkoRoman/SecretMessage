@@ -2,12 +2,12 @@
   <div class="log-panel-container">
     <div class="log-panel-header">
       <span
-        class="text-[10px] uppercase font-bold tracking-wider text-amber-400 font-mono flex items-center gap-1.5"
+        class="text-[12px] uppercase font-bold tracking-wider text-amber-400 font-mono flex items-center gap-1.5"
       >
         {{ $t("log.history") }}
       </span>
       <span
-        class="text-[10px] font-mono text-slate-500 bg-brand-bg-dark px-1.5 py-0.5 rounded"
+        class="text-[12px] font-mono text-slate-500 bg-brand-bg-dark px-1.5 py-0.5 rounded"
       >
         {{ gameLog.length }}
       </span>
@@ -27,12 +27,12 @@
         class="group log-item-row animate-fade-in"
       >
         <span
-          class="text-[10px] font-mono text-slate-500 bg-slate-900/40 px-1 py-0.5 rounded flex-shrink-0"
+          class="text-[12px] font-mono text-slate-500 bg-slate-900/40 px-1 py-0.5 rounded flex-shrink-0"
         >
           {{ log.timestamp }}
         </span>
 
-        <span class="text-slate-200 leading-normal break-words text-[11px] flex-1">
+        <span class="text-slate-200 leading-normal break-words text-[12px] flex-1">
           <i18n-t v-if="log && log.messageKey" :keypath="log.messageKey" scope="global">
             <template #player>
               <strong class="text-amber-300 font-semibold">

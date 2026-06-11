@@ -119,7 +119,8 @@ type Room struct {
 	conns map[string]*GlobalClient
 	log   *logrus.Logger
 
-	state engine.GameState
+	state         engine.GameState
+	turnStartedAt time.Time
 }
 
 // RoomLobbyInfo — DTO для списку лобі.
@@ -153,6 +154,7 @@ func NewRoom(ctx context.Context, id string, hostID string, store *storage.Stora
 		clock:          realClock{},
 		log:            logger,
 		conns:          make(map[string]*GlobalClient),
+		turnStartedAt:  time.Now(),
 	}
 
 	if r.hostID == "" {
@@ -478,6 +480,18 @@ type outgoingPacket struct {
 func (r *Room) BroadcastState(updateType string, events []engine.DomainEvent) {
 	r.mu.RLock()
 	baseState := r.state.Clone()
+
+	secondsLeft := int(engine.TurnDuration.Seconds())
+	if len(baseState.TurnOrder) > 0 && baseState.Phase != engine.PhaseFinished && baseState.Phase != engine.PhaseRoundEnd {
+		elapsed := time.Since(r.turnStartedAt)
+		timeLeft := engine.TurnDuration - elapsed
+
+		secondsLeft = int(timeLeft.Seconds())
+		if secondsLeft < 0 {
+			secondsLeft = 0
+		}
+	}
+
 	clientsCopy := make(map[string]*GlobalClient, len(r.conns))
 	for pID, cl := range r.conns {
 		clientsCopy[pID] = cl
@@ -515,6 +529,7 @@ func (r *Room) BroadcastState(updateType string, events []engine.DomainEvent) {
 
 		viewerState := baseState
 		viewerState.Players = viewerPlayers
+		viewerState.SecondsLeft = secondsLeft
 
 		var filteredEvents []engine.DomainEvent
 		if len(events) > 0 {
@@ -582,10 +597,13 @@ func (r *Room) Start(ctx context.Context) {
 	//
 	// Викликати безпечно тільки з цього goroutine — таймер не shared.
 	resetTurnTimer := func() {
-		// Ми звертаємось до r.state під RLock — короткий критичний секцій.
-		r.mu.RLock()
+		r.mu.Lock()
 		hasStarted := len(r.state.TurnOrder) > 0 && r.state.Phase != engine.PhaseFinished
-		r.mu.RUnlock()
+		if hasStarted {
+			r.turnStartedAt = time.Now()
+		}
+		r.mu.Unlock()
+
 		if !hasStarted {
 			return
 		}

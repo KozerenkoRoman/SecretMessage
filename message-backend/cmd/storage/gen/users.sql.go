@@ -76,7 +76,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 }
 
 const getLeaderboard = `-- name: GetLeaderboard :many
-SELECT u.username, s.games_played, s.games_won, s.total_score, s.updated_at
+SELECT u.username, u.avatar_seed, s.games_played, s.games_won, s.total_score, s.updated_at
 FROM user_stats as s
 JOIN users as u ON s.user_id = u.id
 ORDER BY s.total_score DESC, s.games_won DESC
@@ -85,6 +85,7 @@ LIMIT $1
 
 type GetLeaderboardRow struct {
 	Username    string    `json:"username"`
+	AvatarSeed  string    `json:"avatar_seed"`
 	GamesPlayed int32     `json:"games_played"`
 	GamesWon    int32     `json:"games_won"`
 	TotalScore  int32     `json:"total_score"`
@@ -102,6 +103,7 @@ func (q *Queries) GetLeaderboard(ctx context.Context, limit int32) ([]GetLeaderb
 		var i GetLeaderboardRow
 		if err := rows.Scan(
 			&i.Username,
+			&i.AvatarSeed,
 			&i.GamesPlayed,
 			&i.GamesWon,
 			&i.TotalScore,

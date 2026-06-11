@@ -110,6 +110,11 @@ export const en = {
     playersCount: "Players: {count} / {max}",
     participants: "Participants: {names}",
     join: "Join",
+    leaderboard: {
+      title: "Players Rating",
+      loading: "Syncing with server...",
+      empty: "Database is empty"
+    },
     errors: {
       sessionExpired: "Session expired or unauthorized. Please log in again.",
       loadRoomsFailed: "Failed to load the room list",

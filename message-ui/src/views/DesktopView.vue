@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-brand-bg-dark text-white p-6">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <div
         class="lobby-header flex items-center justify-between bg-brand-bg border border-slate-800 p-4 rounded-xl mb-6"
       >
@@ -20,8 +20,9 @@
             >
               <span
                 class="text-[10px] text-amber-400 font-bold uppercase tracking-tighter"
-                >{{ $t("desktop.avatarChangeHint") }}</span
               >
+                {{ $t("desktop.avatarChangeHint") }}
+              </span>
             </div>
           </div>
 
@@ -53,73 +54,86 @@
         {{ apiError }}
       </div>
 
-      <h2 class="text-lg font-bold mb-4 font-mono text-brand-text-subtle">
-        {{ $t("desktop.lobbyHeader") }}
-      </h2>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div class="lg:col-span-2">
+          <h2 class="text-lg font-bold mb-4 font-mono text-brand-text-subtle">
+            {{ $t("desktop.lobbyHeader") }}
+          </h2>
 
-      <div
-        v-if="gameStore.lobbyRooms && gameStore.lobbyRooms.length > 0"
-        class="grid grid-cols-1 md:grid-cols-2 gap-4"
-      >
-        <div
-          v-for="room in gameStore.lobbyRooms"
-          :key="room.room_id || room.ID"
-          class="lobby-card flex items-center justify-between p-4 bg-brand-bg border border-slate-800 rounded-xl hover:border-brand-border transition-all"
-        >
-          <div class="flex items-center gap-3 truncate">
+          <div
+            v-if="gameStore.lobbyRooms && gameStore.lobbyRooms.length > 0"
+            class="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
             <div
-              class="w-12 h-12 rounded-full border-2 border-amber-500/40 p-0.5 bg-brand-bg-dark overflow-hidden flex-shrink-0 shadow-md"
+              v-for="room in gameStore.lobbyRooms"
+              :key="room.room_id || room.ID"
+              class="lobby-card flex items-center justify-between p-4 bg-brand-bg border border-slate-800 rounded-xl hover:border-brand-border transition-all"
             >
-              <img
-                :src="
-                  getAvatarUrl(
-                    room.host_avatar_seed || room.HostAvatarSeed || 'default_seed'
-                  )
-                "
-                :alt="$t('desktop.hostAvatarAlt')"
-                class="w-full h-full object-cover rounded-full"
-              />
-            </div>
+              <div class="flex items-center gap-3 truncate">
+                <div
+                  class="w-12 h-12 rounded-full border-2 border-amber-500/40 p-0.5 bg-brand-bg-dark overflow-hidden flex-shrink-0 shadow-md"
+                >
+                  <img
+                    :src="
+                      getAvatarUrl(
+                        room.host_avatar_seed || room.HostAvatarSeed || 'default_seed'
+                      )
+                    "
+                    :alt="$t('desktop.hostAvatarAlt')"
+                    class="w-full h-full object-cover rounded-full"
+                  />
+                </div>
 
-            <div class="truncate">
-              <div
-                class="font-bold text-amber-500/90 font-mono text-sm flex items-center gap-1.5"
+                <div class="truncate">
+                  <div
+                    class="font-bold text-amber-500/90 font-mono text-sm flex items-center gap-1.5"
+                  >
+                    {{ $t("desktop.roomLabel", { id: room.room_id || room.ID }) }}
+                  </div>
+                  <div class="text-xs text-slate-400 mt-0.5">
+                    {{
+                      $t("desktop.playersCount", {
+                        count: room.player_count ?? room.PlayerCount ?? 0,
+                        max: room.max_players ?? room.MaxPlayers ?? 4,
+                      })
+                    }}
+                  </div>
+                  <div
+                    v-if="room.player_names || room.PlayerNames"
+                    class="text-[10px] text-slate-500 mt-0.5 truncate max-w-[200px]"
+                    :title="(room.PlayerNames || room.player_names).join(',')"
+                  >
+                    {{
+                      $t("desktop.participants", {
+                        names: (room.PlayerNames || room.player_names).join(","),
+                      })
+                    }}
+                  </div>
+                </div>
+              </div>
+
+              <router-link
+                :to="`/room/${room.room_id || room.ID}`"
+                class="btn-enter flex-shrink-0"
               >
-                {{ $t("desktop.roomLabel", { id: room.room_id || room.ID }) }}
-              </div>
-              <div class="text-xs text-slate-400 mt-0.5">
-                {{
-                  $t("desktop.playersCount", {
-                    count: room.player_count ?? room.PlayerCount ?? 0,
-                    max: room.max_players ?? room.MaxPlayers ?? 4,
-                  })
-                }}
-              </div>
-              <div
-                v-if="room.player_names || room.PlayerNames"
-                class="text-[10px] text-slate-500 mt-0.5 truncate max-w-[200px]"
-                :title="(room.PlayerNames || room.player_names).join(',')"
-              >
-                {{
-                  $t("desktop.participants", {
-                    names: (room.PlayerNames || room.player_names).join(","),
-                  })
-                }}
-              </div>
+                {{ $t("desktop.join") }}
+              </router-link>
             </div>
           </div>
 
-          <router-link
-            :to="`/room/${room.room_id || room.ID}`"
-            class="btn-enter flex-shrink-0"
-          >
-            {{ $t("desktop.join") }}
-          </router-link>
+          <div v-else class="lobby-empty">
+            {{ $t("desktop.noRooms") }}
+          </div>
         </div>
-      </div>
 
-      <div v-else class="lobby-empty">
-        {{ $t("desktop.noRooms") }}
+        <div class="lg:col-span-1">
+          <h2
+            class="text-lg font-bold mb-4 font-mono text-slate-400 invisible hidden lg:block select-none"
+          >
+            -
+          </h2>
+          <LeaderboardPanel :currentUsername="currentUsername" />
+        </div>
       </div>
     </div>
 
@@ -142,6 +156,7 @@ import { useAuthStore } from "../stores/auth";
 import { useGameStore } from "../stores/gameStore";
 import { getAvatarUrl } from "../utils/avatar";
 import UserProfileModal from "./UserProfileModal.vue";
+import LeaderboardPanel from "../components/LeaderboardPanel.vue";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -149,18 +164,14 @@ const authStore = useAuthStore();
 const gameStore = useGameStore();
 
 const apiError = ref(null);
-
 const currentUsername = ref(
   localStorage.getItem("username") || authStore.user?.username || t("common.player")
 );
-
-// Стан для керування відображенням модалки
 const showAvatarModal = ref(false);
 const userAvatarSeed = ref(
   localStorage.getItem("avatar_seed") || authStore.user?.avatar_seed || "default_seed"
 );
 
-// Функція для генерації випадкового сиду
 const generateRandomSeed = () => {
   return (
     Math.random().toString(36).substring(2, 15) +
@@ -168,7 +179,6 @@ const generateRandomSeed = () => {
   );
 };
 
-// Відкриття вікна редагування
 const openAvatarModal = () => {
   showAvatarModal.value = true;
 };
@@ -176,7 +186,6 @@ const openAvatarModal = () => {
 const handleProfileUpdated = (updatedData) => {
   userAvatarSeed.value = updatedData.avatar_seed;
   currentUsername.value = updatedData.username;
-
   if (authStore.user) {
     authStore.user.username = updatedData.username;
     authStore.user.avatar_seed = updatedData.avatar_seed;
@@ -194,29 +203,18 @@ const fetchRooms = async () => {
         Authorization: `Bearer ${token}`,
       },
     });
-
-    if (response.status === 401) {
-      throw new Error(t("desktop.errors.sessionExpired"));
-    }
-    if (!response.ok) {
-      throw new Error(t("desktop.errors.loadRoomsFailed"));
-    }
-
+    if (response.status === 401) throw new Error(t("desktop.errors.sessionExpired"));
+    if (!response.ok) throw new Error(t("desktop.errors.loadRoomsFailed"));
     const data = await response.json();
     gameStore.lobbyRooms = Array.isArray(data) ? data : data.rooms || [];
   } catch (err) {
     apiError.value = err.message;
-    console.error("Помилка завантаження кімнат:", err);
   }
 };
 
 const logout = () => {
-  if (typeof authStore.clearSession === "function") {
-    authStore.clearSession();
-  }
-  if (gameStore && typeof gameStore.disconnect === "function") {
-    gameStore.disconnect();
-  }
+  if (typeof authStore.clearSession === "function") authStore.clearSession();
+  if (gameStore && typeof gameStore.disconnect === "function") gameStore.disconnect();
   router.push("/auth");
 };
 
@@ -230,17 +228,11 @@ const createRoom = async () => {
         Authorization: `Bearer ${token}`,
       },
     });
-
-    if (response.status === 401) {
-      throw new Error(t("desktop.errors.noRightsToCreate"));
-    }
+    if (response.status === 401) throw new Error(t("desktop.errors.noRightsToCreate"));
     if (!response.ok) throw new Error(t("desktop.errors.createFailed"));
-
     const newRoom = await response.json();
     const actualRoomId = newRoom.room_id || newRoom.RoomID || newRoom.id;
-    if (actualRoomId) {
-      router.push(`/room/${actualRoomId}`);
-    }
+    if (actualRoomId) router.push(`/room/${actualRoomId}`);
   } catch (err) {
     alert(err.message);
   }
@@ -256,9 +248,6 @@ onMounted(() => {
     const newSeed = generateRandomSeed();
     userAvatarSeed.value = newSeed;
     localStorage.setItem("avatar_seed", newSeed);
-
-    // Тут в ідеалі зробити швидкий запит на бекенд (POST /api/user),
-    // щоб назавжди зберегти цей згенерований сід у базу даних для цього юзера.
   }
 });
 </script>

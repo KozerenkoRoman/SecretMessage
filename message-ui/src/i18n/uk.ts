@@ -110,6 +110,11 @@ export const uk = {
     playersCount: "Гравців:{count}/{max}",
     participants: "Учасники:{names}",
     join: "Приєднатися",
+    leaderboard: {
+      title: "Рейтинг гравців",
+      loading: "Синхронізація з сервером...",
+      empty: "База даних порожня"
+    },
     errors: {
       sessionExpired: "Сесія застаріла або неавторизована. Будь ласка, перезайдіть.",
       loadRoomsFailed: "Не вдалося завантажити список кімнат",
@@ -292,7 +297,6 @@ export const uk = {
     history: "Історія гри",
     empty: "Тут відображатимуться ходи гравців..."
   },
-
   // ==== Текстові повідомлення, що вже в i18n (error dictionary) =====
   // (перенесено в файл i18n/errorMessages.ts – залиште без змін)
 };

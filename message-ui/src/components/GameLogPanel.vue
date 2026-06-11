@@ -4,7 +4,7 @@
       <span
         class="text-[10px] uppercase font-bold tracking-wider text-amber-400 font-mono flex items-center gap-1.5"
       >
-        📜 {{ $t("log.history") }}
+        {{ $t("log.history") }}
       </span>
       <span
         class="text-[10px] font-mono text-slate-500 bg-brand-bg-dark px-1.5 py-0.5 rounded"

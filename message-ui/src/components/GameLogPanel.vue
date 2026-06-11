@@ -1,14 +1,10 @@
 <template>
-  <div
-    class="flex flex-col h-full bg-brand-bg-dark/60 border-l border-slate-800/80 overflow-hidden backdrop-blur-sm shadow-inner"
-  >
-    <div
-      class="px-3 py-2 border-b border-slate-800/80 bg-brand-surface/40 flex justify-between items-center flex-shrink-0 h-[6vh]"
-    >
+  <div class="log-panel-container">
+    <div class="log-panel-header">
       <span
         class="text-[10px] uppercase font-bold tracking-wider text-amber-400 font-mono flex items-center gap-1.5"
       >
-        {{ $t("log.history") }}
+        📜 {{ $t("log.history") }}
       </span>
       <span
         class="text-[10px] font-mono text-slate-500 bg-brand-bg-dark px-1.5 py-0.5 rounded"
@@ -17,10 +13,7 @@
       </span>
     </div>
 
-    <div
-      ref="logContainer"
-      class="flex-1 overflow-y-auto p-2 custom-scrollbar space-y-1.5 text-left text-xs selection:bg-amber-500/30 bg-brand-bg-dark/20"
-    >
+    <div ref="logContainer" class="log-panel-scroll custom-scrollbar space-y-1.5">
       <div
         v-if="gameLog.length === 0"
         class="text-slate-500 italic text-center py-4 text-[11px]"
@@ -28,11 +21,10 @@
         {{ $t("log.empty") }}
       </div>
 
-      <!-- Додаємо унікальний рядковий префікс до ключа log- -->
       <div
         v-for="(log, index) in gameLog"
         :key="`log-${log.id || index}`"
-        class="group flex items-start gap-1.5 hover:bg-white/5 p-1 rounded transition-colors duration-150 animate-fade-in"
+        class="group log-item-row animate-fade-in"
       >
         <span
           class="text-[10px] font-mono text-slate-500 bg-slate-900/40 px-1 py-0.5 rounded flex-shrink-0"
@@ -41,7 +33,6 @@
         </span>
 
         <span class="text-slate-200 leading-normal break-words text-[11px] flex-1">
-          <!-- v-if захищає від спроб рендеру у зникаючому з DOM батьківському елементі -->
           <i18n-t v-if="log && log.messageKey" :keypath="log.messageKey" scope="global">
             <template #player>
               <strong class="text-amber-300 font-semibold">
@@ -145,32 +136,3 @@ onMounted(() => {
   scrollToBottom();
 });
 </script>
-
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(245, 158, 11, 0.2);
-  border-radius: 2px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(245, 158, 11, 0.4);
-}
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.animate-fade-in {
-  animation: fadeIn 0.2s ease-out forwards;
-}
-</style>

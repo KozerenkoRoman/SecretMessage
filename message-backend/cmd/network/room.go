@@ -1086,28 +1086,52 @@ func (r *Room) saveToDB(ctx context.Context) error {
 }
 
 // archiveFinishedGame — фіксує підсумки матчу в БД, ЯКЩО матч завершено.
-//
 // Приймає snapshot стану (а не читає r.state), щоб не залежати від r.mu.
-// Це навмисно: попередня версія викликала r.checkAndSaveGameEnd (старе ім'я) зсередини
-// захищеної секції, що змішувало lock-ed I/O з відправкою в горутину.
 func (r *Room) archiveFinishedGame(snapshot engine.GameState) {
-	if snapshot.Phase != engine.PhaseFinished && len(snapshot.TurnOrder) != 0 {
+	if snapshot.Phase != engine.PhaseFinished && snapshot.Phase != "ROUND_END" && len(snapshot.TurnOrder) != 0 {
 		return
 	}
-	r.log.Infof("Гра в кімнаті %s завершилася! Зберігаємо результати...", r.id)
+
+	r.log.Infof("Фіксуємо архівацію (Phase: %s) для кімнати %s...", snapshot.Phase, r.id)
+
 	finalStateBytes, err := json.Marshal(snapshot)
 	if err != nil {
-		r.log.Errorf("Не вдалося серіалізувати фінальний стейт: %v", err)
+		r.log.Errorf("Не вдалося серіалізувати фінальний стейт:%v", err)
 		return
 	}
-	allPlayers := make([]string, 0, len(snapshot.Players))
-	for _, p := range snapshot.Players {
-		allPlayers = append(allPlayers, p.ID)
+
+	allUsernames := make([]string, 0, len(snapshot.Players))
+	var winnerParam uuid.NullUUID
+	var spyWinnerParam uuid.NullUUID
+
+	// Парсимо UUID головного переможця, якщо він є і це не SYSTEM
+	if snapshot.WinnerID != "" && snapshot.WinnerID != "SYSTEM" {
+		if wUUID, parseErr := uuid.Parse(snapshot.WinnerID); parseErr == nil {
+			winnerParam = uuid.NullUUID{UUID: wUUID, Valid: true}
+		} else {
+			r.log.Errorf("Не вдалося розпарсити UUID переможця %s: %v", snapshot.WinnerID, parseErr)
+		}
 	}
+
+	for _, p := range snapshot.Players {
+		allUsernames = append(allUsernames, p.Username) // Для масиву оновлення все ще збираємо юзернейми
+
+		// Шукаємо шпигуна та парсимо його UUID
+		if p.SpyPointsAwarded {
+			if spyUUID, parseErr := uuid.Parse(p.ID); parseErr == nil {
+				spyWinnerParam = uuid.NullUUID{UUID: spyUUID, Valid: true}
+			} else {
+				r.log.Errorf("Не вдалося розпарсити UUID шпигуна %s: %v", p.ID, parseErr)
+			}
+		}
+	}
+
+	// Створення структури інпуту з чистими UUID
 	input := storage.GameResultInput{
 		RoomID:       r.id,
-		WinnerName:   snapshot.WinnerID,
-		AllPlayers:   allPlayers,
+		WinnerID:     winnerParam,    // Передаємо NullUUID
+		SpyWinnerID:  spyWinnerParam, // Передаємо NullUUID
+		AllPlayers:   allUsernames,   // Передаємо ["user1", "user2"]
 		FinalStateJS: finalStateBytes,
 	}
 	roomID := r.id
@@ -1117,9 +1141,9 @@ func (r *Room) archiveFinishedGame(snapshot engine.GameState) {
 	go func() {
 		err := storeRef.SaveGameResult(context.Background(), input)
 		if err != nil {
-			loggerRef.Errorf("Помилка збереження результатів гри %s в БД: %v", roomID, err)
+			loggerRef.Errorf("Помилка збереження результатів гри %s в БД:%v", roomID, err)
 		} else {
-			loggerRef.Infof("Результати матчу кімнати %s успішно зафіксовані в БД.", roomID)
+			loggerRef.Infof("Результати матчу кімнати %s успішно зафіксовані в БД через UUID.", roomID)
 		}
 	}()
 }

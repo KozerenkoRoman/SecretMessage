@@ -2,10 +2,10 @@
   <Transition name="scale">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100]"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-[100] h-app"
     >
       <div
-        class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-md shadow-2xl text-center flex flex-col transform"
+        class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-4 sm:p-5 lg:p-6 w-full max-w-md shadow-2xl text-center flex flex-col transform overflow-y-auto max-h-[90dvh] custom-scrollbar"
       >
         <h3
           class="text-amber-400 font-bold text-lg mb-3 flex items-center justify-center gap-2 font-mono uppercase tracking-wide"

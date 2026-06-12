@@ -2,10 +2,10 @@
   <Transition name="fade">
     <div
       v-if="hasError"
-      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]"
+      class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[60] h-app"
     >
       <div
-        class="bg-brand-surface border border-rose-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center transform scale-100 transition-all"
+        class="bg-brand-surface border border-rose-500/40 rounded-2xl p-4 sm:p-5 lg:p-6 w-full max-w-sm tall:max-w-md shadow-2xl text-center transform scale-100 transition-all overflow-y-auto max-h-[90dvh] custom-scrollbar"
       >
         <div
           class="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl border border-rose-500/20"

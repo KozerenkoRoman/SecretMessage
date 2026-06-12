@@ -2,10 +2,10 @@
   <Transition name="fade">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-brand-bg-dark/80 backdrop-blur-md flex items-center justify-center p-4 z-50 font-sans animate-fade-in"
+      class="fixed inset-0 bg-brand-bg-dark/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 font-sans animate-fade-in h-app"
     >
       <div
-        class="bg-gradient-to-b from-slate-900 to-slate-950 border rounded-2xl w-full max-w-md p-6 shadow-2xl text-center transform scale-100 transition-all duration-300 relative overflow-hidden border-slate-800"
+        class="bg-gradient-to-b from-slate-900 to-slate-950 border rounded-2xl w-full max-w-md tall:max-w-lg p-4 sm:p-5 lg:p-6 shadow-2xl text-center transform scale-100 transition-all duration-300 relative overflow-y-auto overflow-x-hidden border-slate-800 max-h-[90dvh] custom-scrollbar"
         :class="{ 'border-amber-500 shadow-amber-500/10': isAmIWinner }"
       >
         <div
@@ -47,7 +47,7 @@
           </p>
         </div>
 
-        <div class="my-6 text-6xl drop-shadow-lg select-none">
+        <div class="my-4 sm:my-5 short:my-3 text-5xl sm:text-6xl short:text-4xl drop-shadow-lg select-none">
           <span v-if="isAmIWinner">🏆</span>
           <span v-else-if="gameState?.is_game_over">🥈</span>
           <span v-else>💀</span>

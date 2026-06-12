@@ -2,10 +2,13 @@
   <Transition name="fade">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 h-app"
     >
+      <!-- Використовуємо глобальний --card-primary-h: 3 картки Канцлера
+           будуть точно того самого розміру, що й картки в руці на дошці.
+           Якщо не вміщаються — модалка скролиться. -->
       <div
-        class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-2xl shadow-2xl"
+        class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-4 sm:p-5 lg:p-6 w-full max-w-2xl tall:max-w-3xl shadow-2xl overflow-y-auto max-h-[90dvh] custom-scrollbar"
       >
         <div class="text-center mb-6">
           <h3
@@ -23,12 +26,16 @@
           </p>
         </div>
 
-        <div class="flex justify-center gap-4 min-h-[280px] items-center my-4 flex-wrap">
+        <!-- Контейнер карт: висота прив'язана до --card-primary-h, тому
+             автоматично адаптується. Не потрібно ставити min-height вручну. -->
+        <div
+          class="flex justify-center gap-2 sm:gap-3 lg:gap-4 items-center my-4 flex-wrap"
+        >
           <div
             v-for="(cardType, index) in cards"
             :key="index"
             @click="handleCardClick(index)"
-            class="group w-44 h-64 rounded-xl flex flex-col justify-between shadow-xl transition-all duration-300 transform select-none cursor-pointer border relative bg-cover bg-center overflow-hidden"
+            class="group card-primary rounded-xl flex flex-col justify-between shadow-xl transition-all duration-300 transform select-none cursor-pointer border relative bg-cover bg-center overflow-hidden"
             :class="[getCardColor(cardType), getCardSelectionClass(index)]"
             :style="
               getCardImage(cardType)

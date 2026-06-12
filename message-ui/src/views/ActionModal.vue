@@ -2,12 +2,18 @@
   <Transition name="fade">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 h-app"
     >
+      <!-- Картки в Guard guess grid використовують глобальний --card-primary-h
+           (заданий в @theme). Це робить їх ВІЗУАЛЬНО ІДЕНТИЧНИМИ карткам
+           у руці гравця. Якщо картки не вміщаються — модалка скролиться
+           через max-h-[90dvh] + overflow-y-auto. -->
       <div
-        class="bg-brand-surface border border-brand-border rounded-2xl p-6 w-full shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar transition-all duration-300"
+        class="bg-brand-surface border border-brand-border rounded-2xl p-4 sm:p-5 lg:p-6 w-full shadow-2xl overflow-y-auto max-h-[90dvh] custom-scrollbar transition-all duration-300"
         :class="[
-          isGuardGuessRequired && availableTargets.length > 0 ? 'max-w-5xl' : 'max-w-xl',
+          isGuardGuessRequired && availableTargets.length > 0
+            ? 'max-w-3xl tall:max-w-5xl xtall:max-w-6xl'
+            : 'max-w-xl',
         ]"
       >
         <h3 class="text-lg font-bold text-amber-400 mb-2">
@@ -17,7 +23,7 @@
         <div v-if="requiresTargetSelection" class="mb-4">
           <div v-if="availableTargets.length > 0">
             <div
-              class="flex flex-wrap justify-center gap-6 bg-brand-bg/40 p-4 rounded-xl border border-brand-border/30"
+              class="flex flex-wrap justify-center gap-3 sm:gap-4 lg:gap-6 bg-brand-bg/40 p-3 sm:p-4 rounded-xl border border-brand-border/30"
             >
               <button
                 v-for="p in availableTargets"
@@ -79,13 +85,13 @@
           </label>
 
           <div
-            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 bg-brand-bg/60 p-6 rounded-xl border border-brand-border/50 justify-items-center"
+            class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 bg-brand-bg/60 p-3 sm:p-4 lg:p-6 rounded-xl border border-brand-border/50 justify-items-center"
           >
             <div
               v-for="card in allCards"
               :key="card.type"
               @click="guessCard = card.type"
-              class="w-44 h-64 aspect-[2/3] rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
+              class="card-primary rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
               :class="[
                 getCardColor(card.type),
                 guessCard === card.type

@@ -2,10 +2,12 @@
   <Transition name="scale">
     <div
       v-if="data && isValidReveal"
-      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 h-app"
     >
+      <!-- Картки Барон/Священник Reveal використовують глобальний
+           --card-primary-h, тож виглядають ідентично карткам у руці гравця. -->
       <div
-        class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-xl shadow-2xl text-center flex flex-col"
+        class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-4 sm:p-5 lg:p-6 w-full max-w-xl tall:max-w-2xl shadow-2xl text-center flex flex-col overflow-y-auto max-h-[90dvh] custom-scrollbar"
       >
         <div
           class="text-amber-400 font-bold text-xl mb-6 flex items-center justify-center gap-2 font-mono uppercase tracking-wide"
@@ -13,11 +15,11 @@
           {{ isBaron ? $t("reveal.duelBaron") : $t("reveal.priestEffect") }}
         </div>
 
-        <div class="flex justify-center gap-6 flex-wrap my-auto items-stretch">
+        <div class="flex justify-center gap-3 sm:gap-4 lg:gap-6 flex-wrap my-auto items-stretch">
           <div
             v-for="(card, index) in displayCards"
             :key="index"
-            class="flex flex-col gap-3 items-center flex-1 max-w-[190px]"
+            class="flex flex-col gap-2 sm:gap-3 items-center flex-shrink-0"
           >
             <div
               class="flex items-center gap-2 bg-brand-surface/60 pl-1.5 pr-3 py-1 rounded-full border border-brand-border/50 w-full justify-center"
@@ -45,7 +47,7 @@
             </div>
 
             <div
-              class="w-44 h-64 rounded-xl border-2 shadow-2xl transition-all duration-300 select-none bg-cover bg-center relative overflow-hidden group hover:scale-105 flex flex-col justify-end"
+              class="card-primary rounded-xl border-2 shadow-2xl transition-all duration-300 select-none bg-cover bg-center relative overflow-hidden group hover:scale-105 flex flex-col justify-end"
               :class="[card.info.color, card.info.border || 'border-white/10']"
               :style="
                 card.info.image ? { backgroundImage: `url(${card.info.image})` } : {}

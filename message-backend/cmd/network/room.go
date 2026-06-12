@@ -595,13 +595,24 @@ func (r *Room) Start(ctx context.Context) {
 	//     `case <-turnTimer.C` миттєво спрацює (false-positive AFK).
 	//   • select-default прибирає тік без блокування, якщо він є.
 	//
+	// Поведінка з прапорцем fullReset:
+	//   • fullReset=true  — починається НОВИЙ хід (новий активний гравець,
+	//     старт гри або старт раунду): таймер виставляється на повний
+	//     engine.TurnDuration і r.turnStartedAt = time.Now().
+	//   • fullReset=false — той самий гравець продовжує свою послідовність
+	//     ходу (наприклад, пішов у PhaseResolveChancellor). r.turnStartedAt
+	//     НЕ оновлюється; таймер перезапускається на ЗАЛИШОК часу від
+	//     оригінального початку ходу. Це гарантує єдину 1-хвилинну межу
+	//     на весь хід гравця, незалежно від кількості суб-фаз.
+	//
 	// Викликати безпечно тільки з цього goroutine — таймер не shared.
-	resetTurnTimer := func() {
+	resetTurnTimer := func(fullReset bool) {
 		r.mu.Lock()
 		hasStarted := len(r.state.TurnOrder) > 0 && r.state.Phase != engine.PhaseFinished
-		if hasStarted {
+		if hasStarted && fullReset {
 			r.turnStartedAt = time.Now()
 		}
+		startedAt := r.turnStartedAt
 		r.mu.Unlock()
 
 		if !hasStarted {
@@ -613,7 +624,36 @@ func (r *Room) Start(ctx context.Context) {
 			default:
 			}
 		}
-		turnTimer.Reset(engine.TurnDuration)
+
+		if fullReset {
+			turnTimer.Reset(engine.TurnDuration)
+			return
+		}
+
+		// Той самий гравець продовжує хід — рахуємо залишок від
+		// оригінального r.turnStartedAt, щоб не подовжувати ліміт.
+		remaining := engine.TurnDuration - time.Since(startedAt)
+		if remaining <= 0 {
+			// Уже прострочено — імітуємо негайний AFK-тік.
+			turnTimer.Reset(time.Millisecond)
+			return
+		}
+		turnTimer.Reset(remaining)
+	}
+
+	// activePlayerLocked — повертає playerID, чий зараз хід, або "".
+	// Викликач НЕ повинен тримати r.mu (метод сам бере RLock).
+	activePlayer := func() string {
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		if len(r.state.TurnOrder) == 0 || r.state.Phase == engine.PhaseFinished {
+			return ""
+		}
+		idx := r.state.CurrentTurn
+		if idx < 0 || idx >= len(r.state.TurnOrder) {
+			return ""
+		}
+		return r.state.TurnOrder[idx]
 	}
 
 	for {
@@ -623,18 +663,30 @@ func (r *Room) Start(ctx context.Context) {
 			return
 
 		case inAct := <-r.actions:
-			// Спецсигнал від StartGame/NextRound: просто рестартуємо таймер.
+			// Спецсигнал від StartGame/NextRound: новий хід — повний reset.
 			if inAct.RequestID == MsgStartGame {
-				resetTurnTimer()
+				resetTurnTimer(true)
 				continue
 			}
+
+			// Запам'ятовуємо, чий хід ДО обробки дії, щоб після неї
+			// зрозуміти: це справді перехід ходу чи внутрішня
+			// субфаза (Chancellor) того самого гравця.
+			prevActive := activePlayer()
+
 			err := r.processAction(ctx, inAct)
 			if inAct.errChan != nil {
 				inAct.errChan <- err
 			}
-			if err == nil {
-				resetTurnTimer()
+			if err != nil {
+				continue
 			}
+
+			newActive := activePlayer()
+			// fullReset тільки якщо активний гравець фактично змінився
+			// (включно з кейсом, коли був "" і з'явився, або навпаки).
+			fullReset := newActive != prevActive
+			resetTurnTimer(fullReset)
 
 		case <-turnTimer.C:
 			r.handleAFKTick()

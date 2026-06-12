@@ -1,4 +1,3 @@
-// cmd/network/network_types.go
 package network
 
 const (

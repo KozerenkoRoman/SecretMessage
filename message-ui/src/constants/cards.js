@@ -1,29 +1,58 @@
-// src/constants/cards.js
+export const CARD_I18N_KEYS = {
+  SPY: { name: "cards.SPY.name", desc: "cards.SPY.desc" },
+  GUARD: { name: "cards.GUARD.name", desc: "cards.GUARD.desc" },
+  PRIEST: { name: "cards.PRIEST.name", desc: "cards.PRIEST.desc" },
+  BARON: { name: "cards.BARON.name", desc: "cards.BARON.desc" },
+  HANDMAID: { name: "cards.HANDMAID.name", desc: "cards.HANDMAID.desc" },
+  PRINCE: { name: "cards.PRINCE.name", desc: "cards.PRINCE.desc" },
+  CHANCELLOR: { name: "cards.CHANCELLOR.name", desc: "cards.CHANCELLOR.desc" },
+  KING: { name: "cards.KING.name", desc: "cards.KING.desc" },
+  COUNTESS: { name: "cards.COUNTESS.name", desc: "cards.COUNTESS.desc" },
+  PRINCESS: { name: "cards.PRINCESS.name", desc: "cards.PRINCESS.desc" }
+};
 
 const getCardImg = (fileName) => {
   return new URL(`../assets/cards/${fileName}`, import.meta.url).href;
 };
 
-export const CARD_INFO = {
-  0: { name: "Шпигун", type: "SPY", value: 0, color: "bg-gray-700", emoji: "🦅", desc: "Отримайте один бал по закінченні раунду.", targetType: "SELF", image: getCardImg("00_Spy.png") },
-  1: { name: "Вартовий", type: "GUARD", value: 1, color: "bg-red-700", emoji: "⚔️", desc: "Вгадайте карту іншого гравця.", targetType: "OPPONENT", requiresGuess: true, image: getCardImg("01_Guard.png") },
-  2: { name: "Священник", type: "PRIEST", value: 2, color: "bg-blue-600", emoji: "⛪", desc: "Подивіться руку іншого гравця.", targetType: "OPPONENT", image: getCardImg("02_Priest.png") },
-  3: { name: "Барон", type: "BARON", value: 3, color: "bg-green-600", emoji: "🎭", desc: "Порівняйте карти з іншим гравцем.", targetType: "OPPONENT", image: getCardImg("03_Baron.png") },
-  4: { name: "Служниця", type: "HANDMAID", value: 4, color: "bg-yellow-600", emoji: "🛡️", desc: "Захист від усіх ефектів до наступного ходу.", targetType: "SELF", image: getCardImg("04_Handmaid.png") },
-  5: { name: "Принц", type: "PRINCE", value: 5, color: "bg-cyan-600", emoji: "👑", desc: "Оберіть гравця (можна себе), щоб він скинули карту.", targetType: "ANY", image: getCardImg("05_Prince.png") },
-  6: { name: "Канцлер", type: "CHANCELLOR", value: 6, color: "bg-purple-600", emoji: "📜", desc: "Візьміть 2 карти, залиште 1, інші вниз колоди.", targetType: "SELF", image: getCardImg("06_Minister.png") },
-  7: { name: "Графиня", type: "COUNTESS", value: 7, color: "bg-orange-500", emoji: "💃", desc: "Скиньте, якщо в руці є Принц або Король.", targetType: "SELF", image: getCardImg("08_Countess.png") },
-  8: { name: "Король", type: "KING", value: 8, color: "bg-amber-700", emoji: "⚜️", desc: "Обміняйтеся картами з іншим гравцем.", targetType: "OPPONENT", image: getCardImg("07_King.png") },
-  9: { name: "Принцеса", type: "PRINCESS", value: 9, color: "bg-pink-600", emoji: "👸", desc: "Якщо ви скинете цю карту — ви вилітаєте.", targetType: "SELF", image: getCardImg("09_Princess.png") },
+export const CARD_INFO_NUMBERS = {
+  0: { nameKey: CARD_I18N_KEYS.SPY.name, descKey: CARD_I18N_KEYS.SPY.desc, type: "SPY", value: 0, color: "bg-brand-card-gray", emoji: "🦅", targetType: "SELF", image: getCardImg("00_Spy.png") },
+  1: { nameKey: CARD_I18N_KEYS.GUARD.name, descKey: CARD_I18N_KEYS.GUARD.desc, type: "GUARD", value: 1, color: "bg-brand-card-red", emoji: "⚔️", targetType: "OPPONENT", requiresGuess: true, image: getCardImg("01_Guard.png") },
+  2: { nameKey: CARD_I18N_KEYS.PRIEST.name, descKey: CARD_I18N_KEYS.PRIEST.desc, type: "PRIEST", value: 2, color: "bg-brand-card-blue", emoji: "⛪", targetType: "OPPONENT", image: getCardImg("02_Priest.png") },
+  3: { nameKey: CARD_I18N_KEYS.BARON.name, descKey: CARD_I18N_KEYS.BARON.desc, type: "BARON", value: 3, color: "bg-brand-card-green", emoji: "🎭", targetType: "OPPONENT", image: getCardImg("03_Baron.png") },
+  4: { nameKey: CARD_I18N_KEYS.HANDMAID.name, descKey: CARD_I18N_KEYS.HANDMAID.desc, type: "HANDMAID", value: 4, color: "bg-brand-card-yellow", emoji: "🛡️", targetType: "SELF", image: getCardImg("04_Handmaid.png") },
+  5: { nameKey: CARD_I18N_KEYS.PRINCE.name, descKey: CARD_I18N_KEYS.PRINCE.desc, type: "PRINCE", value: 5, color: "bg-brand-card-cyan", emoji: "👑", targetType: "ANY", image: getCardImg("05_Prince.png") },
+  6: { nameKey: CARD_I18N_KEYS.CHANCELLOR.name, descKey: CARD_I18N_KEYS.CHANCELLOR.desc, type: "CHANCELLOR", value: 6, color: "bg-brand-card-purple", emoji: "📜", targetType: "SELF", image: getCardImg("06_Minister.png") },
+  7: { nameKey: CARD_I18N_KEYS.KING.name, descKey: CARD_I18N_KEYS.KING.desc, type: "KING", value: 8, color: "bg-brand-card-amber", emoji: "⚜️", targetType: "OPPONENT", image: getCardImg("07_King.png") },
+  8: { nameKey: CARD_I18N_KEYS.COUNTESS.name, descKey: CARD_I18N_KEYS.COUNTESS.desc, type: "COUNTESS", value: 7, color: "bg-brand-card-orange", emoji: "💃", targetType: "SELF", image: getCardImg("08_Countess.png") },
+  9: { nameKey: CARD_I18N_KEYS.PRINCESS.name, descKey: CARD_I18N_KEYS.PRINCESS.desc, type: "PRINCESS", value: 9, color: "bg-brand-card-pink", emoji: "👸", targetType: "SELF", image: getCardImg("09_Princess.png") }
+}
 
-  "SPY": { name: "Шпигун", value: 0, color: "bg-gray-700", emoji: "🦅", desc: "Отримайте один бал по закінченні раунду.", targetType: "SELF", image: getCardImg("00_Spy.png") },
-  "GUARD": { name: "Вартовий", value: 1, color: "bg-red-700", emoji: "⚔️", desc: "Вгадайте карту іншого гравця.", targetType: "OPPONENT", requiresGuess: true, image: getCardImg("01_Guard.png") },
-  "PRIEST": { name: "Священник", value: 2, color: "bg-blue-600", emoji: "⛪", desc: "Подивіться руку іншого гравця.", targetType: "OPPONENT", image: getCardImg("02_Priest.png") },
-  "BARON": { name: "Барон", value: 3, color: "bg-green-600", emoji: "🎭", desc: "Порівняйте карти з іншим гравцем.", targetType: "OPPONENT", image: getCardImg("03_Baron.png") },
-  "HANDMAID": { name: "Служниця", value: 4, color: "bg-yellow-600", emoji: "🛡️", desc: "Захист від усіх ефектів до наступного ходу.", targetType: "SELF", image: getCardImg("04_Handmaid.png") },
-  "PRINCE": { name: "Принц", value: 5, color: "bg-cyan-600", emoji: "👑", desc: "Оберіть гравця (можна себе), щоб він скинули карту.", targetType: "ANY", image: getCardImg("05_Prince.png") },
-  "CHANCELLOR": { name: "Канцлер", value: 6, color: "bg-purple-600", emoji: "📜", desc: "Візьміть 2 карти, залиште 1, інші вниз колоди.", targetType: "SELF", image: getCardImg("06_Minister.png") },
-  "COUNTESS": { name: "Графиня", value: 7, color: "bg-orange-500", emoji: "💃", desc: "Скиньте, якщо в руці є Принц або Король.", targetType: "SELF", image: getCardImg("08_Countess.png") },
-  "KING": { name: "Король", value: 8, border: "border-amber-600", color: "bg-amber-700", emoji: "⚜️", desc: "Обміняйтеся картами з іншим гравцем.", targetType: "OPPONENT", image: getCardImg("07_King.png") },
-  "PRINCESS": { name: "Принцеса", value: 9, color: "bg-pink-600", emoji: "👸", desc: "Якщо ви скинете цю карту — ви вилітаєте.", targetType: "SELF", image: getCardImg("09_Princess.png") }
+export const CARD_INFO_NAMES = {
+  "SPY": { nameKey: CARD_I18N_KEYS.SPY.name, descKey: CARD_I18N_KEYS.SPY.desc, type: "SPY", value: 0, color: "bg-brand-card-gray", emoji: "🦅", targetType: "SELF", image: getCardImg("00_Spy.png") },
+  "GUARD": { nameKey: CARD_I18N_KEYS.GUARD.name, descKey: CARD_I18N_KEYS.GUARD.desc, type: "GUARD", value: 1, color: "bg-brand-card-red", emoji: "⚔️", targetType: "OPPONENT", requiresGuess: true, image: getCardImg("01_Guard.png") },
+  "PRIEST": { nameKey: CARD_I18N_KEYS.PRIEST.name, descKey: CARD_I18N_KEYS.PRIEST.desc, type: "PRIEST", value: 2, color: "bg-brand-card-blue", emoji: "⛪", targetType: "OPPONENT", image: getCardImg("02_Priest.png") },
+  "BARON": { nameKey: CARD_I18N_KEYS.BARON.name, descKey: CARD_I18N_KEYS.BARON.desc, type: "BARON", value: 3, color: "bg-brand-card-green", emoji: "🎭", targetType: "OPPONENT", image: getCardImg("03_Baron.png") },
+  "HANDMAID": { nameKey: CARD_I18N_KEYS.HANDMAID.name, descKey: CARD_I18N_KEYS.HANDMAID.desc, type: "HANDMAID", value: 4, color: "bg-brand-card-yellow", emoji: "🛡️", targetType: "SELF", image: getCardImg("04_Handmaid.png") },
+  "PRINCE": { nameKey: CARD_I18N_KEYS.PRINCE.name, descKey: CARD_I18N_KEYS.PRINCE.desc, type: "PRINCE", value: 5, color: "bg-brand-card-cyan", emoji: "👑", targetType: "ANY", image: getCardImg("05_Prince.png") },
+  "CHANCELLOR": { nameKey: CARD_I18N_KEYS.CHANCELLOR.name, descKey: CARD_I18N_KEYS.CHANCELLOR.desc, type: "CHANCELLOR", value: 6, color: "bg-brand-card-purple", emoji: "📜", targetType: "SELF", image: getCardImg("06_Minister.png") },
+  "KING": { nameKey: CARD_I18N_KEYS.KING.name, descKey: CARD_I18N_KEYS.KING.desc, type: "KING", value: 7, border: "border-amber-600", color: "bg-brand-card-amber", emoji: "⚜️", targetType: "OPPONENT", image: getCardImg("07_King.png") },
+  "COUNTESS": { nameKey: CARD_I18N_KEYS.COUNTESS.name, descKey: CARD_I18N_KEYS.COUNTESS.desc, type: "COUNTESS", value: 8, color: "bg-brand-card-orange", emoji: "💃", targetType: "SELF", image: getCardImg("08_Countess.png") },
+  "PRINCESS": { nameKey: CARD_I18N_KEYS.PRINCESS.name, descKey: CARD_I18N_KEYS.PRINCESS.desc, type: "PRINCESS", value: 9, color: "bg-brand-card-pink", emoji: "👸", targetType: "SELF", image: getCardImg("09_Princess.png") }
+};
+
+const resolveCard = (raw, t) => {
+  if (!raw) return raw;
+  if (typeof t !== "function") return raw;
+  return {
+    ...raw,
+    name: t(raw.nameKey),
+    desc: t(raw.descKey),
+  };
+};
+
+export const getCardInfoHelper = (key, t) => {
+  if (key === undefined || key === null) return null;
+  const raw = (!isNaN(key) && key !== "") ? CARD_INFO_NUMBERS[Number(key)] : CARD_INFO_NAMES[String(key)];
+  return resolveCard(raw, t);
 };

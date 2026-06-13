@@ -32,10 +32,11 @@ type Storage struct {
 }
 
 type GameResultInput struct {
-	RoomID       string   `json:"room_id"`
-	WinnerName   string   `json:"winner_name"`    // Username переможця (може бути порожнім, якщо нічия)
-	AllPlayers   []string `json:"all_players"`    // Усі гравці матчу для оновлення статистики
-	FinalStateJS []byte   `json:"final_state_js"` // Серіалізований стан гри
+	RoomID       string        `json:"room_id"`
+	WinnerID     uuid.NullUUID `json:"winner_id"`
+	SpyWinnerID  uuid.NullUUID `json:"spy_winner_id"`
+	AllPlayers   []string      `json:"all_players"`
+	FinalStateJS []byte        `json:"final_state_js"`
 }
 
 type RoomResult struct {
@@ -205,59 +206,53 @@ func (s *Storage) SaveGameResult(ctx context.Context, input GameResultInput) err
 
 	txQueries := s.Queries.WithTx(tx)
 
-	var winnerUUID uuid.UUID
-	var hasWinner bool
-
-	// 2. Якщо є переможець, дізнаємося його UUID за username
-	if input.WinnerName != "" {
-		usr, err := txQueries.GetUserByUsername(ctx, input.WinnerName)
-		if err == nil {
-			winnerUUID = usr.ID
-			hasWinner = true
-		}
-	}
-
-	// 3. Записуємо матч в історію ігор (game_history)
-	var winnerParam uuid.NullUUID
-	if hasWinner {
-		winnerParam = uuid.NullUUID{UUID: winnerUUID, Valid: true}
-	}
-
+	// 1. Одразу записуємо матч в історію ігор, використовуючи готовий input.WinnerID
 	err = txQueries.LogGameHistory(ctx, gen.LogGameHistoryParams{
 		RoomID:     input.RoomID,
-		WinnerID:   winnerParam,
+		WinnerID:   input.WinnerID,
 		FinalState: input.FinalStateJS,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to log game history: %w", err)
 	}
 
-	// 4. Оновлюємо статистику (user_stats) для кожного учасника
+	// 2. Оновлюємо статистику (user_stats) для кожного учасника
 	for _, username := range input.AllPlayers {
 		usr, err := txQueries.GetUserByUsername(ctx, username)
 		if err != nil {
-			// Якщо раптом користувача не знайдено в БД, пропускаємо (або логуємо)
+			s.log.Errorf("Failed to get user stats for %s: %v", username, err)
 			continue
 		}
 
-		isWinner := hasWinner && usr.Username == input.WinnerName
+		// Перевірка на звичайного переможця (порівнюємо UUID)
+		isWinner := input.WinnerID.Valid && usr.ID == input.WinnerID.UUID
 		gamesWonIncrement := 0
 		if isWinner {
 			gamesWonIncrement = 1
 		}
 
-		// Розрахунок балів (наприклад: 10 за участь, +50 за перемогу)
+		// Перевірка на переможця-шпигуна (порівнюємо UUID)
+		isSpyWinner := input.SpyWinnerID.Valid && usr.ID == input.SpyWinnerID.UUID
+		spyBonusesIncrement := 0
+		if isSpyWinner {
+			spyBonusesIncrement = 1
+		}
+
+		// Розрахунок балів: 10 за участь, +50 за перемогу, +25 за шпигуна
 		scoreIncrement := 10
 		if isWinner {
 			scoreIncrement += 50
 		}
+		if isSpyWinner {
+			scoreIncrement += 25
+		}
 
-		// Використовуємо наш UPSERT запит з ON CONFLICT
+		// Атомарний UPSERT через ON CONFLICT
 		err = txQueries.UpdateUserStats(ctx, gen.UpdateUserStatsParams{
 			UserID:             usr.ID,
-			GamesPlayed:        1, // Додаємо 1 зіграну гру
+			GamesPlayed:        1,
 			GamesWon:           int32(gamesWonIncrement),
-			SpyBonusesReceived: 0, // Можна розширити логіку під карти шпигунів, якщо є в двигуні
+			SpyBonusesReceived: int32(spyBonusesIncrement),
 			TotalScore:         int32(scoreIncrement),
 		})
 		if err != nil {
@@ -408,6 +403,7 @@ func (s *Storage) SeedAdmin(ctx context.Context, logger *logrus.Logger) error {
 		Username:     adminUser,
 		Email:        adminEmail,
 		PasswordHash: string(hashedPassword),
+		AvatarSeed:   uuid.New().String(),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to seed admin user: %w", err)

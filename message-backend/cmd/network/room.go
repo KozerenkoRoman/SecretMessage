@@ -119,19 +119,21 @@ type Room struct {
 	conns map[string]*GlobalClient
 	log   *logrus.Logger
 
-	state engine.GameState
+	state         engine.GameState
+	turnStartedAt time.Time
 }
 
 // RoomLobbyInfo — DTO для списку лобі.
 type RoomLobbyInfo struct {
-	ID          string   `json:"room_id"`
-	HostID      string   `json:"host_id"`
-	PlayerCount int      `json:"player_count"`
-	MaxPlayers  int      `json:"max_players"`
-	IsStarted   bool     `json:"is_started"`
-	Players     []string `json:"players"`
-	PlayerNames []string `json:"player_names"`
-	CreatedAt   int64    `json:"created_at"`
+	ID             string   `json:"room_id"`
+	HostID         string   `json:"host_id"`
+	PlayerCount    int      `json:"player_count"`
+	MaxPlayers     int      `json:"max_players"`
+	IsStarted      bool     `json:"is_started"`
+	Players        []string `json:"players"`
+	PlayerNames    []string `json:"player_names"`
+	CreatedAt      int64    `json:"created_at"`
+	HostAvatarSeed string   `json:"host_avatar_seed"`
 }
 
 // =============================================================================
@@ -152,6 +154,7 @@ func NewRoom(ctx context.Context, id string, hostID string, store *storage.Stora
 		clock:          realClock{},
 		log:            logger,
 		conns:          make(map[string]*GlobalClient),
+		turnStartedAt:  time.Now(),
 	}
 
 	if r.hostID == "" {
@@ -204,14 +207,15 @@ func (r *Room) GetLobbyInfo() RoomLobbyInfo {
 	}
 
 	return RoomLobbyInfo{
-		ID:          r.id,
-		HostID:      r.hostID,
-		PlayerCount: len(r.state.Players),
-		MaxPlayers:  MAX_PLAYERS,
-		IsStarted:   len(r.state.TurnOrder) > 0,
-		Players:     players,
-		PlayerNames: names,
-		CreatedAt:   r.createdAt.Unix(),
+		ID:             r.id,
+		HostID:         r.hostID,
+		PlayerCount:    len(r.state.Players),
+		MaxPlayers:     MAX_PLAYERS,
+		IsStarted:      len(r.state.TurnOrder) > 0,
+		Players:        players,
+		PlayerNames:    names,
+		CreatedAt:      r.createdAt.Unix(),
+		HostAvatarSeed: r.state.Players[r.hostID].AvatarSeed,
 	}
 }
 
@@ -228,15 +232,13 @@ func (r *Room) GetState() engine.GameState {
 // Connection lifecycle
 // =============================================================================
 
-// RegisterClient прив'язує WS-з'єднання гравця до кімнати.
 func (r *Room) RegisterClient(playerID string, client *GlobalClient) {
 	r.mu.Lock()
 	r.conns[playerID] = client
 	r.log.WithFields(logrus.Fields{"room_id": r.id, "player_id": playerID}).
 		Debug("Сокет гравця успішно зареєстровано в кімнаті")
 	r.mu.Unlock()
-
-	go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+	// ПРИБРАНО: go r.BroadcastState(UpdateTypeRoomUpdated, nil)
 }
 
 // UnregisterClient — обробка повного дисконекту.
@@ -423,30 +425,7 @@ func (r *Room) HandlePlayerLeave(ctx context.Context, playerID string) error {
 	if len(r.state.TurnOrder) > 0 {
 		currIdx := r.state.CurrentTurn
 		if currIdx >= 0 && currIdx < len(r.state.TurnOrder) && r.state.TurnOrder[currIdx] == playerID {
-			next := (currIdx + 1) % len(r.state.TurnOrder)
-			for r.state.Players[r.state.TurnOrder[next]].IsOut {
-				next = (next + 1) % len(r.state.TurnOrder)
-			}
-			r.state.CurrentTurn = next
-			newActiveID := r.state.TurnOrder[next]
-			newActive := r.state.Players[newActiveID]
-			newActive.IsProtected = false
-
-			// ВИПРАВЛЕНО: Якщо гра продовжується, добираємо карту та ОБОВ'ЯЗКОВО генеруємо EventCardDrawn
-			if len(r.state.Deck) > 0 && len(newActive.Hand) < 2 {
-				draw := r.state.Deck[0]
-				r.state.Deck = r.state.Deck[1:]
-				newActive.Hand = append(newActive.Hand, draw)
-
-				events = append(events, engine.DomainEvent{
-					EventID:   r.state.Sequence*1000 + 5,
-					Type:      engine.EventCardDrawn,
-					Payload:   engine.CardDrawnPayload{PlayerID: newActiveID, Card: draw},
-					Timestamp: r.clock.Now(),
-				})
-			}
-			r.state.Players[newActiveID] = newActive
-			r.state.Phase = engine.PhaseMainAction
+			r.switchToNextActivePlayerAndDraw(&events)
 		}
 	}
 
@@ -499,10 +478,20 @@ type outgoingPacket struct {
 //   - Подія, чий Mask(viewerID) повернув той самий obj без копіювання,
 //     не призводить до зайвих аллокацій.
 func (r *Room) BroadcastState(updateType string, events []engine.DomainEvent) {
-	// Швидкий snapshot: копіюємо лише ті поля, що нам потрібні після виходу
-	// з RLock. Стан самого Room залишається lock-free після цієї секції.
 	r.mu.RLock()
 	baseState := r.state.Clone()
+
+	secondsLeft := int(engine.TurnDuration.Seconds())
+	if len(baseState.TurnOrder) > 0 && baseState.Phase != engine.PhaseFinished && baseState.Phase != engine.PhaseRoundEnd {
+		elapsed := time.Since(r.turnStartedAt)
+		timeLeft := engine.TurnDuration - elapsed
+
+		secondsLeft = int(timeLeft.Seconds())
+		if secondsLeft < 0 {
+			secondsLeft = 0
+		}
+	}
+
 	clientsCopy := make(map[string]*GlobalClient, len(r.conns))
 	for pID, cl := range r.conns {
 		clientsCopy[pID] = cl
@@ -514,25 +503,34 @@ func (r *Room) BroadcastState(updateType string, events []engine.DomainEvent) {
 	}
 
 	for playerID, client := range clientsCopy {
-		// Будуємо viewer-state без глибокого Clone(). baseState вже є
-		// owned-копією поточного стану, тож ми можемо переюзати його
-		// верхньорівневі поля (Deck, TurnOrder, BurnCard) як read-only.
-		// Унікальною на viewer'а є лише мапа Players — там ми ховаємо чужі руки.
 		viewerPlayers := make(map[string]engine.Player, len(baseState.Players))
 		for id, p := range baseState.Players {
-			if id != playerID && len(p.Hand) > 0 {
-				// Створюємо нульований hand тієї ж довжини, щоб у JSON було
-				// `[0,0]` (фронт використовує саму довжину, не значення).
-				p.Hand = make([]engine.CardType, len(p.Hand))
+			maskedPlayer := engine.Player{
+				ID:               p.ID,
+				Username:         p.Username,
+				AvatarSeed:       p.AvatarSeed,
+				DiscardPile:      p.DiscardPile,
+				Score:            p.Score,
+				IsOut:            p.IsOut,
+				IsProtected:      p.IsProtected,
+				SpyPointsAwarded: p.SpyPointsAwarded,
 			}
-			viewerPlayers[id] = p
+
+			// Якщо це опонент і він має карти в руках — ховаємо їхній тип (замінюємо на 0 / невідомо)
+			if id != playerID && len(p.Hand) > 0 {
+				maskedPlayer.Hand = make([]engine.CardType, len(p.Hand)) // створює масив «порожніх» карт тієї ж кількості
+			} else {
+				// Якщо це сам гравець — віддаємо його руку як є
+				maskedPlayer.Hand = p.Hand
+			}
+
+			viewerPlayers[id] = maskedPlayer
 		}
+
 		viewerState := baseState
 		viewerState.Players = viewerPlayers
+		viewerState.SecondsLeft = secondsLeft
 
-		// Маскування подій: кожний Payload сам знає, що приховати від цього viewer.
-		// Тип-дискримінація відбувається через інтерфейс EventPayload (без JSON
-		// round-trip і без map[string]any — тобто без зайвої роботи для GC).
 		var filteredEvents []engine.DomainEvent
 		if len(events) > 0 {
 			filteredEvents = make([]engine.DomainEvent, len(events))
@@ -597,12 +595,26 @@ func (r *Room) Start(ctx context.Context) {
 	//     `case <-turnTimer.C` миттєво спрацює (false-positive AFK).
 	//   • select-default прибирає тік без блокування, якщо він є.
 	//
+	// Поведінка з прапорцем fullReset:
+	//   • fullReset=true  — починається НОВИЙ хід (новий активний гравець,
+	//     старт гри або старт раунду): таймер виставляється на повний
+	//     engine.TurnDuration і r.turnStartedAt = time.Now().
+	//   • fullReset=false — той самий гравець продовжує свою послідовність
+	//     ходу (наприклад, пішов у PhaseResolveChancellor). r.turnStartedAt
+	//     НЕ оновлюється; таймер перезапускається на ЗАЛИШОК часу від
+	//     оригінального початку ходу. Це гарантує єдину 1-хвилинну межу
+	//     на весь хід гравця, незалежно від кількості суб-фаз.
+	//
 	// Викликати безпечно тільки з цього goroutine — таймер не shared.
-	resetTurnTimer := func() {
-		// Ми звертаємось до r.state під RLock — короткий критичний секцій.
-		r.mu.RLock()
+	resetTurnTimer := func(fullReset bool) {
+		r.mu.Lock()
 		hasStarted := len(r.state.TurnOrder) > 0 && r.state.Phase != engine.PhaseFinished
-		r.mu.RUnlock()
+		if hasStarted && fullReset {
+			r.turnStartedAt = time.Now()
+		}
+		startedAt := r.turnStartedAt
+		r.mu.Unlock()
+
 		if !hasStarted {
 			return
 		}
@@ -612,7 +624,36 @@ func (r *Room) Start(ctx context.Context) {
 			default:
 			}
 		}
-		turnTimer.Reset(engine.TurnDuration)
+
+		if fullReset {
+			turnTimer.Reset(engine.TurnDuration)
+			return
+		}
+
+		// Той самий гравець продовжує хід — рахуємо залишок від
+		// оригінального r.turnStartedAt, щоб не подовжувати ліміт.
+		remaining := engine.TurnDuration - time.Since(startedAt)
+		if remaining <= 0 {
+			// Уже прострочено — імітуємо негайний AFK-тік.
+			turnTimer.Reset(time.Millisecond)
+			return
+		}
+		turnTimer.Reset(remaining)
+	}
+
+	// activePlayerLocked — повертає playerID, чий зараз хід, або "".
+	// Викликач НЕ повинен тримати r.mu (метод сам бере RLock).
+	activePlayer := func() string {
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		if len(r.state.TurnOrder) == 0 || r.state.Phase == engine.PhaseFinished {
+			return ""
+		}
+		idx := r.state.CurrentTurn
+		if idx < 0 || idx >= len(r.state.TurnOrder) {
+			return ""
+		}
+		return r.state.TurnOrder[idx]
 	}
 
 	for {
@@ -622,18 +663,30 @@ func (r *Room) Start(ctx context.Context) {
 			return
 
 		case inAct := <-r.actions:
-			// Спецсигнал від StartGame/NextRound: просто рестартуємо таймер.
+			// Спецсигнал від StartGame/NextRound: новий хід — повний reset.
 			if inAct.RequestID == MsgStartGame {
-				resetTurnTimer()
+				resetTurnTimer(true)
 				continue
 			}
+
+			// Запам'ятовуємо, чий хід ДО обробки дії, щоб після неї
+			// зрозуміти: це справді перехід ходу чи внутрішня
+			// субфаза (Chancellor) того самого гравця.
+			prevActive := activePlayer()
+
 			err := r.processAction(ctx, inAct)
 			if inAct.errChan != nil {
 				inAct.errChan <- err
 			}
-			if err == nil {
-				resetTurnTimer()
+			if err != nil {
+				continue
 			}
+
+			newActive := activePlayer()
+			// fullReset тільки якщо активний гравець фактично змінився
+			// (включно з кейсом, коли був "" і з'явився, або навпаки).
+			fullReset := newActive != prevActive
+			resetTurnTimer(fullReset)
 
 		case <-turnTimer.C:
 			r.handleAFKTick()
@@ -768,10 +821,6 @@ func (r *Room) SubmitChancellorAction(ctx context.Context, playerID, reqID strin
 	}
 }
 
-// =============================================================================
-// AddPlayer
-// =============================================================================
-
 // AddPlayer додає гравця в лобі.
 //
 // Передумова виклику: playerID УЖЕ провалідований як UUID на рівні
@@ -783,56 +832,56 @@ func (r *Room) AddPlayer(playerID string) error {
 		return fmt.Errorf("invalid player_id, expected UUID: %w", parseErr)
 	}
 
-	// --- Critical section ---
 	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	log := r.log.WithFields(logrus.Fields{"room_id": r.id, "player_id": playerID})
 
 	if len(r.state.TurnOrder) > 0 {
-		r.mu.Unlock()
 		return fmt.Errorf("cannot join: game has already started")
 	}
 	if len(r.state.Players) >= MAX_PLAYERS {
-		r.mu.Unlock()
 		return fmt.Errorf("room is full")
 	}
 
 	if _, exists := r.state.Players[playerID]; exists {
 		log.Debug("Гравець вже в кімнаті, пропускаємо інкремент лічильника")
 	} else {
-		// Username тягнемо з БД ОДРАЗУ під локом — це швидкий read.
-		// Якщо БД недоступна, ми просто не маємо username (не критично).
 		var username string
+		var avatarSeed string
+
 		if user, dbErr := r.store.GetUserByID(context.Background(), playerUUID); dbErr == nil {
 			username = user.Username
+			avatarSeed = user.AvatarSeed
+			log.Debug("Користувача знайдено в БД, avatarSeed: ", avatarSeed, ", username: ", username)
 		} else {
-			log.WithField("error", dbErr.Error()).
-				Debug("Не вдалося отримати username гравця з БД (не критично)")
+			log.WithField("error", dbErr.Error()).Debug("Не вдалося отримати дані гравця з БД (не критично)")
+			username = "Гравець"
+			avatarSeed = "default_seed"
 		}
 
 		r.state.Players[playerID] = engine.Player{
 			ID:          playerID,
 			Username:    username,
+			AvatarSeed:  avatarSeed,
 			Hand:        []engine.CardType{},
 			DiscardPile: []engine.CardType{},
 			Score:       0,
 		}
 	}
 
-	// КРИТИЧНО: знімаємо snapshot ДОКИ ТРИМАЄМО ЛОК.
-	// Раніше тут було r.GetState().Players (виклик RLock-методу під Lock —
-	// потенційний self-deadlock на RWMutex upgrade). Тепер читаємо r.state
-	// напряму, бо ми вже власники Lock'у.
 	playersCount := len(r.state.Players)
-	r.mu.Unlock()
-	// --- End critical section ---
 
 	if err := r.saveToDB(context.Background()); err != nil {
 		return fmt.Errorf("failed to save state after join: %w", err)
 	}
+
 	if r.hub != nil {
 		go r.hub.NotifyLobbyUpdate()
 	}
+
 	go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+
 	log.Infof("Гравець успішно приєднався. Усього гравців: %d", playersCount)
 	return nil
 }
@@ -1107,28 +1156,52 @@ func (r *Room) saveToDB(ctx context.Context) error {
 }
 
 // archiveFinishedGame — фіксує підсумки матчу в БД, ЯКЩО матч завершено.
-//
 // Приймає snapshot стану (а не читає r.state), щоб не залежати від r.mu.
-// Це навмисно: попередня версія викликала r.checkAndSaveGameEnd (старе ім'я) зсередини
-// захищеної секції, що змішувало lock-ed I/O з відправкою в горутину.
 func (r *Room) archiveFinishedGame(snapshot engine.GameState) {
-	if snapshot.Phase != engine.PhaseFinished && len(snapshot.TurnOrder) != 0 {
+	if snapshot.Phase != engine.PhaseFinished && snapshot.Phase != "ROUND_END" && len(snapshot.TurnOrder) != 0 {
 		return
 	}
-	r.log.Infof("Гра в кімнаті %s завершилася! Зберігаємо результати...", r.id)
+
+	r.log.Infof("Фіксуємо архівацію (Phase: %s) для кімнати %s...", snapshot.Phase, r.id)
+
 	finalStateBytes, err := json.Marshal(snapshot)
 	if err != nil {
-		r.log.Errorf("Не вдалося серіалізувати фінальний стейт: %v", err)
+		r.log.Errorf("Не вдалося серіалізувати фінальний стейт:%v", err)
 		return
 	}
-	allPlayers := make([]string, 0, len(snapshot.Players))
-	for _, p := range snapshot.Players {
-		allPlayers = append(allPlayers, p.ID)
+
+	allUsernames := make([]string, 0, len(snapshot.Players))
+	var winnerParam uuid.NullUUID
+	var spyWinnerParam uuid.NullUUID
+
+	// Парсимо UUID головного переможця, якщо він є і це не SYSTEM
+	if snapshot.WinnerID != "" && snapshot.WinnerID != "SYSTEM" {
+		if wUUID, parseErr := uuid.Parse(snapshot.WinnerID); parseErr == nil {
+			winnerParam = uuid.NullUUID{UUID: wUUID, Valid: true}
+		} else {
+			r.log.Errorf("Не вдалося розпарсити UUID переможця %s: %v", snapshot.WinnerID, parseErr)
+		}
 	}
+
+	for _, p := range snapshot.Players {
+		allUsernames = append(allUsernames, p.Username) // Для масиву оновлення все ще збираємо юзернейми
+
+		// Шукаємо шпигуна та парсимо його UUID
+		if p.SpyPointsAwarded {
+			if spyUUID, parseErr := uuid.Parse(p.ID); parseErr == nil {
+				spyWinnerParam = uuid.NullUUID{UUID: spyUUID, Valid: true}
+			} else {
+				r.log.Errorf("Не вдалося розпарсити UUID шпигуна %s: %v", p.ID, parseErr)
+			}
+		}
+	}
+
+	// Створення структури інпуту з чистими UUID
 	input := storage.GameResultInput{
 		RoomID:       r.id,
-		WinnerName:   snapshot.WinnerID,
-		AllPlayers:   allPlayers,
+		WinnerID:     winnerParam,    // Передаємо NullUUID
+		SpyWinnerID:  spyWinnerParam, // Передаємо NullUUID
+		AllPlayers:   allUsernames,   // Передаємо ["user1", "user2"]
 		FinalStateJS: finalStateBytes,
 	}
 	roomID := r.id
@@ -1138,9 +1211,9 @@ func (r *Room) archiveFinishedGame(snapshot engine.GameState) {
 	go func() {
 		err := storeRef.SaveGameResult(context.Background(), input)
 		if err != nil {
-			loggerRef.Errorf("Помилка збереження результатів гри %s в БД: %v", roomID, err)
+			loggerRef.Errorf("Помилка збереження результатів гри %s в БД:%v", roomID, err)
 		} else {
-			loggerRef.Infof("Результати матчу кімнати %s успішно зафіксовані в БД.", roomID)
+			loggerRef.Infof("Результати матчу кімнати %s успішно зафіксовані в БД через UUID.", roomID)
 		}
 	}()
 }
@@ -1193,14 +1266,28 @@ func (r *Room) eliminatePlayer(playerID string) error {
 
 	r.log.WithField("player_id", playerID).Info("Автоматичне виключення гравця (дисконект)")
 
-	// Позначаємо як вибулого
+	// Очищаємо руку гравця та міняємо статус
+	for _, card := range player.Hand {
+		if card != engine.CardSpy {
+			player.DiscardPile = append(player.DiscardPile, card)
+		}
+	}
 	player.Hand = nil
 	player.IsOut = true
 	player.IsProtected = false
 	r.state.Players[playerID] = player
 	r.state.Sequence++
 
-	// Перевіряємо, чи залишився хтось живий
+	events := []engine.DomainEvent{
+		{
+			EventID:   r.state.Sequence * 1000,
+			Type:      engine.EventPlayerLeft,
+			Payload:   engine.PlayerLeftPayload{PlayerID: playerID},
+			Timestamp: r.clock.Now(),
+		},
+	}
+
+	// Перевіряємо, скільки гравців залишилось
 	aliveIDs := make([]string, 0)
 	for _, p := range r.state.Players {
 		if !p.IsOut {
@@ -1208,15 +1295,80 @@ func (r *Room) eliminatePlayer(playerID string) error {
 		}
 	}
 
-	// Якщо залишився 1 або 0 гравців — завершуємо раунд
+	// Якщо залишився один або нуль гравців — завершуємо раунд
 	if len(aliveIDs) <= 1 {
 		startEventID := r.state.Sequence * 1000
 		roundResult := engine.ResolveRoundEnd(r.state, r.clock, startEventID)
 		r.state = roundResult.NewState
-
-		// Логуємо подію (можна додати в евенти)
+		events = append(events, roundResult.DomainEvents...)
 		r.log.Info("Раунд автоматично завершено через дисконект гравця")
+
+		// Оскільки це викликається з UnregisterClient, нам потрібно
+		// самостійно зробити Broadcast оновленого стану
+		go r.BroadcastState(UpdateTypeRoomUpdated, events)
+		return nil
 	}
 
+	// КРИТИЧНЕ ВИПРАВЛЕННЯ: Якщо відключився гравець, чий зараз був хід,
+	// передаємо хід наступному активному гравцю.
+	currIdx := r.state.CurrentTurn
+	if currIdx >= 0 && currIdx < len(r.state.TurnOrder) && r.state.TurnOrder[currIdx] == playerID {
+		r.switchToNextActivePlayerAndDraw(&events)
+	}
+
+	// Перевірка на випадок, якщо закінчилися карти в колоді
+	if len(r.state.Deck) == 0 {
+		startEventID := r.state.Sequence * 1000
+		roundResult := engine.ResolveRoundEnd(r.state, r.clock, startEventID+50)
+		r.state = roundResult.NewState
+		events = append(events, roundResult.DomainEvents...)
+	}
+
+	// Надсилаємо оновлений стан усім гравцям кімнати
+	go r.BroadcastState(UpdateTypeRoomUpdated, events)
 	return nil
+}
+
+// ПРИМІТКА: Додай цей метод до структури Room у файлі network/room.go
+// Він інкапсулює логіку переходу ходу, яка дублювалася.
+func (r *Room) switchToNextActivePlayerAndDraw(events *[]engine.DomainEvent) {
+	currIdx := r.state.CurrentTurn
+	totalPlayers := len(r.state.TurnOrder)
+	if totalPlayers == 0 {
+		return
+	}
+
+	// Шукаємо наступного гравця, який не вибув
+	next := (currIdx + 1) % totalPlayers
+	startingIdx := currIdx
+
+	for r.state.Players[r.state.TurnOrder[next]].IsOut {
+		next = (next + 1) % totalPlayers
+		// Якщо пройшли повне коло і не знайшли активних гравців
+		if next == startingIdx {
+			return
+		}
+	}
+
+	r.state.CurrentTurn = next
+	newActiveID := r.state.TurnOrder[next]
+	newActive := r.state.Players[newActiveID]
+	newActive.IsProtected = false
+
+	// Новий гравець бере карту з колоди
+	if len(r.state.Deck) > 0 && len(newActive.Hand) < 2 {
+		draw := r.state.Deck[0]
+		r.state.Deck = r.state.Deck[1:]
+		newActive.Hand = append(newActive.Hand, draw)
+
+		*events = append(*events, engine.DomainEvent{
+			EventID:   r.state.Sequence*1000 + 5,
+			Type:      engine.EventCardDrawn,
+			Payload:   engine.CardDrawnPayload{PlayerID: newActiveID, Card: draw},
+			Timestamp: r.clock.Now(),
+		})
+	}
+
+	r.state.Players[newActiveID] = newActive
+	r.state.Phase = engine.PhaseMainAction
 }

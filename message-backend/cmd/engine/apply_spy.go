@@ -9,17 +9,6 @@ func ApplySpy(state GameState, action Action, clock Clock, startEventID uint64) 
 		return ApplyResult{}, NewError(ErrPlayerAlreadyOut, "player_id=%s", action.PlayerID)
 	}
 
-	var newHand []CardType
-	for _, c := range player.Hand {
-		if c != CardSpy {
-			newHand = append(newHand, c)
-		} else {
-			player.DiscardPile = append(player.DiscardPile, c)
-		}
-	}
-	player.Hand = newHand
-	state.Players[action.PlayerID] = player
-
 	events := []DomainEvent{{
 		EventID:   startEventID,
 		Type:      EventCardPlayed,

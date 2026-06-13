@@ -1,36 +1,41 @@
-<!-- === src/views/ChancellorModal.vue === -->
 <template>
   <Transition name="fade">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 h-app"
     >
+      <!-- Використовуємо глобальний --card-primary-h: 3 картки Канцлера
+           будуть точно того самого розміру, що й картки в руці на дошці.
+           Якщо не вміщаються — модалка скролиться. -->
       <div
-        class="bg-slate-900 border-2 border-amber-500/40 rounded-2xl p-6 w-full max-w-2xl shadow-2xl"
+        class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-4 sm:p-5 lg:p-6 w-full max-w-2xl tall:max-w-3xl shadow-2xl overflow-y-auto max-h-[90dvh] custom-scrollbar"
       >
         <div class="text-center mb-6">
           <h3
             class="text-amber-400 font-black text-xl tracking-wide uppercase flex items-center justify-center gap-2"
           >
-            🔮 Ефект Канцлера
+            {{ $t("chancellor.title") }}
           </h3>
-          <p class="text-sm text-slate-300 mt-2 font-medium">
+          <p class="text-sm text-brand-text-subtle mt-2 font-medium">
             <span v-if="chosenKeepIndex === null" class="text-cyan-400">
-              Крок 1: Оберіть 1 карту, яку хочете ЗАЛИШИТИ у себе в руці
+              {{ $t("chancellor.step1") }}
             </span>
             <span v-else class="text-orange-400">
-              Крок 2: Оберіть послідовність карт для відправки на дно колоди
+              {{ $t("chancellor.step2") }}
             </span>
           </p>
         </div>
 
-        <!-- ЗБІЛЬШЕНО КАРТИ ДО w-44 h-64 ТА МІНІМАЛЬНУ ВИСОТУ КОНТЕЙНЕРА ДО min-h-[280px] -->
-        <div class="flex justify-center gap-4 min-h-[280px] items-center my-4 flex-wrap">
+        <!-- Контейнер карт: висота прив'язана до --card-primary-h, тому
+             автоматично адаптується. Не потрібно ставити min-height вручну. -->
+        <div
+          class="flex justify-center gap-2 sm:gap-3 lg:gap-4 items-center my-4 flex-wrap"
+        >
           <div
             v-for="(cardType, index) in cards"
             :key="index"
             @click="handleCardClick(index)"
-            class="group w-44 h-64 rounded-xl flex flex-col justify-between shadow-xl transition-all duration-300 transform select-none cursor-pointer border relative bg-cover bg-center overflow-hidden"
+            class="group card-primary rounded-xl flex flex-col justify-between shadow-xl transition-all duration-300 transform select-none cursor-pointer border relative bg-cover bg-center overflow-hidden"
             :class="[getCardColor(cardType), getCardSelectionClass(index)]"
             :style="
               getCardImage(cardType)
@@ -48,27 +53,34 @@
               <span
                 class="bg-emerald-500 text-slate-950 font-black text-xs px-2 py-1 rounded-md uppercase tracking-wider shadow"
               >
-                В Руку
+                {{ $t("chancellor.keepBadge") }}
               </span>
             </div>
+
             <div
               v-if="getBottomOrderIndex(index) !== -1"
-              class="absolute inset-0 bg-orange-500/30 rounded-xl border-2 border-orange-400 flex items-center justify-center z-20 backdrop-blur-[1px]"
+              class="absolute inset-0 bg-brand-card-orange/30 rounded-xl border-2 border-orange-400 flex items-center justify-center z-20 backdrop-blur-[1px]"
             >
               <span
-                class="bg-orange-500 text-white font-black text-sm w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
+                class="bg-brand-card-orange text-white font-black text-sm w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
               >
-                #{{ getBottomOrderIndex(index) + 1 }}</span
-              >
+                #{{ getBottomOrderIndex(index) + 1 }}
+              </span>
             </div>
+
+            <span
+              class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+            >
+              {{ getCardName(cardType) }}
+            </span>
           </div>
         </div>
 
         <div
           v-if="bottomSelection.length > 0"
-          class="bg-slate-950/60 rounded-xl p-3 mb-4 border border-slate-800 text-center text-xs text-slate-400"
+          class="bg-brand-bg-dark/60 rounded-xl p-3 mb-4 border border-slate-800 text-center text-xxs text-slate-400"
         >
-          Порядок карт на дно:
+          {{ $t("chancellor.bottomOrderTitle") }}
           <span class="text-orange-400 font-bold">{{
             bottomSelection.map((idx) => getCardName(cards[idx])).join(" ➔ ")
           }}</span>
@@ -79,9 +91,9 @@
             @click="resetSelection"
             type="button"
             :disabled="chosenKeepIndex === null"
-            class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-semibold rounded-xl text-sm transition-all"
+            class="flex-1 py-2.5 bg-brand-surface hover:bg-brand-surface-dim disabled:opacity-40 disabled:cursor-not-allowed text-brand-text-subtle font-semibold rounded-xl text-sm transition-all"
           >
-            Скинути вибір
+            {{ $t("chancellor.reset") }}
           </button>
           <button
             @click="handleSubmit"
@@ -89,7 +101,7 @@
             :disabled="!isReadyToSubmit"
             class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-700 disabled:to-slate-700 disabled:opacity-50 disabled:text-slate-500 disabled:cursor-not-allowed text-slate-950 font-black rounded-xl text-sm transition-all shadow-lg shadow-amber-500/10"
           >
-            Підтвердити хід
+            {{ $t("chancellor.submit") }}
           </button>
         </div>
       </div>
@@ -99,7 +111,10 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { CARD_INFO } from "../constants/cards";
+import { useI18n } from "vue-i18n";
+import { getCardInfoHelper } from "../constants/cards";
+
+const { t } = useI18n();
 
 const props = defineProps({
   isOpen: { type: Boolean, required: true },
@@ -111,12 +126,14 @@ const emit = defineEmits(["submit"]);
 const chosenKeepIndex = ref(null);
 const bottomSelection = ref([]);
 
-const getCardDesc = (type) => CARD_INFO[type]?.desc || "Опис відсутній";
-const getCardColor = (type) => CARD_INFO[type]?.color || "bg-slate-700";
-const getCardName = (type) => CARD_INFO[type]?.name || "Невідома карта";
-const getCardValue = (type) =>
-  CARD_INFO[type]?.value !== undefined ? CARD_INFO[type].value : "?";
-const getCardImage = (type) => CARD_INFO[type]?.image || "";
+const getCardDesc = (type) => getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
+const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-brand-surface-dim";
+const getCardName = (type) => getCardInfoHelper(type, t)?.name || t("cards.unknown");
+const getCardValue = (type) => {
+  const val = getCardInfoHelper(type)?.value;
+  return val !== undefined ? val : "?";
+};
+const getCardImage = (type) => getCardInfoHelper(type)?.image || "";
 
 const isReadyToSubmit = computed(() => {
   return (

@@ -1,21 +1,20 @@
-<!-- === src/views/GameEndModal.vue === -->
 <template>
   <Transition name="fade">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 font-sans animate-fade-in"
+      class="fixed inset-0 bg-brand-bg-dark/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 font-sans animate-fade-in h-app"
     >
       <div
-        class="bg-gradient-to-b from-slate-900 to-slate-950 border rounded-2xl w-full max-w-md p-6 shadow-2xl text-center transform scale-100 transition-all duration-300 relative overflow-hidden border-slate-800"
+        class="bg-gradient-to-b from-slate-900 to-slate-950 border rounded-2xl w-full max-w-md tall:max-w-lg p-4 sm:p-5 lg:p-6 shadow-2xl text-center transform scale-100 transition-all duration-300 relative overflow-y-auto overflow-x-hidden border-slate-800 max-h-[90dvh] custom-scrollbar"
         :class="{ 'border-amber-500 shadow-amber-500/10': isAmIWinner }"
       >
         <div
           v-if="isAmIWinner"
-          class="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/10 blur-3xl rounded-full"
+          class="absolute -top-12 -left-12 w-32 h-32 bg-brand-accent/10 blur-3xl rounded-full"
         ></div>
         <div
           v-if="isAmIWinner"
-          class="absolute -top-12 -right-12 w-32 h-32 bg-yellow-500/10 blur-3xl rounded-full"
+          class="absolute -top-12 -right-12 w-32 h-32 bg-brand-warning/10 blur-3xl rounded-full"
         ></div>
 
         <div class="mb-4">
@@ -23,11 +22,11 @@
             class="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full font-mono border"
             :class="
               gameState?.is_game_over
-                ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-                : 'bg-slate-800 text-slate-400 border-slate-700'
+                ? 'bg-brand-accent/20 text-amber-400 border-amber-500/30'
+                : 'bg-brand-surface text-slate-400 border-brand-border'
             "
           >
-            {{ gameState?.is_game_over ? "👑 ФІНАЛ ПАРТІЇ 👑" : "⚔️ КІНЕЦЬ РАУНДУ ⚔️" }}
+            {{ gameState?.is_game_over ? $t("gameEnd.final") : $t("gameEnd.roundEnd") }}
           </span>
         </div>
 
@@ -36,33 +35,31 @@
             v-if="isAmIWinner"
             class="text-2xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-500 uppercase animate-pulse"
           >
-            {{
-              gameState?.is_game_over ? "Ви absoluteний чемпіон!" : "Ви виграли раунд!"
-            }}
+            {{ gameState?.is_game_over ? $t("gameEnd.winner") : $t("gameEnd.loser") }}
           </h2>
-          <h2 v-else class="text-2xl font-black tracking-wide text-slate-200 uppercase">
-            {{ gameState?.is_game_over ? "Гру завершено" : "Раунд закінчено" }}
+          <h2 v-else class="text-2xl font-black tracking-wide text-brand-text-muted uppercase">
+            {{ gameState?.is_game_over ? $t("gameEnd.gameOver") : $t("gameEnd.roundOver") }}
           </h2>
 
           <p class="text-xs text-slate-400 mt-2">
-            Переможець:
-            <span class="text-cyan-400 font-bold font-mono">{{ winnerName }}</span>
+            {{ $t("gameEnd.winnerLabel")
+            }}<span class="text-amber-400 font-bold font-mono">{{ winnerName }}</span>
           </p>
         </div>
 
-        <div class="my-6 text-6xl drop-shadow-lg select-none">
+        <div class="my-4 sm:my-5 short:my-3 text-5xl sm:text-6xl short:text-4xl drop-shadow-lg select-none">
           <span v-if="isAmIWinner">🏆</span>
           <span v-else-if="gameState?.is_game_over">🥈</span>
           <span v-else>💀</span>
         </div>
 
         <div
-          class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 my-5 text-left"
+          class="bg-brand-bg-dark/60 border border-slate-800 rounded-xl p-4 my-5 text-left"
         >
           <h4
             class="text-[10px] uppercase text-slate-500 font-black tracking-wider mb-3 font-mono"
           >
-            Поточний рахунок у кімнаті:
+            {{ $t("gameEnd.scoreboardTitle") }}
           </h4>
           <div class="space-y-2">
             <div
@@ -71,8 +68,8 @@
               class="flex items-center justify-between p-2 rounded-lg border transition-all"
               :class="
                 p.id === gameState?.winner_id
-                  ? 'bg-amber-500/5 border-amber-500/20 shadow-sm'
-                  : 'bg-slate-900/40 border-transparent'
+                  ? 'bg-brand-accent/5 border-amber-500/20 shadow-sm'
+                  : 'bg-brand-bg/40 border-transparent'
               "
             >
               <div class="flex items-center gap-2 truncate">
@@ -80,13 +77,13 @@
                 <span v-else class="text-xs opacity-40">👤</span>
                 <span
                   class="text-sm font-medium truncate"
-                  :class="p.id === myID ? 'text-cyan-400 font-bold' : 'text-slate-300'"
+                  :class="p.id === myID ? 'text-amber-400 font-bold' : 'text-brand-text-subtle'"
                 >
-                  {{ p.username || "Опонент" }}
+                  {{ p.username || $t("common.opponent") }}
                   <span
                     v-if="p.id === myID"
                     class="text-[10px] text-slate-500 font-normal"
-                    >(Ви)</span
+                    >({{ $t("common.you") }})</span
                   >
                 </span>
               </div>
@@ -95,10 +92,10 @@
                 <span class="text-amber-400">★</span>
                 <span
                   :class="
-                    p.id === gameState?.winner_id ? 'text-amber-400' : 'text-slate-300'
+                    p.id === gameState?.winner_id ? 'text-amber-400' : 'text-brand-text-subtle'
                   "
                 >
-                  {{ p.score || 0 }} <span class="text-slate-600 text-xs">/ 7</span>
+                  {{ p.score || 0 }} <span class="text-slate-600 text-xs">{{ $t("gameEnd.scoreOutOf") }}</span>
                 </span>
               </div>
             </div>
@@ -114,11 +111,11 @@
             class="w-full py-3 font-bold rounded-xl shadow-lg transition-all text-sm uppercase tracking-wider"
             :class="
               hasOpponentLeft
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700 shadow-none'
-                : 'bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-600 hover:to-indigo-700 text-white shadow-cyan-500/10 cursor-pointer active:scale-95'
+                ? 'bg-brand-surface text-slate-500 cursor-not-allowed border border-brand-border shadow-none'
+                : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black shadow-amber-500/10 cursor-pointer active:scale-95'
             "
           >
-            {{ hasOpponentLeft ? "Очікування гравців..." : "Наступний раунд ⚔️" }}
+            {{ hasOpponentLeft ? $t("gameEnd.waitingForPlayers") : $t("gameEnd.nextRound") }}
           </button>
 
           <button
@@ -127,7 +124,7 @@
             @click="$emit('leave-game')"
             class="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-500/10 transition-all cursor-pointer text-sm uppercase tracking-wider active:scale-95"
           >
-            Вийти в лобі 🚪
+            {{ $t("gameError.leave") }}
           </button>
 
           <template v-else-if="gameState?.is_game_over">
@@ -137,10 +134,10 @@
               type="button"
               class="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black rounded-xl shadow-lg shadow-amber-500/20 transition-all cursor-pointer text-sm uppercase tracking-wider active:scale-95"
             >
-              Грати знову 🔄
+              {{ $t("gameEnd.restart") }}
             </button>
             <div v-else class="text-xs text-slate-400 animate-pulse py-3">
-              Очікуємо, поки власник кімнати почне нову гру...
+              {{ $t("gameEnd.waitingForHost") }}
             </div>
           </template>
         </div>
@@ -151,6 +148,9 @@
 
 <script setup>
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const props = defineProps({
   isOpen: { type: Boolean, required: true },
@@ -159,7 +159,6 @@ const props = defineProps({
   isSinglePlayer: { type: Boolean, default: false },
 });
 
-// Додано подію leave-game для сповіщення батьківського компонента
 defineEmits(["next-round", "restart-game", "leave-game"]);
 
 const isAmIWinner = computed(() => {
@@ -168,14 +167,14 @@ const isAmIWinner = computed(() => {
 
 const winnerName = computed(() => {
   const wID = props.gameState?.winner_id;
-  if (!wID || !props.gameState?.players) return "Ніхто";
+  if (!wID || !props.gameState?.players) return t("common.nobody");
 
   const pList = props.gameState.players;
   if (Array.isArray(pList)) {
     const found = pList.find((p) => p && p.id === wID);
-    return found ? found.username : "Опонент";
+    return found ? found.username : t("common.opponent");
   }
-  return pList[wID]?.username || "Опонент";
+  return pList[wID]?.username || t("common.opponent");
 });
 
 const sortedPlayers = computed(() => {
@@ -196,18 +195,14 @@ const sortedPlayers = computed(() => {
 });
 
 const hasOpponentLeft = computed(() => {
-  if (props.isSinglePlayer) {
-    const playersData = props.gameState?.players;
-    if (!playersData) return true;
+  const playersData = props.gameState?.players;
+  if (!playersData) return true;
 
-    const totalConnected = Array.isArray(playersData)
-      ? playersData.filter((p) => p !== null).length
-      : Object.keys(playersData).length;
+  const totalConnected = Array.isArray(playersData)
+    ? playersData.filter((p) => p !== null).length
+    : Object.keys(playersData).length;
 
-    if (totalConnected >= 2) return false;
-    return true;
-  }
-  return false;
+  return totalConnected < 2;
 });
 </script>
 

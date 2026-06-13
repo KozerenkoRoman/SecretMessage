@@ -16,8 +16,8 @@ const (
 	CardHandmaid                   // Служниця
 	CardPrince                     // Принц
 	CardChancellor                 // Канцлер
-	CardCountess                   // Графиня
 	CardKing                       // Король
+	CardCountess                   // Графиня
 	CardPrincess                   // Принцеса
 )
 
@@ -26,7 +26,7 @@ const (
 	PhaseRoundEnd          Phase         = "ROUND_END"
 	PhaseResolveChancellor Phase         = "RESOLVE_CHANCELLOR"
 	PhaseFinished          Phase         = "FINISHED"
-	TurnDuration           time.Duration = 5 * time.Minute
+	TurnDuration           time.Duration = 1 * time.Minute
 )
 
 type GameState struct {
@@ -43,6 +43,7 @@ type GameState struct {
 	WinnerID       string        `json:"winner_id,omitempty"`
 	TransitionHash string        `json:"transition_hash,omitempty"`
 	BurnCard       *CardType     `json:"burn_card,omitempty"` // карта, вилучена з колоди на початку партії
+	SecondsLeft    int           `json:"seconds_left,omitempty"`
 }
 
 type Player struct {
@@ -54,6 +55,7 @@ type Player struct {
 	IsProtected      bool       `json:"is_protected"`
 	Score            int        `json:"score"`
 	SpyPointsAwarded bool       `json:"spy_points_awarded"`
+	AvatarSeed       string     `json:"avatar_seed"`
 }
 
 // Очікуваний екшен (для Chancellor)
@@ -162,6 +164,7 @@ func (s GameState) Clone() GameState {
 			IsProtected:      player.IsProtected,
 			Score:            player.Score,
 			SpyPointsAwarded: player.SpyPointsAwarded,
+			AvatarSeed:       player.AvatarSeed,
 		}
 	}
 
@@ -180,8 +183,8 @@ type CardPlayedPayload struct {
 	TargetID string   `json:"target_id,omitempty"`
 }
 
-func (CardPlayedPayload) IsEventPayload()                     {}
-func (p CardPlayedPayload) Mask(_ string) EventPayload        { return p }
+func (CardPlayedPayload) IsEventPayload()              {}
+func (p CardPlayedPayload) Mask(_ string) EventPayload { return p }
 
 // CardDrawnPayload — гравець добрав карту з колоди (або BurnCard).
 // Видна тільки самому гравцю; для інших card зрізається до 0.

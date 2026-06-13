@@ -21,15 +21,24 @@ type WSMessage struct {
 	ChancellorAction *engine.ChancellorResolveAction `json:"chancellor_action,omitempty"`
 }
 
+type wsAckResponse struct {
+	Status    string `json:"status"`
+	RequestID string `json:"request_id"`
+	Type      string `json:"type"`
+}
+
+type wsPongResponse struct {
+	Type string `json:"type"`
+}
+
 type Server struct {
 	hub      *Hub
-	gateway  *Gateway // ЗМІНЕНО: Інтегруємо Gateway всередину сервера
+	gateway  *Gateway
 	log      *logrus.Logger
 	upgrader websocket.Upgrader
 	store    *storage.Storage
 }
 
-// ЗМІНЕНО: Конструктор тепер приймає gateway
 func NewServer(hub *Hub, gateway *Gateway, logger *logrus.Logger, store *storage.Storage) *Server {
 	return &Server{
 		hub:     hub,
@@ -104,7 +113,7 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	// Гарантоване очищення клієнта при виході з методу сокету
 	defer func() {
-		// ЗМІНЕНО: Видаляємо клієнта з глобального Gateway
+		//Видаляємо клієнта з глобального Gateway
 		s.gateway.RemoveClient(currentPlayerID)
 		conn.Close()
 
@@ -142,7 +151,7 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// ЗМІНЕНО: Послаблюємо перевірку. Якщо клієнт на /desktop шле сервісні повідомлення (наприклад, PING чи оновлення статусу),
+		// Якщо клієнт на /desktop шле сервісні повідомлення (наприклад, PING чи оновлення статусу),
 		// йому не обов'язково передавати room_id.
 		if msg.Type == "" {
 			s.sendError(client, "missing_fields", "Поле type є обов'язковим")
@@ -152,7 +161,7 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 		// Якщо повідомлення суто лобі/сервісне і не потребує кімнати — обробляємо його окремо
 		if msg.RoomID == "" {
 			if msg.Type == "PING" {
-				sendToClient(map[string]string{"type": "PONG"})
+				sendToClient(wsPongResponse{Type: "PONG"})
 			}
 			continue
 		}
@@ -241,10 +250,10 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 			"req_id":    msg.RequestID,
 		}).Debug("Запит успішно оброблено двигуном")
 
-		sendToClient(map[string]any{
-			"status":     "success",
-			"request_id": msg.RequestID,
-			"type":       msg.Type + "_ACK",
+		sendToClient(wsAckResponse{
+			Status:    "success",
+			RequestID: msg.RequestID,
+			Type:      msg.Type + "_ACK",
 		})
 	}
 }

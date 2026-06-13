@@ -1,10 +1,89 @@
-/* === src/style.css === */
+/* https://play.tailwindcss.com/ */
 @import "tailwindcss";
+
+/* ===========================================================
+   КАСТОМНІ ВАРІАНТИ (Tailwind v4)
+   Дозволяють писати класи на кшталт `tall:gap-4`, `square:flex-col`,
+   `retina:text-base` для адаптації під цільові роздільні здатності.
+   =========================================================== */
+
+/* Низький екран (≤720px) — iPad landscape, 1280x960 з бровзерним хромом */
+@custom-variant short (@media (max-height: 720px));
+/* Середній по висоті екран — десктопні square-ish 4:3 (960px-1200px) */
+@custom-variant tall (@media (min-height: 900px));
+/* Дуже високий екран — 1200+ (1600x1200, 2560x1600) */
+@custom-variant xtall (@media (min-height: 1200px));
+/* Square-ish або книжкова орієнтація: 4:3 / iPad portrait */
+@custom-variant square (@media (max-aspect-ratio: 4/3));
+/* Чітко портретна (iPad portrait) */
+@custom-variant portrait (@media (orientation: portrait));
+/* Широкий ландшафт — 16:9 і ширше */
+@custom-variant wide (@media (min-aspect-ratio: 16/10));
+/* Висока щільність пікселів (Retina / 2560x1600) */
+@custom-variant retina (@media (min-width: 2200px));
 
 @theme {
   --color-poker-dark: #0f172a;
   --color-poker-card: #1e293b;
   --color-poker-gold: #f59e0b;
+
+  /* ===========================================================
+     ЄДИНА СИСТЕМА РОЗМІРІВ КАРТ
+     -----------------------------------------------------------
+     Усі ігрові карти використовують ОДНЕ співвідношення сторін
+     (стандарт покер/love-letter: 2.5×3.5 inch ≈ 5:7).
+     Розмір primary-карт обмежений висотою viewport через clamp;
+     контейнери, що мають визначену власну висоту, перевизначають
+     --card-primary-h локально. Secondary-карти ЖОРСТКО прив'язані
+     як 2/3 від primary через calc() — інваріант, який не може
+     бути порушений Tailwind-класами на дочірніх елементах.
+     =========================================================== */
+  --card-aspect: 5 / 7;
+
+  /* ЄДИНЕ канонічне значення висоти primary-карти, що застосовується
+     ОДНАКОВО на board (рука гравця) ТА в усіх модалках (Chancellor,
+     Reveal, Guard guess). Це гарантує правило #1: primary-картки
+     ідентичні всюди. clamp обмежує діапазон так:
+       • iPad landscape (768h): 22vh ≈ 169px → але floor 9rem = 144px
+       • 1280×960:               22vh ≈ 211px
+       • 1600×1200:              22vh ≈ 264px
+       • 2560×1600:              22vh ≈ 352px → cap на 18rem = 288px
+     Це залишає достатньо місця в модалках для заголовка + кнопок.
+     НЕ перевизначайте локально — це порушить інваріант "однаковий розмір". */
+  --card-primary-h: clamp(9rem, 22vh, 18rem);
+
+  /* Жорсткий 2/3 інваріант. Виводиться з primary через calc(),
+     тож автоматично адаптується разом з нею. НЕ перевизначайте окремо. */
+  --card-secondary-h: calc(var(--card-primary-h) * 2 / 3);
+
+  /* Динамічна висота viewport — компенсує iOS Safari URL-bar. */
+  --app-h: 100svh;
+
+  --color-brand-bg: #0f172a;
+  --color-brand-bg-dark: #020617;
+  --color-brand-surface: #1e293b;
+  --color-brand-surface-dim: #334155;
+  --color-brand-text-primary: #f1f5f9;
+  --color-brand-text-muted: #e2e8f0;
+  --color-brand-text-subtle: #cbd5e1;
+  --color-brand-border: #334155;
+  --color-brand-accent: #f59e0b;
+  --color-brand-accent-light: #fbbf24;
+  --color-brand-warning: #eab308;
+  --color-brand-info: #3b82f6;
+  --color-brand-success: #10b981;
+  --color-brand-danger: #ef4444;
+
+  --color-brand-card-gray: #374151;
+  --color-brand-card-red: #b91c1c;
+  --color-brand-card-blue: #2563eb;
+  --color-brand-card-green: #16a34a;
+  --color-brand-card-yellow: #ca8a04;
+  --color-brand-card-cyan: #0891b2;
+  --color-brand-card-purple: #7c3aed;
+  --color-brand-card-amber: #b45309;
+  --color-brand-card-orange: #f97316;
+  --color-brand-card-pink: #d946ef;
 }
 
 /* ===========================================================
@@ -36,16 +115,17 @@
 
 /* ===========================================================
    ІГРОВІ КАРТИ
-   Базова карта НЕ містить ширини/висоти — їх задає контейнер.
-   Жорсткі вертикальні пропорції 2/3 гарантують, що карта
-   ніколи не сплющиться в горизонтальну смугу.
+   Базова карта НЕ містить ширини/висоти — їх задає контейнер
+   через .card-primary або .card-secondary.
+   Aspect-ratio = --card-aspect (5:7, стандарт покер/love-letter)
+   гарантує, що ВСІ карти в усіх контекстах мають ідентичні пропорції.
    =========================================================== */
 @utility game-card {
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: var(--card-aspect);
   flex-shrink: 0;
   padding: 0.5rem;
   border-radius: 0.75rem;
@@ -60,6 +140,7 @@
     filter 0.2s ease,
     opacity 0.2s ease;
   user-select: none;
+  overflow: visible !important;
 }
 
 /* Карта, якою можна ходити (хід гравця) */
@@ -118,16 +199,22 @@
   0%,
   100% {
     box-shadow:
-      0 0 0 2px rgb(34, 211, 238),
-      0 10px 30px -5px rgba(34, 211, 238, 0.35),
-      0 0 20px -2px rgba(34, 211, 238, 0.25);
+      0 0 0 2px rgb(251, 191, 36),
+      /* Тонка золота рамка */
+      0 10px 30px -5px rgba(251, 191, 36, 0.25),
+      /* М'яке об'ємне світіння вниз */
+      0 0 20px -2px rgba(251, 191, 36, 0.2);
+    /* Легка аура довкола карти */
   }
 
   50% {
     box-shadow:
-      0 0 0 2px rgb(34, 211, 238),
-      0 12px 35px -5px rgba(34, 211, 238, 0.55),
-      0 0 35px 0 rgba(34, 211, 238, 0.5);
+      0 0 0 2px rgb(251, 191, 36),
+      /* Рамка залишається чіткою */
+      0 12px 35px -5px rgba(251, 191, 36, 0.45),
+      /* Посилення об'ємної тіні в піку анімації */
+      0 0 35px 0 rgba(251, 191, 36, 0.4);
+    /* Інтенсивна золота аура (ефект пульсації) */
   }
 }
 
@@ -349,7 +436,160 @@
   transform: translateX(-50%) scale(1);
 }
 
-/* Налаштування для маленьких карт на столі відбою, щоб підказка не обрізалась */
 .game-card-discard {
   overflow: visible !important;
+  cursor: default;
+}
+
+/* ===========================================================
+   ПАНЕЛЬ ЛОГУВАННЯ (ІСТОРІЯ ПОДІЙ)
+   =========================================================== */
+@utility log-panel-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: rgba(2, 6, 23, 0.6);
+  /* bg-brand-bg-dark/60 */
+  border-left: 1px solid rgba(30, 41, 59, 0.8);
+  /* border-l border-slate-800/80 */
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+  /* backdrop-blur-sm */
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  /* shadow-inner */
+}
+
+@utility log-panel-header {
+  padding: 0.5rem 0.75rem;
+  /* px-3 py-2 */
+  border-bottom: 1px solid rgba(30, 41, 59, 0.8);
+  /* border-b border-slate-800/80 */
+  background-color: rgba(30, 41, 59, 0.4);
+  /* bg-brand-surface/40 */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  height: 6vh;
+  /* h-[6vh] */
+}
+
+@utility log-panel-scroll {
+  flex: 1 1 0%;
+  /* flex-1 */
+  overflow-y: auto;
+  padding: 0.5rem;
+  /* p-2 */
+  text-align: left;
+  font-size: 0.75rem;
+  /* text-xs */
+  background-color: rgba(2, 6, 23, 0.2);
+  /* bg-brand-bg-dark/20 */
+
+  &::selection {
+    background-color: rgba(245, 158, 11, 0.3);
+    /* selection:bg-amber-500/30 */
+  }
+}
+
+@utility log-item-row {
+  display: flex;
+  align-items: start;
+  gap: 0.375rem;
+  /* gap-1.5 */
+  padding: 0.25rem;
+  /* p-1 */
+  border-radius: 0.25rem;
+  /* rounded */
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* transition-colors duration-150 */
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    /* hover:bg-white/5 */
+  }
+}
+
+/* ===========================================================
+   КЛАСИ РОЗМІРІВ КАРТ — ЄДИНА СИСТЕМА
+   -----------------------------------------------------------
+   .card-primary   — велика карта (рука гравця, модалки).
+                     Висота = --card-primary-h (контейнер).
+   .card-secondary — мала карта (колода, опоненти, відбій,
+                     карта захисту). Висота = 2/3 primary.
+   Ширина в обох випадках виводиться через aspect-ratio,
+   тому всі карти автоматично мають однакові пропорції.
+   flex-shrink: 0 запобігає схлопуванню всередині flex-row.
+   =========================================================== */
+@utility card-primary {
+  height: var(--card-primary-h);
+  aspect-ratio: var(--card-aspect);
+  flex-shrink: 0;
+}
+
+@utility card-secondary {
+  height: var(--card-secondary-h);
+  aspect-ratio: var(--card-aspect);
+  flex-shrink: 0;
+}
+
+/* Контейнер відбою: рівно 2 горизонтальних ряди карт фіксованої
+   висоти (= card-secondary-h). Авто-flow column гарантує що нові
+   карти заповнюють перший ряд зліва направо, потім другий ряд.
+   Горизонтальний overflow для випадку, коли карт > вміщає видима
+   ширина (рідко в Love Letter, але безпечно). */
+@utility discard-grid {
+  display: grid;
+  grid-template-rows: repeat(2, var(--card-secondary-h));
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  gap: 0.375rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-content: start;
+  justify-content: start;
+}
+
+/* ===========================================================
+   ВИСОТА VIEWPORT З FALLBACK
+   `dvh` уникає підстрибування URL-бару на iOS Safari (Chrome 108+, Safari 15.4+).
+   `@supports` блок гарантує fallback на 100vh для старих браузерів,
+   а мінімізатор не схлопне правила в одне.
+   =========================================================== */
+@utility h-app {
+  height: 100vh;
+}
+
+@utility min-h-app {
+  min-height: 100vh;
+}
+
+@utility max-h-app {
+  max-height: 100vh;
+}
+
+@supports (height: 100dvh) {
+  .h-app {
+    height: 100dvh;
+  }
+
+  .min-h-app {
+    min-height: 100dvh;
+  }
+
+  .max-h-app {
+    max-height: 100dvh;
+  }
+}
+
+/* ===========================================================
+   ГНУЧКА ОБЛАСТЬ З ПРОКРУТКОЮ
+   Дозволяє внутрішнім скрол-зонам коректно скорочуватися
+   у flex-контейнері (без неї дочірній overflow роздуває батька).
+   =========================================================== */
+@utility flex-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }

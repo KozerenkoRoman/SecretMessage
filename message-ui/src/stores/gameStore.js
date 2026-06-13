@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
+import { CARD_INFO_NUMBERS } from '../constants/cards';
 
+const gameLog = ref([]);
 const EMPTY_GAME_STATE = Object.freeze({
   is_started: false,
   players: {},
@@ -42,14 +44,14 @@ export const useGameStore = defineStore('gameStore', () => {
   const error = ref(null);
   const currentRoomID = ref('');
   const lobbyRooms = ref([]);
-  let reconnectTimeout = null;
   const isIntentionallyClosed = ref(false);
   const gameState = ref(makeEmptyGameState());
   const revealedCardData = ref(null);
   const authToken = ref(localStorage.getItem('token') || '');
-
-  // Обчислювальний ID нашого користувача з JWT-токену
   const myID = computed(() => extractUserIdFromToken(authToken.value));
+
+  let timerInterval = null;
+  let reconnectTimeout = null;
 
   const isGameStarted = computed(() => {
     return (
@@ -59,7 +61,6 @@ export const useGameStore = defineStore('gameStore', () => {
     );
   });
 
-  // Обчислювальна властивість для отримання карт у нашій руці
   const myCards = computed(() => {
     const id = myID.value;
     const playersData = gameState.value?.players;
@@ -98,14 +99,17 @@ export const useGameStore = defineStore('gameStore', () => {
       error.value = { code: 'ERR_INTERNAL', message: 'Unknown error', details: null };
       return;
     }
-    const code = (typeof packet.error_code === 'string' && packet.error_code) || (typeof packet.code === 'string' && packet.code) || 'ERR_INTERNAL';
+    const code =
+      (typeof packet.error_code === 'string' && packet.error_code) ||
+      (typeof packet.code === 'string' && packet.code) ||
+      'ERR_INTERNAL';
     error.value = {
       code,
       message: typeof packet.message === 'string' ? packet.message : '',
       details: packet.details ?? null,
       requestId: typeof packet.request_id === 'string' ? packet.request_id : undefined,
     };
-    console.error('[WS Серверна помилка]:', error.value);
+    console.error('[WS Server Error]:', error.value);
   }
 
   function connectToHub(roomID = null) {
@@ -118,7 +122,6 @@ export const useGameStore = defineStore('gameStore', () => {
       }
       return;
     }
-
     if (socket.value && socket.value.readyState === WebSocket.CONNECTING) {
       console.log(`[WS] Сокет зараз підключається. Оновлюємо цільову кімнату на: ${targetRoomID}`);
       currentRoomID.value = targetRoomID;
@@ -128,7 +131,6 @@ export const useGameStore = defineStore('gameStore', () => {
     currentRoomID.value = targetRoomID;
     isIntentionallyClosed.value = false;
     refreshAuthToken();
-
     const token = authToken.value;
     if (!token) {
       console.warn('[WS] Спроба підключення без JWT токена');
@@ -138,7 +140,6 @@ export const useGameStore = defineStore('gameStore', () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const backendHost = window.location.hostname === 'localhost' ? 'localhost:3000' : window.location.host;
     const wsUrl = `${protocol}//${backendHost}/ws?token=${token}`;
-
     console.log(`[WS] Створення нового підключення до шлюзу: ${wsUrl}`);
     try {
       socket.value = new WebSocket(wsUrl);
@@ -179,60 +180,100 @@ export const useGameStore = defineStore('gameStore', () => {
           let rawState = packet.state || packet.payload;
           if (!rawState || typeof rawState !== 'object') return;
 
-          // 1. Повністю ізольовано клонуємо стан від сервера
           let updatedState = JSON.parse(JSON.stringify(rawState));
-          const currentUuid = myID.value;
+          const getPlayerName = (id) => {
+            if (!id) return '...';
+            return updatedState.players?.[id]?.username || `Гравець (${id.substring(0, 4)})`;
+          };
 
-          // 2. Гарантуємо повне очищення та синхронізацію дублюючих полів
+          const getCardKey = (cardType) => {
+            const cardData = CARD_INFO_NUMBERS[Number(cardType)];
+            return cardData ? cardData.nameKey : 'cards.unknown';
+          };
+
+          const currentUuid = myID.value;
           if (updatedState.players && updatedState.players[currentUuid]) {
-            // Синхронізуємо my_hand суворо з тим, що знає сервер про нашу руку
             updatedState.my_hand = [...updatedState.players[currentUuid].hand];
           }
 
-          // 3. Обробляємо події (тільки для збереження даних у діалоги/нотифікації)
           if (Array.isArray(packet.events)) {
             packet.events.forEach((ev) => {
               if (!ev || typeof ev !== 'object') return;
-
-              // Обробка ефекту Барона
-              if (ev.type === 'ROUND_COMPARED') {
-                const payload = ev.payload || {};
-                revealedCardData.value = {
-                  eventType: 'ROUND_COMPARED',
-                  playerCard: Number(payload.player_card),
-                  targetCard: Number(payload.target_card),
-                  targetId: payload.target_id,
-                  playerId: payload.player_id,
-                };
-              }
-              // Обробка ефекту Священника
-              else if (ev.type === 'PRIEST_EFFECT' || ev.type === 'CARD_REVEALED') {
-                const payload = ev.payload || {};
-                if (payload.viewer_id === currentUuid) {
-                  const revealedCard = payload.card !== undefined ? payload.card : payload.card_type;
-                  if (revealedCard !== undefined && revealedCard !== null) {
-                    revealedCardData.value = {
-                      eventType: 'CARD_REVEALED',
-                      cardType: Number(revealedCard),
-                      targetId: payload.target_id
-                    };
+              const payload = ev.payload || {};
+              switch (ev.type) {
+                case 'ROUND_COMPARED':
+                  revealedCardData.value = {
+                    eventType: 'ROUND_COMPARED',
+                    playerCard: Number(payload.player_card),
+                    targetCard: Number(payload.target_card),
+                    targetId: payload.target_id,
+                    playerId: payload.player_id,
+                  };
+                  addToLog('log.round_compared', { player: getPlayerName(payload.player_id), target: getPlayerName(payload.target_id) });
+                  break;
+                case 'CARD_REVEALED':
+                case 'PRIEST_EFFECT':
+                  if (currentUuid === payload.viewer_id || currentUuid === payload.target_id) {
+                    if (payload.card) {
+                      revealedCardData.value = { eventType: 'PRIEST_EFFECT', cardType: Number(payload.card), targetId: payload.target_id, viewerId: payload.viewer_id };
+                    }
                   }
-                }
-              }
-              // Обробка ефекту Канцлера
-              else if (ev.type === 'CHANCELLOR_DRAWN') {
-                const payload = ev.payload || {};
-                if (payload.player_id === currentUuid) {
-                  console.log('[WS DEBUG] Подія Канцлера: відкриваємо інтерфейс вибору карт.');
-                  // Тут за потреби можна виставити локальний флаг увімкнення вікна Канцлера:
-                  // isChancellorModalOpen.value = true;
-                }
+                  addToLog('log.priest_effect', { player: getPlayerName(payload.viewer_id), target: getPlayerName(payload.target_id) });
+                  break;
+                case 'CARD_PLAYED':
+                  addToLog(payload.target_id ? 'log.card_played_targeted' : 'log.card_played', {
+                    player: getPlayerName(payload.player_id),
+                    card: getCardKey(payload.card),
+                    target: getPlayerName(payload.target_id)
+                  });
+                  break;
+                case 'GUARD_HIT':
+                  addToLog('log.guard_hit', { player: getPlayerName(payload.player_id), target: getPlayerName(payload.target_id), guess: getCardKey(payload.guess) });
+                  break;
+                case 'GUARD_MISS':
+                  addToLog('log.guard_miss', { player: getPlayerName(payload.player_id), target: getPlayerName(payload.target_id), guess: getCardKey(payload.guess) });
+                  break;
+                case 'BARON_RESULT':
+                  addToLog('log.baron_result', { winner: getPlayerName(payload.winner_id), loser: getPlayerName(payload.loser_id) });
+                  break;
+                case 'PLAYER_ELIMINATED':
+                  addToLog('log.player_eliminated', { player: getPlayerName(payload.player_id), reason: `reasons.${payload.reason}` });
+                  break;
+                case 'HANDS_SWAPPED':
+                  addToLog('log.hands_swapped', { player: getPlayerName(payload.player_id), target: getPlayerName(payload.target_id) });
+                  break;
+                case 'SPY_BONUS':
+                  addToLog('log.spy_bonus', { player: getPlayerName(payload.player_id), points: payload.points });
+                  break;
+                case 'ROUND_END':
+                  addToLog('log.round_end', { winner: getPlayerName(payload.winner_id), reason: `reasons.${payload.reason}` });
+                  break;
+                case 'PLAYER_LEFT':
+                  addToLog('log.player_left', { player: getPlayerName(payload.player_id) });
+                  break;
+                case 'CARD_DRAWN':
+                  addToLog('log.card_drawn', { player: getPlayerName(payload.player_id) });
+                  break;
+                case 'CHANCELLOR_DRAWN':
+                  addToLog('log.chancellor_drawn', { player: getPlayerName(payload.player_id) });
+                  break;
+                case 'CHANCELLOR_RESOLVED':
+                  addToLog('log.chancellor_resolved', { player: getPlayerName(payload.player_id) });
+                  break;
               }
             });
           }
 
-          // 4. Записуємо чистий стан у стор. Старі карти затираються повністю!
-          gameState.value = updatedState;
+          gameState.value = {
+            ...gameState.value,
+            ...updatedState
+          };
+          if (typeof updatedState.seconds_left === 'number') {
+            const currentLocalSeconds = gameState.value.seconds_left;
+            if (Math.abs(currentLocalSeconds - updatedState.seconds_left) > 1) {
+              startLocalTimer(updatedState.seconds_left);
+            }
+          };
         }
       } catch (err) {
         console.error('[WS] Помилка десеріалізації:', err);
@@ -242,6 +283,7 @@ export const useGameStore = defineStore('gameStore', () => {
     socket.value.onclose = (event) => {
       isConnected.value = false;
       socket.value = null;
+      if (timerInterval) clearInterval(timerInterval);
       console.log('[WS] Сокет закрився.', event);
       if (!isIntentionallyClosed.value) {
         reconnectTimeout = setTimeout(() => {
@@ -253,6 +295,30 @@ export const useGameStore = defineStore('gameStore', () => {
     socket.value.onerror = (err) => {
       console.error('[WS] Помилка з\'єднання:', err);
     };
+  }
+
+  function startLocalTimer(initialSeconds) {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
+    if (typeof initialSeconds !== 'number' || initialSeconds <= 0) return;
+
+    gameState.value.seconds_left = initialSeconds;
+
+    timerInterval = setInterval(() => {
+      if (gameState.value && gameState.value.seconds_left > 0) {
+        gameState.value.seconds_left--;
+      } else {
+        clearInterval(timerInterval);
+      }
+    }, 1000);
+  }
+
+  function stopLocalTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
   }
 
   function sendWSMessage(type, overrideRoomID = null, actionPayload = null, chancellorPayload = null) {
@@ -277,6 +343,7 @@ export const useGameStore = defineStore('gameStore', () => {
   }
 
   function leaveCurrentRoom() {
+    stopLocalTimer();
     if (currentRoomID.value) {
       sendWSMessage('LEAVE', currentRoomID.value, null, null);
       currentRoomID.value = '';
@@ -286,6 +353,7 @@ export const useGameStore = defineStore('gameStore', () => {
   }
 
   function disconnect() {
+    stopLocalTimer();
     if (currentRoomID.value && socket.value && socket.value.readyState === WebSocket.OPEN) {
       sendWSMessage('LEAVE', currentRoomID.value, null, null);
     }
@@ -303,8 +371,20 @@ export const useGameStore = defineStore('gameStore', () => {
     currentRoomID.value = '';
   }
 
+  function addToLog(messageKey, namedArgs = {}) {
+    setTimeout(() => {
+      gameLog.value.push({
+        id: typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        messageKey,
+        namedArgs,
+      });
+    }, 0);
+  }
+
   return {
     gameState,
+    gameLog,
     lobbyRooms,
     revealedCardData,
     isConnected,

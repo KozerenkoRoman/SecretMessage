@@ -1,14 +1,30 @@
 <template>
-  <div class="room-manager-container min-h-screen bg-slate-900">
+  <div class="room-manager-container min-h-screen bg-brand-bg">
     <div
       v-if="loading || !gameState"
-      class="flex h-screen items-center justify-center text-white"
+      class="flex h-screen items-center justify-center text-white p-4"
     >
-      <div class="text-center">
+      <div
+        class="text-center max-w-sm w-full bg-brand-bg-dark/40 p-6 rounded-2xl border border-slate-800/60 backdrop-blur-sm shadow-xl"
+      >
         <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"
+          class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"
         ></div>
-        <p class="text-slate-400">Підключення до ігрової кімнати {{ roomID }}...</p>
+        <p class="text-brand-text-subtle font-medium text-sm mb-1">{{ $t("room.connecting") }}</p>
+        <p
+          class="text-amber-400 font-mono text-xs tracking-wider mb-6 truncate px-2"
+          :title="roomID"
+        >
+          {{ roomID }}...
+        </p>
+
+        <button
+          @click="handleLeaveRoom"
+          type="button"
+          class="px-5 py-2 bg-brand-surface hover:bg-brand-surface-dim active:bg-brand-surface-dim/80 text-brand-text-subtle hover:text-white font-bold rounded-xl text-xs transition-all border border-brand-border/60 shadow-md active:scale-95 cursor-pointer font-mono uppercase tracking-wider"
+        >
+          {{ $t("room.cancel") }}
+        </button>
       </div>
     </div>
 
@@ -35,12 +51,13 @@ import BoardView from "./BoardView.vue";
 
 const gameStore = useGameStore();
 const authStore = useAuthStore();
+const route = useRoute();
+const router = useRouter();
 
-const route = useRoute(); // Поточний стан роуту (параметри)
-const router = useRouter(); // Інструмент для навігації (push/replace)
-const roomID = computed(() => route.params.id); // 1. ВИПРАВЛЕНО: route замість router
+const roomID = computed(() => route.params.id);
 const loading = ref(true);
 const gameState = computed(() => gameStore.gameState);
+
 const myID = computed(() => {
   return authStore.user?.id || localStorage.getItem("user_id") || "";
 });
@@ -77,22 +94,18 @@ const handleStartGameSignal = () => {
   gameStore.sendWSMessage("START_GAME", null, null, null);
 };
 
-// Обробка виходу з кімнати
 const handleLeaveRoom = () => {
-  console.log("[RoomManager] Гравець виходить з кімнати...");
-  // Явно викликаємо метод стору для відключення перед зміною сторінки
+  console.log("[RoomManager] Скасування підключення або вихід з кімнати...");
+  gameStore.clearError();
   gameStore.leaveCurrentRoom();
   router.push("/desktop");
 };
 
-// Обробка розіграшу карти
 const handlePlayCard = (actionPayload) => {
-  // Надсилаємо хід на сервер
   gameStore.sendWSMessage("ACTION", null, actionPayload, null);
 };
 
 onBeforeUnmount(() => {
-  // Запобіжний вихід з кімнати, якщо компонент розмонтується іншим шляхом
   gameStore.leaveCurrentRoom();
 });
 </script>

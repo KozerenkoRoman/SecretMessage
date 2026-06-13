@@ -7,6 +7,7 @@ func InitRoutes(mux *http.ServeMux, s *Server) {
 	// 1. Публічні ендпоінти
 	s.PUBLIC_GET(mux, "/api/health", s.HandleHealth)
 	s.PUBLIC_POST(mux, "/api/auth", s.HandleAuth)
+	s.PUBLIC_POST(mux, "/api/register", s.HandleRegister)
 
 	// 2. Захищені ендпоінти звичайних гравців (AuthMiddleware)
 	s.GET(mux, "/api/leaderboard", s.HandleGetLeaderboard)
@@ -14,6 +15,7 @@ func InitRoutes(mux *http.ServeMux, s *Server) {
 	s.GET(mux, "/api/room", s.HandleGetRoomByID)
 	s.GET(mux, "/api/rooms", s.HandleGetRooms)
 	s.POST(mux, "/api/rooms", s.HandleCreateRoom)
+	s.POST(mux, "/api/user", s.HandleUpdateUser)
 
 	// 3. АДМІНІСТРАТИВНІ ЕНДПОЇНТИ (AuthMiddleware + AdminOnlyMiddleware автоматично)
 	s.ADMIN_GET(mux, "/api/admin/games", s.HandleAdminGetGames)              // Перегляд логів матчів

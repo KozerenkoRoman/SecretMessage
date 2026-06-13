@@ -14,7 +14,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = {
         id: decoded.user_id,
         username: decoded.username,
-        role: decoded.user_role // Зберігаємо як 'admin' або 'user'
+        role: decoded.user_role,
+        avatar_seed: decoded.avatar_seed
       };
     } catch (e) {
       console.error("Помилка декодування JWT:", e);
@@ -45,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null;
     localStorage.removeItem('token');
     localStorage.removeItem('user_id');
+    localStorage.removeItem('avatar_seed');
     console.log("[Pinia] Сесію користувача успішно очищено");
   };
 

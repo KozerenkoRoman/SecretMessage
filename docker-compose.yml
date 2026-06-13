@@ -21,7 +21,7 @@ services:
 
   backend:
     build:
-      context: ..
+      context: ./message-backend
       dockerfile: docker/Dockerfile
     container_name: secret_message_api
     restart: always
@@ -48,7 +48,7 @@ services:
 
   frontend:
     build:
-      context: ../../message-ui
+      context: ./message-ui
       dockerfile: docker/Dockerfile
     container_name: secret_message_ui
     restart: always

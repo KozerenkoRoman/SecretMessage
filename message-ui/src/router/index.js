@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import RoomManager from '../views/RoomManager.vue';
+import { watch } from 'vue';
 
 const routes = [
   {
@@ -11,19 +12,19 @@ const routes = [
     path: '/auth',
     name: 'Auth',
     component: () => import('../views/AuthView.vue'),
-    meta: { guestOnly: true }
+    meta: { guestOnly: true, titleKey: 'titles.auth' }
   },
   {
     path: '/register',
     name: 'register',
     component: () => import('../views/RegisterView.vue'),
-    meta: { guestOnly: true }
+    meta: { guestOnly: true, titleKey: 'titles.register' }
   },
   {
     path: '/desktop',
     name: 'Desktop',
     component: () => import('../views/DesktopView.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, titleKey: 'titles.desktop' }
   },
   {
     path: '/admin',
@@ -31,14 +32,15 @@ const routes = [
     component: () => import('../views/AdminView.vue'),
     meta: {
       requiresAuth: true,
-      requiresAdmin: true
+      requiresAdmin: true,
+      titleKey: 'titles.admin'
     }
   },
   {
     path: '/room/:id',
     name: 'Room',
     component: RoomManager,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, titleKey: 'titles.room' }
   },
   {
     path: '/:pathMatch(.*)*',
@@ -76,6 +78,26 @@ router.beforeEach((to, from) => {
 
   // В усіх інших випадках — дозволяємо рух!
   return true;
+});
+
+router.afterEach((to) => {
+  const i18n = router.app?.config.globalProperties.$i18n;
+
+  if (i18n) {
+    const updateTitle = () => {
+      const titleKey = to.meta.titleKey || 'titles.default';
+      document.title = i18n.t(titleKey);
+    };
+
+    updateTitle();
+
+    if (!router.titleWatcher) {
+      router.titleWatcher = watch(() => i18n.locale, () => {
+        const currentTitleKey = router.currentRoute.value.meta.titleKey || 'titles.default';
+        document.title = i18n.t(currentTitleKey);
+      });
+    }
+  }
 });
 
 export default router;

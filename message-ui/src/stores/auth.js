@@ -1,4 +1,3 @@
-/* ===== FILE: stores/auth.js ===== */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';

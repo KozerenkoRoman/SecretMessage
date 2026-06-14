@@ -6,10 +6,16 @@ import { en } from './i18n/en';
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import faviconUrl from './assets/favicon.ico?url'
 
 const SUPPORTED_LOCALES = ['uk', 'en']
 const storedLang = localStorage.getItem('lang')
 const initialLocale = SUPPORTED_LOCALES.includes(storedLang) ? storedLang : 'uk'
+
+const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
+link.type = 'image/x-icon';
+link.rel = 'icon'; link.href = faviconUrl;
+document.getElementsByTagName('head')[0].appendChild(link);
 
 const i18n = createI18n({
     legacy: false,

@@ -7,6 +7,15 @@ export const en = {
     en: "English",
   },
 
+  titles: {
+    auth: 'Authorization | Love Letter',
+    register: 'Registration | Love Letter',
+    desktop: 'Game Desktop | Love Letter',
+    admin: 'Admin Panel | Love Letter',
+    room: 'In Room 🃏 | Love Letter',
+    default: 'Love Letter'
+  },
+
   // ==== Common / shared ===============================================
   common: {
     you: "You",

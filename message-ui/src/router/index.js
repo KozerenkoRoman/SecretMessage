@@ -87,20 +87,26 @@ router.afterEach((to) => {
   if (i18nGlobal) {
     const updateTitle = () => {
       const titleKey = to.meta.titleKey || 'titles.default';
-      document.title = i18nGlobal.t(titleKey);
+      const translated = i18nGlobal.t(titleKey);
+      document.title = translated !== titleKey ? translated : 'Таємне Послання';
+
+      console.log(`[Router] Встановлено заголовок вкладки: "${document.title}" (Ключ: ${titleKey})`);
     };
 
     updateTitle();
 
     if (!router.titleWatcher) {
-      router.titleWatcher = watch(() => i18nGlobal.locale.value, () => {
-        const currentTitleKey = router.currentRoute.value.meta.titleKey || 'titles.default';
-        document.title = i18nGlobal.t(currentTitleKey);
-        console.log(`Мова змінилася! Оновлено заголовок: ${i18nGlobal.t(currentTitleKey)}`);
-      });
+      router.titleWatcher = watch(
+        () => i18nGlobal.locale.value,
+        () => {
+          const currentTitleKey = router.currentRoute.value.meta.titleKey || 'titles.default';
+          document.title = i18nGlobal.t(currentTitleKey);
+          console.log(`[Router] Мова змінилася! Новий заголовок: "${document.title}"`);
+        }
+      );
     }
   } else {
-    console.error("Не вдалося знайти глобальний екземпляр i18n в роутері");
+    console.error("[Router Error] Не вдалося отримати доступ до i18n.global. Перевірте імпорт файлу i18n.");
   }
 });
 

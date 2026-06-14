@@ -27,9 +27,8 @@ app.use(i18n)
 
 app.mount('#app')
 
-// Вивід версії з package.json в консоль
 console.log(
-    `%c🚀 MESSAGE UI v${__APP_VERSION__} %c Production`,
+    `%c MESSAGE UI v${__APP_VERSION__} %c Production`,
     'background: #1e1e2f; color: #00ffcc; padding: 3px 5px; border-radius: 3px; font-weight: bold;',
     'color: #888;'
 );

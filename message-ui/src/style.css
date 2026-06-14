@@ -537,7 +537,7 @@
    висоти (= card-secondary-h). Авто-flow column гарантує що нові
    карти заповнюють перший ряд зліва направо, потім другий ряд.
    Горизонтальний overflow для випадку, коли карт > вміщає видима
-   ширина (рідко в Love Letter, але безпечно). */
+   ширина (рідко в Secret Message, але безпечно). */
 @utility discard-grid {
   display: grid;
   grid-template-rows: repeat(2, var(--card-secondary-h));

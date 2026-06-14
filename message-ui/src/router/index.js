@@ -1,3 +1,4 @@
+import { i18n } from '../i18n';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import RoomManager from '../views/RoomManager.vue';
@@ -81,22 +82,25 @@ router.beforeEach((to, from) => {
 });
 
 router.afterEach((to) => {
-  const i18n = router.app?.config.globalProperties.$i18n;
+  const i18nGlobal = i18n.global;
 
-  if (i18n) {
+  if (i18nGlobal) {
     const updateTitle = () => {
       const titleKey = to.meta.titleKey || 'titles.default';
-      document.title = i18n.t(titleKey);
+      document.title = i18nGlobal.t(titleKey);
     };
 
     updateTitle();
 
     if (!router.titleWatcher) {
-      router.titleWatcher = watch(() => i18n.locale, () => {
+      router.titleWatcher = watch(() => i18nGlobal.locale.value, () => {
         const currentTitleKey = router.currentRoute.value.meta.titleKey || 'titles.default';
-        document.title = i18n.t(currentTitleKey);
+        document.title = i18nGlobal.t(currentTitleKey);
+        console.log(`Мова змінилася! Оновлено заголовок: ${i18nGlobal.t(currentTitleKey)}`);
       });
     }
+  } else {
+    console.error("Не вдалося знайти глобальний екземпляр i18n в роутері");
   }
 });
 

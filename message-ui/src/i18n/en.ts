@@ -8,12 +8,12 @@ export const en = {
   },
 
   titles: {
-    auth: 'Authorization | Love Letter',
-    register: 'Registration | Love Letter',
-    desktop: 'Game Desktop | Love Letter',
-    admin: 'Admin Panel | Love Letter',
-    room: 'In Room 🃏 | Love Letter',
-    default: 'Love Letter'
+    auth: 'Authorization | Secret Message',
+    register: 'Registration | Secret Message',
+    desktop: 'Game Desktop | Secret Message',
+    admin: 'Admin Panel | Secret Message',
+    room: 'Room | Secret Message',
+    default: 'Secret Message'
   },
 
   // ==== Common / shared ===============================================

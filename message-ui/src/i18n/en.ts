@@ -119,6 +119,7 @@ export const en = {
     playersCount: "Players: {count} / {max}",
     participants: "Participants: {names}",
     join: "Join",
+    rulesButton: "Game Rules",
     leaderboard: {
       title: "Players Rating",
       loading: "Syncing with server...",
@@ -307,6 +308,30 @@ export const en = {
     empty: "No game history yet...",
   },
 
-  // ==== Text messages already in i18n (error dictionary) =====
-  // (moved to i18n/errorMessages.ts – leave untouched)
+  rules: {
+    modalTitle: "Rules of «Secret Message»",
+    generalHeader: "General Rules & Turn Order",
+    cardsHeader: "Card Reference & Effects",
+    nuancesHeader: "Important Nuances",
+    strategyHeader: "Strategy Tips",
+    strength: "Value",
+
+    turnStep1: "Round Goal: Be the last player standing, or hold the card with the highest value when the deck runs out.",
+    turnStep2: "Each card has a value (number) and a text effect (action on players).",
+    turnStep3: "At the start of your turn, draw 1 card from the deck (giving you 2 cards in hand).",
+    turnStep4: "Choose one of the two cards and play it face up in front of you.",
+    turnStep5: "Execute its text effect immediately.",
+
+    nuance1: "All played and discarded cards stay face up in front of players for the rest of the round.",
+    nuance2: "If the deck runs out and there is a tie for the highest card, compare the total value of all cards in their respective discard piles. If still tied, all tied players win.",
+    nuance3: "To win the match, you must collect a specific number of tokens of affection (depends on the player count).",
+
+    strategy1: "Guard (1) and Baron (3) excel at eliminating rivals",
+    strategy2: "Priest (2) provides essential intellect",
+    strategy3: "Handmaid (4) grants safety for a round",
+    strategy4: "Prince (5) is great for hunting the Princess",
+    strategy5: "Chancellor (6) offers elite deck control",
+    strategy6: "Spy (0) lets you snatch a bonus token without even winning the round."
+  },
+
 };

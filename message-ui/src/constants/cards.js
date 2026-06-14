@@ -23,8 +23,8 @@ export const CARD_INFO_NUMBERS = {
   4: { nameKey: CARD_I18N_KEYS.HANDMAID.name, descKey: CARD_I18N_KEYS.HANDMAID.desc, type: "HANDMAID", value: 4, color: "bg-brand-card-yellow", emoji: "🛡️", targetType: "SELF", image: getCardImg("04_Handmaid.png") },
   5: { nameKey: CARD_I18N_KEYS.PRINCE.name, descKey: CARD_I18N_KEYS.PRINCE.desc, type: "PRINCE", value: 5, color: "bg-brand-card-cyan", emoji: "👑", targetType: "ANY", image: getCardImg("05_Prince.png") },
   6: { nameKey: CARD_I18N_KEYS.CHANCELLOR.name, descKey: CARD_I18N_KEYS.CHANCELLOR.desc, type: "CHANCELLOR", value: 6, color: "bg-brand-card-purple", emoji: "📜", targetType: "SELF", image: getCardImg("06_Minister.png") },
-  7: { nameKey: CARD_I18N_KEYS.KING.name, descKey: CARD_I18N_KEYS.KING.desc, type: "KING", value: 8, color: "bg-brand-card-amber", emoji: "⚜️", targetType: "OPPONENT", image: getCardImg("07_King.png") },
-  8: { nameKey: CARD_I18N_KEYS.COUNTESS.name, descKey: CARD_I18N_KEYS.COUNTESS.desc, type: "COUNTESS", value: 7, color: "bg-brand-card-orange", emoji: "💃", targetType: "SELF", image: getCardImg("08_Countess.png") },
+  7: { nameKey: CARD_I18N_KEYS.KING.name, descKey: CARD_I18N_KEYS.KING.desc, type: "KING", value: 7, color: "bg-brand-card-amber", emoji: "⚜️", targetType: "OPPONENT", image: getCardImg("07_King.png") },
+  8: { nameKey: CARD_I18N_KEYS.COUNTESS.name, descKey: CARD_I18N_KEYS.COUNTESS.desc, type: "COUNTESS", value: 8, color: "bg-brand-card-orange", emoji: "💃", targetType: "SELF", image: getCardImg("08_Countess.png") },
   9: { nameKey: CARD_I18N_KEYS.PRINCESS.name, descKey: CARD_I18N_KEYS.PRINCESS.desc, type: "PRINCESS", value: 9, color: "bg-brand-card-pink", emoji: "👸", targetType: "SELF", image: getCardImg("09_Princess.png") }
 }
 
@@ -39,6 +39,36 @@ export const CARD_INFO_NAMES = {
   "KING": { nameKey: CARD_I18N_KEYS.KING.name, descKey: CARD_I18N_KEYS.KING.desc, type: "KING", value: 7, border: "border-amber-600", color: "bg-brand-card-amber", emoji: "⚜️", targetType: "OPPONENT", image: getCardImg("07_King.png") },
   "COUNTESS": { nameKey: CARD_I18N_KEYS.COUNTESS.name, descKey: CARD_I18N_KEYS.COUNTESS.desc, type: "COUNTESS", value: 8, color: "bg-brand-card-orange", emoji: "💃", targetType: "SELF", image: getCardImg("08_Countess.png") },
   "PRINCESS": { nameKey: CARD_I18N_KEYS.PRINCESS.name, descKey: CARD_I18N_KEYS.PRINCESS.desc, type: "PRINCESS", value: 9, color: "bg-brand-card-pink", emoji: "👸", targetType: "SELF", image: getCardImg("09_Princess.png") }
+};
+
+export const RULES_I18N_KEYS = {
+  modalTitle: "rules.modalTitle",
+  generalHeader: "rules.generalHeader",
+  cardsHeader: "rules.cardsHeader",
+  nuancesHeader: "rules.nuancesHeader",
+  strategyHeader: "rules.strategyHeader",
+  strength: "rules.strength",
+
+  generalRules: [
+    "rules.turnStep1",
+    "rules.turnStep2",
+    "rules.turnStep3",
+    "rules.turnStep4",
+    "rules.turnStep5",
+  ],
+  nuances: [
+    "rules.nuance1",
+    "rules.nuance2",
+    "rules.nuance3"
+  ],
+  strategies: [
+    "rules.strategy1",
+    "rules.strategy2",
+    "rules.strategy3",
+    "rules.strategy4",
+    "rules.strategy5",
+    "rules.strategy6"
+  ]
 };
 
 const resolveCard = (raw, t) => {
@@ -56,3 +86,4 @@ export const getCardInfoHelper = (key, t) => {
   const raw = (!isNaN(key) && key !== "") ? CARD_INFO_NUMBERS[Number(key)] : CARD_INFO_NAMES[String(key)];
   return resolveCard(raw, t);
 };
+

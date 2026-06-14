@@ -37,6 +37,12 @@
         </div>
 
         <div class="flex items-center gap-3">
+          <button
+            @click="showRulesModal = true"
+            class="btn-ghost flex items-center gap-1.5 text-slate-300 hover:text-amber-400 transition-colors"
+          >
+            {{ $t("desktop.rulesButton") }}
+          </button>
           <router-link v-if="authStore.isAdmin" to="/admin" class="btn-admin">
             {{ $t("desktop.adminLink") }}
           </router-link>
@@ -145,6 +151,8 @@
       @close="showAvatarModal = false"
       @updated="handleProfileUpdated"
     />
+
+    <GameRulesModal v-if="showRulesModal" @close="showRulesModal = false" />
   </div>
 </template>
 
@@ -157,6 +165,7 @@ import { useGameStore } from "../stores/gameStore";
 import { getAvatarUrl } from "../utils/avatar";
 import UserProfileModal from "./UserProfileModal.vue";
 import LeaderboardPanel from "../components/LeaderboardPanel.vue";
+import GameRulesModal from "./GameRulesModal.vue";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -168,6 +177,7 @@ const currentUsername = ref(
   localStorage.getItem("username") || authStore.user?.username || t("common.player")
 );
 const showAvatarModal = ref(false);
+const showRulesModal = ref(false);
 const userAvatarSeed = ref(
   localStorage.getItem("avatar_seed") || authStore.user?.avatar_seed || "default_seed"
 );

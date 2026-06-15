@@ -201,7 +201,7 @@ const saveProfile = async () => {
       return;
     }
 
-    // Якщо статус "success" — фіксуємо оновлені дані у локальних сховищах
+    // Якщо статус "success" - фіксуємо оновлені дані у локальних сховищах
     localStorage.setItem("username", data.username || form.value.username);
     localStorage.setItem("avatar_seed", data.avatar_seed || form.value.avatar_seed);
 

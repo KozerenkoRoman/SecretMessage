@@ -4,7 +4,7 @@
 // КОНТРАКТ КОДІВ ПОМИЛОК між Go-бекендом та Vue/TS-фронтендом.
 //
 // Дзеркало файлу `cmd/engine/errors.go`. Якщо ви додаєте/перейменовуєте
-// код у Go — синхронізуйте цей файл.
+// код у Go - синхронізуйте цей файл.
 //
 // Принципи:
 //   • Бекенд НІКОЛИ не надсилає сирий локалізований текст помилки.
@@ -15,13 +15,13 @@
 //   • Будь-який невідомий/відсутній код → ERR_INTERNAL → "Сталася помилка".
 //
 // Типізація:
-//   • EngineErrorCode — string-літеральний union (compile-time safety).
+//   • EngineErrorCode - string-літеральний union (compile-time safety).
 //   • Усі функції-маппери приймають `EngineErrorCode | string`, щоб
 //     безпечно витримати майбутні нові коди з бекенду без падіння UI.
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// EngineErrorCode — точна копія констант з cmd/engine/errors.go.
+// EngineErrorCode - точна копія констант з cmd/engine/errors.go.
 // Тримайте у тому ж порядку, що й Go-файл, для зручної ревізії.
 // -----------------------------------------------------------------------------
 export const EngineErrorCodes = {
@@ -64,7 +64,7 @@ export const EngineErrorCodes = {
   ChancellorWrongPhase: "ERR_CHANCELLOR_WRONG_PHASE",
 } as const;
 
-// EngineErrorCode — string-літеральний union усіх валідних кодів.
+// EngineErrorCode - string-літеральний union усіх валідних кодів.
 export type EngineErrorCode = (typeof EngineErrorCodes)[keyof typeof EngineErrorCodes];
 
 // -----------------------------------------------------------------------------
@@ -80,11 +80,11 @@ export interface ServerErrorPacket {
   code: string;
   /**
    * Стабільний код доменної помилки (engine.ErrorCode). Може бути відсутнім
-   * для суто транспортних помилок (некоректний JSON). Якщо відсутній —
+   * для суто транспортних помилок (некоректний JSON). Якщо відсутній -
    * фронт показує стандартне повідомлення Internal.
    */
   error_code?: EngineErrorCode | string;
-  /** Англомовний dev-message — НЕ для UI, лише для девтулзів і логів. */
+  /** Англомовний dev-message - НЕ для UI, лише для девтулзів і логів. */
   message?: string;
   /** Опціональний контекст з GameError.Details. */
   details?: Record<string, unknown>;
@@ -93,7 +93,7 @@ export interface ServerErrorPacket {
 }
 
 // -----------------------------------------------------------------------------
-// isEngineErrorCode — type-guard: чи це відомий бекенд-код?
+// isEngineErrorCode - type-guard: чи це відомий бекенд-код?
 // -----------------------------------------------------------------------------
 const KNOWN_CODES = new Set<string>(Object.values(EngineErrorCodes));
 

@@ -6,7 +6,7 @@
     >
       <!-- Картки в Guard guess grid використовують глобальний --card-primary-h
            (заданий в @theme). Це робить їх ВІЗУАЛЬНО ІДЕНТИЧНИМИ карткам
-           у руці гравця. Якщо картки не вміщаються — модалка скролиться
+           у руці гравця. Якщо картки не вміщаються - модалка скролиться
            через max-h-[90dvh] + overflow-y-auto. -->
       <div
         class="bg-brand-surface border border-brand-border rounded-2xl p-4 sm:p-5 lg:p-6 w-full shadow-2xl overflow-y-auto max-h-[90dvh] custom-scrollbar transition-all duration-300"
@@ -103,7 +103,7 @@
                   ? { backgroundImage: `url(${getCardImage(card.type)})` }
                   : {}
               "
-              :data-tooltip="`${card.info.name}(${card.info.value}) — ${
+              :data-tooltip="`${card.info.name}(${card.info.value}) - ${
                 card.info.desc || $t('cards.noDescription')
               }`"
             >

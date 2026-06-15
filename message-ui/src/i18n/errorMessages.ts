@@ -3,15 +3,15 @@
 //
 // ЛОКАЛІЗАЦІЯ КОДІВ ПОМИЛОК БЕКЕНДУ.
 //
-// Цей файл — єдиний шлях, через який стабільні коди (EngineErrorCode)
+// Цей файл - єдиний шлях, через який стабільні коди (EngineErrorCode)
 // перетворюються на текст, видимий користувачу. Бекенд НЕ знає про мови;
 // він шле "ERR_PLAYER_ALREADY_OUT", а ми тут вирішуємо, як це виглядатиме.
 //
 // Архітектура:
-//   • Locale — string-union доступних мов ("uk" | "en" | ...).
-//   • ErrorMessages<Locale> — мапа Locale → (EngineErrorCode → string).
-//   • translateErrorCode(code, locale) — публічний помічник.
-//   • useErrorTranslator() — composable для Vue (реактивний переклад).
+//   • Locale - string-union доступних мов ("uk" | "en" | ...).
+//   • ErrorMessages<Locale> - мапа Locale → (EngineErrorCode → string).
+//   • translateErrorCode(code, locale) - публічний помічник.
+//   • useErrorTranslator() - composable для Vue (реактивний переклад).
 //
 // Як додати нову мову:
 //   1. Додати літерал у тип Locale.
@@ -33,7 +33,7 @@ export const DEFAULT_LOCALE: Locale = "uk";
 // -----------------------------------------------------------------------------
 // Тип мапи перекладів. Record<EngineErrorCode, string> змушує TypeScript
 // перевіряти, що для КОЖНОГО коду з бекенду є переклад. Якщо ви забудете
-// перекласти новий код — компілятор не пропустить.
+// перекласти новий код - компілятор не пропустить.
 // -----------------------------------------------------------------------------
 type ErrorDictionary = Record<EngineErrorCode, string>;
 
@@ -60,7 +60,7 @@ const uk: ErrorDictionary = {
   [EngineErrorCodes.PlayerProtected]: "Гравець під захистом Покоївки.",
   [EngineErrorCodes.TargetAlreadyOut]: "Цей гравець уже вибув з раунду.",
   [EngineErrorCodes.TargetNotFound]: "Цільового гравця не знайдено.",
-  [EngineErrorCodes.TargetProtected]: "Цей гравець захищений Покоївкою — оберіть іншу ціль.",
+  [EngineErrorCodes.TargetProtected]: "Цей гравець захищений Покоївкою - оберіть іншу ціль.",
   [EngineErrorCodes.TargetRequired]: "Оберіть гравця-ціль.",
 };
 
@@ -87,12 +87,12 @@ const en: ErrorDictionary = {
   [EngineErrorCodes.PlayerProtected]: "Player is protected by the Handmaid.",
   [EngineErrorCodes.TargetAlreadyOut]: "This player is already out of the round.",
   [EngineErrorCodes.TargetNotFound]: "Target player was not found.",
-  [EngineErrorCodes.TargetProtected]: "This player is protected by the Handmaid — choose another target.",
+  [EngineErrorCodes.TargetProtected]: "This player is protected by the Handmaid - choose another target.",
   [EngineErrorCodes.TargetRequired]: "Please select a target player.",
 };
 
 // -----------------------------------------------------------------------------
-// Реєстр локалей. Ключ — код локалі, значення — словник.
+// Реєстр локалей. Ключ - код локалі, значення - словник.
 // -----------------------------------------------------------------------------
 const MESSAGES: Record<Locale, ErrorDictionary> = { uk, en };
 
@@ -101,13 +101,13 @@ const MESSAGES: Record<Locale, ErrorDictionary> = { uk, en };
 // =============================================================================
 
 /**
- * translateErrorCode — синхронний переклад коду в текст для UI.
+ * translateErrorCode - синхронний переклад коду в текст для UI.
  *
  * • Якщо `code` відомий → повертає переклад для заданої локалі.
  * • Якщо `code` невідомий (нова версія бекенду випередила фронт) →
  *   повертає переклад для ERR_INTERNAL та логує предупередження.
  *
- * НЕ кидає винятки — UI має завжди мати ЩО показати.
+ * НЕ кидає винятки - UI має завжди мати ЩО показати.
  */
 export function translateErrorCode(
   code: EngineErrorCode | string | undefined | null,
@@ -119,18 +119,18 @@ export function translateErrorCode(
     return dict[code];
   }
 
-  // Невідомий або відсутній код — fallback на Internal.
+  // Невідомий або відсутній код - fallback на Internal.
   if (code) {
     // eslint-disable-next-line no-console
     console.warn(
-      `[i18n] Unknown error_code "${code}" — falling back to ERR_INTERNAL`,
+      `[i18n] Unknown error_code "${code}" - falling back to ERR_INTERNAL`,
     );
   }
   return dict[EngineErrorCodes.Internal];
 }
 
 /**
- * translateServerError — зручний хелпер для готового пакета помилки з WebSocket.
+ * translateServerError - зручний хелпер для готового пакета помилки з WebSocket.
  *
  * Використання у gameStore:
  *
@@ -151,7 +151,7 @@ export function translateServerError(
 
 // -----------------------------------------------------------------------------
 // Реактивна локаль (мінімальний "i18n manager" без зовнішніх залежностей).
-// Якщо у проекті з'явиться vue-i18n або pinia-store локалі — перенесіть
+// Якщо у проекті з'явиться vue-i18n або pinia-store локалі - перенесіть
 // `currentLocale` туди і вилучіть цей блок.
 // -----------------------------------------------------------------------------
 export const currentLocale: Ref<Locale> = ref<Locale>(DEFAULT_LOCALE);
@@ -161,7 +161,7 @@ export function setLocale(locale: Locale): void {
 }
 
 /**
- * useErrorTranslator — composable. Повертає реактивну функцію перекладу,
+ * useErrorTranslator - composable. Повертає реактивну функцію перекладу,
  * яка автоматично перерахується при зміні currentLocale.
  *
  * Використання у компоненті:

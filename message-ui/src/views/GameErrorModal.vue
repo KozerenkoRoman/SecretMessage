@@ -87,7 +87,7 @@ const ERROR_TRANSLATIONS = Object.freeze({
 
   [EngineErrorCodes.PlayerNotFound]: "Вас не знайдено серед учасників цієї кімнати.",
   [EngineErrorCodes.PlayerAlreadyOut]:
-    "Ви вже вибули з поточного раунду — дочекайтеся наступного.",
+    "Ви вже вибули з поточного раунду - дочекайтеся наступного.",
   [EngineErrorCodes.PlayerProtected]: "Ви знаходитесь під захистом Служниці.",
   [EngineErrorCodes.PlayerHasNoCards]: "У вас немає карт у руці для виконання цієї дії.",
 
@@ -100,7 +100,7 @@ const ERROR_TRANSLATIONS = Object.freeze({
   [EngineErrorCodes.TargetRequired]: "Для цієї карти необхідно обрати гравця-ціль.",
   [EngineErrorCodes.TargetNotFound]: "Обраного гравця не знайдено в кімнаті.",
   [EngineErrorCodes.TargetAlreadyOut]:
-    "Обраний гравець уже вибув з раунду — оберіть іншу ціль.",
+    "Обраний гравець уже вибув з раунду - оберіть іншу ціль.",
   [EngineErrorCodes.TargetProtected]:
     "Неможливо застосувати ефект: обраний гравець знаходиться під захистом Служниці.",
   [EngineErrorCodes.GuardCannotGuessGuard]:

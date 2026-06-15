@@ -67,17 +67,17 @@ router.beforeEach((to, from) => {
 
   // 2. Якщо користувач УЖЕ авторизований і намагається відкрити екрани для гостей (/auth або /register)
   if (to.meta.guestOnly && authStore.isAuthenticated) {
-    // Якщо це адмін, його стартова сторінка /admin, якщо гравець — /desktop
+    // Якщо це адмін, його стартова сторінка /admin, якщо гравець - /desktop
     return authStore.isAdmin ? '/admin' : '/desktop';
   }
 
-  // 3. ПЕРЕВІРКА РОЛІ: Якщо сторінка вимагає адміна, а користувач — звичайний гравець
+  // 3. ПЕРЕВІРКА РОЛІ: Якщо сторінка вимагає адміна, а користувач - звичайний гравець
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
     console.warn('Спроба несанкціонованого доступу до адмінки користувачем:', authStore.user?.username);
     return '/desktop';
   }
 
-  // В усіх інших випадках — дозволяємо рух!
+  // В усіх інших випадках - дозволяємо рух!
   return true;
 });
 

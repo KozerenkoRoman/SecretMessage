@@ -150,8 +150,8 @@ export const en = {
     chancellorBadge: "Chancellor's Choice!",
     chancellorPickOwn: "Keep card for yourself",
     waitingForCards: "Waiting for cards...",
-    discardTooltip: "{name} — Discarded by {owner}",
-    protectionTooltip: "{name} — Protection active",
+    discardTooltip: "{name} - Discarded by {owner}",
+    protectionTooltip: "{name} - Protection active",
     leaveConfirm: {
       title: "Leave Game",
       message:
@@ -226,7 +226,7 @@ export const en = {
 
   // ==== Game end modal ================================================
   gameEnd: {
-    final: "👑 GAME OVER — MATCH FINALS 👑",
+    final: "👑 GAME OVER - MATCH FINALS 👑",
     roundEnd: "⚔️ ROUND END ⚔️",
     winner: "You are the ultimate champion!",
     loser: "You won the round!",

@@ -6,7 +6,7 @@
     >
       <!-- Використовуємо глобальний --card-primary-h: 3 картки Канцлера
            будуть точно того самого розміру, що й картки в руці на дошці.
-           Якщо не вміщаються — модалка скролиться. -->
+           Якщо не вміщаються - модалка скролиться. -->
       <div
         class="bg-brand-bg border-2 border-amber-500/40 rounded-2xl p-4 sm:p-5 lg:p-6 w-full max-w-2xl tall:max-w-3xl shadow-2xl overflow-y-auto max-h-[90dvh] custom-scrollbar"
       >
@@ -44,7 +44,7 @@
             "
             :data-tooltip="`${getCardName(cardType)}(${getCardValue(
               cardType
-            )}) — ${getCardDesc(cardType)}`"
+            )}) - ${getCardDesc(cardType)}`"
           >
             <div
               v-if="chosenKeepIndex === index"

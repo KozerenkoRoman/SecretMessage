@@ -1,26 +1,26 @@
 // =============================================================================
-// SECRET MESSAGE — DOMAIN EVENT TYPES
+// SECRET MESSAGE - DOMAIN EVENT TYPES
 // =============================================================================
 //
 // Цей файл є джерелом правди для всіх подій, які бекенд (Go, engine.DomainEvent)
 // надсилає фронтенду через WebSocket.
 //
-// Усі ключі — snake_case (узгоджено з Go json-тегами та форматом наших логів).
-// Числові поля (card, guess, points, *_card) — це ЦІЛІ ЧИСЛА (CardType enum
+// Усі ключі - snake_case (узгоджено з Go json-тегами та форматом наших логів).
+// Числові поля (card, guess, points, *_card) - це ЦІЛІ ЧИСЛА (CardType enum
 // у Go серіалізується як int), тому фронтенд НЕ повинен виконувати Number()
-// перетворення з рядка. Якщо в payload приходить string — це баг бекенду.
+// перетворення з рядка. Якщо в payload приходить string - це баг бекенду.
 //
 // Архітектура:
-//   1. CardType — enum, дзеркало engine/types.go.
-//   2. *Payload інтерфейси — рівно одна на подію, поля 1:1 з Go-структурами.
-//   3. EventTypeMap — мапа типу подій → інтерфейс payload.
-//   4. GameEvent — discriminated union: коли event.type === 'CARD_PLAYED',
-//      компілятор автоматично знає, що event.payload — CardPlayedPayload.
+//   1. CardType - enum, дзеркало engine/types.go.
+//   2. *Payload інтерфейси - рівно одна на подію, поля 1:1 з Go-структурами.
+//   3. EventTypeMap - мапа типу подій → інтерфейс payload.
+//   4. GameEvent - discriminated union: коли event.type === 'CARD_PLAYED',
+//      компілятор автоматично знає, що event.payload - CardPlayedPayload.
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// CardType — дзеркало engine.CardType (iota з Go).
-// Порядок ВАЖЛИВИЙ — змінюйте лише разом з backend/cmd/engine/types.go.
+// CardType - дзеркало engine.CardType (iota з Go).
+// Порядок ВАЖЛИВИЙ - змінюйте лише разом з backend/cmd/engine/types.go.
 // -----------------------------------------------------------------------------
 export enum CardType {
   Spy = 0,
@@ -74,7 +74,7 @@ export type RoundEndReason =
 // =============================================================================
 
 /**
- * CARD_PLAYED — гравець зіграв карту з руки.
+ * CARD_PLAYED - гравець зіграв карту з руки.
  * `target_id` присутній лише для націлених карт (Guard, Priest, Baron, King,
  * Prince). Для Handmaid/Countess/Spy/Princess поле може бути відсутнім або "".
  */
@@ -86,7 +86,7 @@ export interface CardPlayedPayload {
 }
 
 /**
- * CARD_DRAWN — гравець добрав карту з колоди (або BurnCard).
+ * CARD_DRAWN - гравець добрав карту з колоди (або BurnCard).
  * УВАГА: бекенд маскує `card` до 0 для гравців, які не є власником руки.
  * Фронтенд має ігнорувати CARD_DRAWN, якщо `player_id !== self`.
  */
@@ -96,7 +96,7 @@ export interface CardDrawnPayload {
 }
 
 /**
- * PRIEST_EFFECT — Священник показав карту цілі ініціатору.
+ * PRIEST_EFFECT - Священник показав карту цілі ініціатору.
  * Видно тільки viewer_id та target_id; для решти `card` приходить як 0.
  */
 export interface PriestEffectPayload {
@@ -106,7 +106,7 @@ export interface PriestEffectPayload {
 }
 
 /**
- * GUARD_HIT — Вартовий правильно вгадав карту цілі (ціль вибуває).
+ * GUARD_HIT - Вартовий правильно вгадав карту цілі (ціль вибуває).
  * Зазвичай негайно супроводжується подією PLAYER_ELIMINATED з reason="guard_hit".
  */
 export interface GuardHitPayload {
@@ -116,7 +116,7 @@ export interface GuardHitPayload {
 }
 
 /**
- * GUARD_MISS — Вартовий НЕ вгадав карту цілі (нічого не відбувається).
+ * GUARD_MISS - Вартовий НЕ вгадав карту цілі (нічого не відбувається).
  */
 export interface GuardMissPayload {
   player_id: string;
@@ -125,7 +125,7 @@ export interface GuardMissPayload {
 }
 
 /**
- * PLAYER_ELIMINATED — гравець вибуває з раунду.
+ * PLAYER_ELIMINATED - гравець вибуває з раунду.
  * `reason` дозволяє UI показати правильну анімацію/текст.
  */
 export interface PlayerEliminatedPayload {
@@ -134,7 +134,7 @@ export interface PlayerEliminatedPayload {
 }
 
 /**
- * ROUND_COMPARED — карти двох гравців порівняно (Baron-дуель або кінець раунду).
+ * ROUND_COMPARED - карти двох гравців порівняно (Baron-дуель або кінець раунду).
  * Видно ТІЛЬКИ учасникам; для решти `player_card` та `target_card` = 0.
  */
 export interface RoundComparedPayload {
@@ -145,8 +145,8 @@ export interface RoundComparedPayload {
 }
 
 /**
- * SPY_BONUS — гравець отримав бонусний бал за Spy.
- * `points` — це ЦІЛЕ ЧИСЛО, не рядок.
+ * SPY_BONUS - гравець отримав бонусний бал за Spy.
+ * `points` - це ЦІЛЕ ЧИСЛО, не рядок.
  */
 export interface SpyBonusPayload {
   player_id: string;
@@ -154,7 +154,7 @@ export interface SpyBonusPayload {
 }
 
 /**
- * ROUND_END — раунд завершено, переможець визначений.
+ * ROUND_END - раунд завершено, переможець визначений.
  */
 export interface RoundEndPayload {
   winner_id: string;
@@ -162,7 +162,7 @@ export interface RoundEndPayload {
 }
 
 /**
- * HANDS_SWAPPED — гравці помінялися руками (King).
+ * HANDS_SWAPPED - гравці помінялися руками (King).
  */
 export interface HandsSwappedPayload {
   player_id: string;
@@ -170,7 +170,7 @@ export interface HandsSwappedPayload {
 }
 
 /**
- * BARON_RESULT — підсумок Baron-дуелі (без секретних карт; вони у ROUND_COMPARED).
+ * BARON_RESULT - підсумок Baron-дуелі (без секретних карт; вони у ROUND_COMPARED).
  */
 export interface BaronResultPayload {
   winner_id: string;
@@ -178,7 +178,7 @@ export interface BaronResultPayload {
 }
 
 /**
- * CHANCELLOR_DRAWN — гравець добрав 2 карти за ефектом Chancellor.
+ * CHANCELLOR_DRAWN - гравець добрав 2 карти за ефектом Chancellor.
  * Видно тільки гравцю; для решти `cards` = null.
  */
 export interface ChancellorDrawnPayload {
@@ -187,7 +187,7 @@ export interface ChancellorDrawnPayload {
 }
 
 /**
- * CHANCELLOR_RESOLVED — гравець визначив, яку карту лишити.
+ * CHANCELLOR_RESOLVED - гравець визначив, яку карту лишити.
  * Видно тільки гравцю; для решти `kept` = 0 і `bottom_order` = null.
  */
 export interface ChancellorResolvedPayload {
@@ -197,14 +197,14 @@ export interface ChancellorResolvedPayload {
 }
 
 /**
- * PLAYER_LEFT — гравець покинув кімнату.
+ * PLAYER_LEFT - гравець покинув кімнату.
  */
 export interface PlayerLeftPayload {
   player_id: string;
 }
 
 // =============================================================================
-// EventTypeMap — точна відповідність type → payload.
+// EventTypeMap - точна відповідність type → payload.
 // Якщо backend додасть нову подію, її потрібно додати сюди ОДИН РАЗ.
 // =============================================================================
 export interface EventTypeMap {
@@ -225,7 +225,7 @@ export interface EventTypeMap {
 }
 
 // =============================================================================
-// DomainEvent — generic-обгортка (точна копія Go-структури).
+// DomainEvent - generic-обгортка (точна копія Go-структури).
 // =============================================================================
 export interface DomainEvent<T extends EventType = EventType> {
   event_id: number;
@@ -235,10 +235,10 @@ export interface DomainEvent<T extends EventType = EventType> {
 }
 
 // =============================================================================
-// GameEvent — DISCRIMINATED UNION.
+// GameEvent - DISCRIMINATED UNION.
 //
 // Це головний тип, який має використовуватись в обробниках WebSocket.
-// Завдяки тому, що поле `type` — це літеральний рядок, TypeScript
+// Завдяки тому, що поле `type` - це літеральний рядок, TypeScript
 // автоматично звужує тип `payload` всередині блоку switch/if:
 //
 //   switch (ev.type) {
@@ -268,7 +268,7 @@ export type GameEvent = {
 // =============================================================================
 
 /**
- * isEvent — runtime-перевірка типу події з автоматичним звуженням типу.
+ * isEvent - runtime-перевірка типу події з автоматичним звуженням типу.
  *
  * Приклад:
  *   if (isEvent(ev, 'PRIEST_EFFECT')) {
@@ -284,7 +284,7 @@ export function isEvent<K extends EventType>(
 }
 
 /**
- * isPayloadMasked — допоміжна перевірка, чи поле `card` (або інше секретне)
+ * isPayloadMasked - допоміжна перевірка, чи поле `card` (або інше секретне)
  * було зрізане бекендом до 0 для цього viewer'а.
  */
 export function isCardMasked(card: CardType | number): boolean {
@@ -293,7 +293,7 @@ export function isCardMasked(card: CardType | number): boolean {
   // саме для PRIEST_EFFECT/ROUND_COMPARED/CARD_DRAWN-чужих, де 0 неможливе
   // легітимно (карта Spy ніколи не "відкривається" таким способом, бо Spy
   // не лежить на руці у момент Priest/Baron-розкриттів у звичайному флоу).
-  // Якщо у вашому варіанті гри Spy може бути на руці — використовуйте
+  // Якщо у вашому варіанті гри Spy може бути на руці - використовуйте
   // окремий булівський прапорець на бекенді.
   return card === 0;
 }

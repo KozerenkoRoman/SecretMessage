@@ -2,7 +2,9 @@
   <div
     class="h-app bg-brand-bg text-white p-2 grid grid-cols-1 lg:grid-cols-12 overflow-hidden relative font-sans select-none gap-2 sm:gap-3"
   >
+    <!-- ЛІВА ЧАСТИНА: ІГРОВЕ ПОЛЕ -->
     <div class="lg:col-span-8 flex flex-col h-full min-h-0 overflow-hidden">
+      <!-- ХЕДЕР -->
       <header
         class="w-full flex justify-between items-center bg-brand-surface/80 backdrop-blur px-3 py-2 rounded-xl border border-brand-border flex-shrink-0 gap-2 sm:gap-4 z-10 min-h-[44px] short:min-h-[40px] tall:min-h-[56px]"
       >
@@ -35,8 +37,8 @@
               {{ $t("board.room") }}{{ roomID }}
             </h2>
             <p class="text-xs text-slate-400">
-              {{ $t("board.time")
-              }}<span class="text-amber-400 font-mono font-bold text-sm"
+              {{ $t("board.time") }}
+              <span class="text-amber-400 font-mono font-bold text-sm"
                 >{{ gameStore.gameState?.seconds_left ?? 0
                 }}{{ $t("board.timeUnit") }}</span
               >
@@ -93,9 +95,11 @@
         </div>
       </header>
 
+      <!-- ГОЛОВНА ЗОНА СТОЛУ -->
       <main
         class="flex-1 min-h-0 flex flex-col my-1 gap-1 sm:gap-2 overflow-hidden w-full mx-auto"
       >
+        <!-- ОПОНЕНТИ -->
         <div
           class="w-full flex justify-center items-stretch gap-2 sm:gap-4 lg:gap-6 flex-wrap square:flex-wrap wide:flex-nowrap flex-shrink-0"
           style="height: calc(var(--card-secondary-h) + 4rem)"
@@ -126,18 +130,17 @@
                   <template v-if="player.is_protected">
                     <span
                       class="font-bold text-[11px] tall:text-xs truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded bg-brand-warning text-slate-950 font-black shadow"
+                      >{{ $t("board.protection") }}</span
                     >
-                      {{ $t("board.protection") }}
-                    </span>
                   </template>
                   <template v-if="player.is_out"> ({{ $t("status.out") }})</template>
                 </span>
                 <span
                   class="text-[12px] tall:text-xs retina:text-sm bg-brand-surface-dim text-yellow-400 px-1 py-0.5 rounded font-mono flex-shrink-0"
+                  >★{{ player.score || 0 }}</span
                 >
-                  ★{{ player.score || 0 }}
-                </span>
               </div>
+
               <div
                 class="flex justify-center items-center w-full relative px-2 sm:px-3 lg:px-5 py-2 flex-1 min-h-0"
               >
@@ -155,6 +158,8 @@
                       class="w-full h-full object-contain rounded-sm select-none"
                     />
                   </div>
+
+                  <!-- Остання зіграна карта -->
                   <div
                     v-if="lastPlayedCardsByPlayer[player.id] !== undefined"
                     class="flex flex-col items-center justify-center flex-shrink-0 z-20 ml-2"
@@ -184,6 +189,7 @@
           </template>
         </div>
 
+        <!-- КОЛОДА ТА СТОПКА СКИДАННЯ -->
         <div
           class="flex-1 min-h-0 flex items-center justify-center p-2 sm:p-3 bg-brand-bg-dark/40 rounded-2xl border border-slate-800/60 w-full overflow-hidden"
         >
@@ -215,7 +221,8 @@
               </div>
             </div>
             <div class="h-full max-h-[80%] w-[1px] bg-brand-surface flex-shrink-0"></div>
-            <div class="flex-scroll flex flex-col justify-start gap-1 pl-1 h-full">
+
+            <div class="flex-scroll flex flex-col justify-start gap-1 pl-1 h-full w-full">
               <div
                 class="flex justify-between items-center border-b border-slate-800 pb-1 flex-shrink-0"
               >
@@ -228,22 +235,16 @@
                 class="discard-grid custom-scrollbar w-full flex-1 min-h-0 px-1 pt-2 sm:pt-4 pb-1"
               >
                 <div
-                  v-for="entry in globalDiscardPile"
+                  v-for="(entry, index) in globalDiscardPile"
                   :key="`discard-${entry.seq}`"
                   class="game-card game-card-discard card-secondary p-0 border border-brand-border/50 overflow-hidden bg-brand-bg-dark"
                   :class="getCardColor(entry.type)"
-                  :data-tooltip="
-                    $t('board.discardTooltip', {
-                      name: getCardName(entry.type),
-                      owner: entry.owner,
-                    })
-                  "
                 >
                   <img
                     v-if="getCardImage(entry.type)"
                     :src="getCardImage(entry.type)"
                     :alt="getCardName(entry.type)"
-                    class="w-full h-full object-cover pointer-events-none rounded-[0.4rem]"
+                    class="w-full h-full pointer-events-none rounded-[0.4rem]"
                   />
                   <div
                     v-else
@@ -258,6 +259,7 @@
         </div>
       </main>
 
+      <!-- ХЕНД (КАРТИ ГРАВЦЯ) -->
       <footer
         class="w-full max-w-2xl xtall:max-w-3xl mx-auto bg-brand-bg-dark/90 backdrop-blur-md p-1.5 sm:p-2 short:p-1 rounded-t-2xl border-t border-x border-slate-800 flex flex-col items-center shadow-2xl flex-shrink-0 z-10 relative"
         style="height: calc(var(--card-primary-h) + 1.5rem)"
@@ -276,6 +278,8 @@
               class="w-12 sm:w-16 lg:w-20 h-auto object-contain animate-fade-in flex-shrink-0"
             />
           </div>
+
+          <!-- Канцлер панель -->
           <div
             v-if="showChancellorPanel"
             class="w-full flex flex-col items-center h-full justify-between"
@@ -301,7 +305,7 @@
                 "
                 :data-tooltip="`${getCardName(cardType)}(${getCardValue(
                   cardType
-                )}) — ${getCardDesc(cardType)}`"
+                )}) - ${getCardDesc(cardType)}`"
               >
                 <span
                   class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
@@ -310,6 +314,8 @@
               </div>
             </div>
           </div>
+
+          <!-- Звичайний хенд -->
           <div
             v-else
             class="flex justify-center gap-2 sm:gap-3 lg:gap-4 relative z-10 items-center w-full h-full"
@@ -333,13 +339,15 @@
               "
               :data-tooltip="`${getCardName(cardType)}(${getCardValue(
                 cardType
-              )}) — ${getCardDesc(cardType)}`"
+              )}) - ${getCardDesc(cardType)}`"
             >
               <span
                 class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
                 >{{ getCardName(cardType) }}</span
               >
             </div>
+
+            <!-- Захист -->
             <div
               v-if="myPlayer?.is_protected"
               class="game-card card-secondary border-2 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
@@ -364,12 +372,14 @@
       </footer>
     </div>
 
+    <!-- ПРАВА ЧАСТИНА: ЛОГ ГРИ -->
     <div
       class="lg:col-span-4 h-full max-h-app overflow-hidden hidden lg:block pt-1 min-h-0"
     >
       <GameLogPanel />
     </div>
 
+    <!-- МОДАЛКИ -->
     <ActionModal
       :is-open="showActionModal"
       :card-type="String(activePlay.cardType)"
@@ -494,6 +504,7 @@ const totalCardsInHands = computed(() => {
 const arrangedPlayers = computed(() => {
   const playersData = props.gameState?.players;
   if (!playersData) return [];
+
   const list = Array.isArray(playersData)
     ? props.gameState.players
         .filter(
@@ -557,79 +568,80 @@ onUnmounted(() => {
   if (localTimerInterval) clearInterval(localTimerInterval);
 });
 
+// Слідкуємо за станом гри для оновлення стосу скидання
 watch(
-  ...[
-    () => props.gameState,
-    (newGameState, oldGameState) => {
-      if (!newGameState || !newGameState.players || !newGameState.turn_order) return;
-      const playersData = newGameState.players;
-      const turnOrder = newGameState.turn_order;
-      const playerById = {};
-      if (Array.isArray(playersData)) {
-        playersData.forEach((p) => {
-          if (p && typeof p.id === "string") playerById[p.id] = p;
-        });
-      } else {
-        Object.keys(playersData).forEach((id) => {
-          const raw = playersData[id];
-          if (raw && typeof raw === "object") playerById[id] = { ...raw, id };
-        });
-      }
-      const oldPlayers = oldGameState?.players
-        ? Array.isArray(oldGameState.players)
-          ? oldGameState.players
-          : Object.values(oldGameState.players)
-        : [];
-      const currentActiveID = turnOrder[newGameState.current_turn];
-      const idsInTurnOrder = Array.isArray(turnOrder) ? [...turnOrder] : [];
-      const allKnownIds = Object.keys(playerById);
-      const extraIds = allKnownIds.filter((id) => !idsInTurnOrder.includes(id));
-      const orderedIds = [...idsInTurnOrder, ...extraIds];
+  () => props.gameState,
+  (newGameState, oldGameState) => {
+    if (!newGameState || !newGameState.players || !newGameState.turn_order) return;
+    const playersData = newGameState.players;
+    const turnOrder = newGameState.turn_order;
+    const playerById = {};
 
-      orderedIds.forEach((pid) => {
-        const p = playerById[pid];
-        if (!p) return;
-        const oldP = oldPlayers.find((o) => o && o.id === pid);
-        const currentDiscardLength = Array.isArray(p.discard_pile)
-          ? p.discard_pile.length
-          : 0;
-        const oldDiscardLength =
-          oldP && Array.isArray(oldP.discard_pile) ? oldP.discard_pile.length : 0;
-        const seenLen = discardSeenLengths.value[pid] || 0;
-
-        if (currentDiscardLength > seenLen) {
-          for (let i = seenLen; i < currentDiscardLength; i++) {
-            const rawCard = p.discard_pile[i];
-            const isObject = typeof rawCard === "object" && rawCard !== null;
-            const cardType = isObject ? rawCard.type : rawCard;
-            discardSequence.value.push({
-              seq: discardSeqCounter++,
-              type: cardType,
-              owner: p.username || t("common.player"),
-              playerId: pid,
-            });
-          }
-          discardSeenLengths.value[pid] = currentDiscardLength;
-        } else if (currentDiscardLength < seenLen) {
-          discardSeenLengths.value[pid] = currentDiscardLength;
-        }
-
-        if (pid === effectiveMyID.value) return;
-
-        if (currentDiscardLength > oldDiscardLength) {
-          const lastCard = p.discard_pile[currentDiscardLength - 1];
-          lastPlayedCardsByPlayer.value[pid] = lastCard;
-        } else if (pid === currentActiveID) {
-          delete lastPlayedCardsByPlayer.value[pid];
-        }
-
-        if (currentDiscardLength === 0) {
-          delete lastPlayedCardsByPlayer.value[pid];
-        }
+    if (Array.isArray(playersData)) {
+      playersData.forEach((p) => {
+        if (p && typeof p.id === "string") playerById[p.id] = p;
       });
-    },
-    { deep: true, immediate: true },
-  ]
+    } else {
+      Object.keys(playersData).forEach((id) => {
+        const raw = playersData[id];
+        if (raw && typeof raw === "object") playerById[id] = { ...raw, id };
+      });
+    }
+
+    const oldPlayers = oldGameState?.players
+      ? Array.isArray(oldGameState.players)
+        ? oldGameState.players
+        : Object.values(oldGameState.players)
+      : [];
+    const currentActiveID = turnOrder[newGameState.current_turn];
+    const idsInTurnOrder = Array.isArray(turnOrder) ? [...turnOrder] : [];
+    const allKnownIds = Object.keys(playerById);
+    const extraIds = allKnownIds.filter((id) => !idsInTurnOrder.includes(id));
+    const orderedIds = [...idsInTurnOrder, ...extraIds];
+
+    orderedIds.forEach((pid) => {
+      const p = playerById[pid];
+      if (!p) return;
+      const oldP = oldPlayers.find((o) => o && o.id === pid);
+      const currentDiscardLength = Array.isArray(p.discard_pile)
+        ? p.discard_pile.length
+        : 0;
+      const oldDiscardLength =
+        oldP && Array.isArray(oldP.discard_pile) ? oldP.discard_pile.length : 0;
+      const seenLen = discardSeenLengths.value[pid] || 0;
+
+      if (currentDiscardLength > seenLen) {
+        for (let i = seenLen; i < currentDiscardLength; i++) {
+          const rawCard = p.discard_pile[i];
+          const isObject = typeof rawCard === "object" && rawCard !== null;
+          const cardType = isObject ? rawCard.type : rawCard;
+          discardSequence.value.push({
+            seq: discardSeqCounter++,
+            type: cardType,
+            owner: p.username || t("common.player"),
+            playerId: pid,
+          });
+        }
+        discardSeenLengths.value[pid] = currentDiscardLength;
+      } else if (currentDiscardLength < seenLen) {
+        discardSeenLengths.value[pid] = currentDiscardLength;
+      }
+
+      if (pid === effectiveMyID.value) return;
+
+      if (currentDiscardLength > oldDiscardLength) {
+        const lastCard = p.discard_pile[currentDiscardLength - 1];
+        lastPlayedCardsByPlayer.value[pid] = lastCard;
+      } else if (pid === currentActiveID) {
+        delete lastPlayedCardsByPlayer.value[pid];
+      }
+
+      if (currentDiscardLength === 0) {
+        delete lastPlayedCardsByPlayer.value[pid];
+      }
+    });
+  },
+  { deep: true, immediate: true }
 );
 
 watch(
@@ -692,7 +704,6 @@ watch(
 const handleCloseRevealModal = () => {
   gameStore.clearRevealedData();
 };
-
 const handleClearError = () => {
   gameStore.clearError();
 };
@@ -707,6 +718,7 @@ const handleStartGame = () => {
   }
   emit("start-game");
 };
+
 const getCardDesc = (type) =>
   getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
 const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-brand-surface-dim";
@@ -748,7 +760,6 @@ const canStartGame = computed(() => {
 const handleLeaveGame = () => {
   showLeaveConfirm.value = true;
 };
-
 const handleConfirmLeave = () => {
   showLeaveConfirm.value = false;
   emit("leave-game");
@@ -801,7 +812,6 @@ const handleActionModalSubmit = ({ handIndex, targetID, guessCardId }) => {
 const handleNextRoundRequest = () => {
   emit("next-round");
 };
-
 const handleRestartGameRequest = () => {
   emit("restart-game");
 };
@@ -822,6 +832,7 @@ const isOpponentLeft = computed(() => {
 });
 
 const handleChancellorClick = (index) => {};
+
 const handleChancellorModalSubmit = ({ keepHandIndex, bottomOrder }) => {
   const me = effectiveMyID.value;
   if (!me) return;

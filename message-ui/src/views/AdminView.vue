@@ -74,7 +74,7 @@
                   {{ user.id }}
                 </td>
                 <td class="p-4 font-semibold text-brand-text-muted">{{ user.username }}</td>
-                <td class="p-4 text-slate-400">{{ user.email || "—" }}</td>
+                <td class="p-4 text-slate-400">{{ user.email || "-" }}</td>
                 <td class="p-4">
                   <span
                     :class="[

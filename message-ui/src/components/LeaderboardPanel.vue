@@ -125,7 +125,7 @@ const fetchLeaderboard = async () => {
     if (!response.ok) throw new Error("Failed to load global rating");
 
     const data = await response.json();
-    leaders.value = Array.isArray(data) ? data : data.leaderboard || [];
+    leaders.value = data && Array.isArray(data) ? data : data?.leaderboard || [];
   } catch (err) {
     error.value = err.message;
     console.error("Leaderboard error:", err);

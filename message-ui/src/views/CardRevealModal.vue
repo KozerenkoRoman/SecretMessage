@@ -52,7 +52,7 @@
               :style="
                 card.info.image ? { backgroundImage: `url(${card.info.image})` } : {}
               "
-              :data-tooltip="`${card.info.name} (${card.id}) — ${card.info.desc}`"
+              :data-tooltip="`${card.info.name} (${card.id}) - ${card.info.desc}`"
             >
               <span
                 class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 z-10 relative text-amber-300 uppercase tracking-wider rounded-b-xl border-t border-white/5 w-full"

@@ -1,13 +1,11 @@
+/* ===== FILE: engine\apply_prince.go ===== */
 package engine
 
-// ApplyPrince реалізує ефект карти Prince
 func ApplyPrince(state GameState, action Action, rng RNG, clock Clock, startEventID uint64) (ApplyResult, error) {
 	shouldApply, err := CanTargetPlayer(state, action.PlayerID, action.TargetID)
 	if err != nil {
 		return ApplyResult{}, err
 	}
-
-	// Якщо всі інші захищені, а фронтенд прислав порожню ціль, Принц автоматично б'є по самому собі
 	if !shouldApply && (action.TargetID == "" || action.TargetID == "null" || action.TargetID == "undefined") {
 		action.TargetID = action.PlayerID
 	}
@@ -19,8 +17,9 @@ func ApplyPrince(state GameState, action Action, rng RNG, clock Clock, startEven
 	if target.IsOut {
 		return ApplyResult{}, NewError(ErrTargetAlreadyOut, "target_id=%s", action.TargetID)
 	}
+
+	// Якщо гравець захищений Дівчиною
 	if target.IsProtected {
-		// Якщо таргет під Handmaid — ефект ігнорується
 		events := []DomainEvent{{
 			EventID:   startEventID,
 			Type:      EventCardPlayed,
@@ -30,42 +29,56 @@ func ApplyPrince(state GameState, action Action, rng RNG, clock Clock, startEven
 		return ApplyResult{NewState: state, DomainEvents: events}, nil
 	}
 
+	// ТУТ ЗМІНА: дізнаємось заздалегідь, яку карту зараз скине гравець
+	var discardedCard CardType
+	hasCardToDiscard := len(target.Hand) > 0
+	if hasCardToDiscard {
+		discardedCard = target.Hand[0]
+	}
+
+	// Формуємо розширений Payload для розіграшу Принца
+	// Якщо твій CardPlayedPayload не має поля DiscardedCard, додай його туди,
+	// або використовуй динамічну мапу / кастомний тип події.
 	events := []DomainEvent{{
-		EventID:   startEventID,
-		Type:      EventCardPlayed,
-		Payload:   CardPlayedPayload{PlayerID: action.PlayerID, Card: CardPrince, TargetID: action.TargetID},
+		EventID: startEventID,
+		Type:    EventCardPlayed, // Фронтенд зреагує на messageKey, закладений під цей тип/картку
+		Payload: CardPlayedPayload{
+			PlayerID:      action.PlayerID,
+			TargetID:      action.TargetID,
+			Card:          CardPrince,
+			DiscardedCard: discardedCard, // КРИТИЧНО: передаємо скинуту карту на фронтенд!
+		},
 		Timestamp: clock.Now(),
 	}}
 
-	// Скидання карти з руки таргета
-	if len(target.Hand) > 0 {
-		discarded := target.Hand[0]
-		target.DiscardPile = append(target.DiscardPile, discarded)
+	if hasCardToDiscard {
+		target.DiscardPile = append(target.DiscardPile, discardedCard)
 		target.Hand = []CardType{}
 
-		// Якщо скинута Princess → миттєвий програш
-		if discarded == CardPrincess {
+		if discardedCard == CardPrincess {
 			target.IsOut = true
 			state.Players[action.TargetID] = target
 
+			// Додаємо подію елімінації, де вказано, що вибув через Принцесу
 			events = append(events, DomainEvent{
-				EventID:   startEventID + 1,
-				Type:      EventPlayerEliminated,
-				Payload:   PlayerEliminatedPayload{PlayerID: action.TargetID, Reason: ReasonPrincessPlayed},
+				EventID: startEventID + 1,
+				Type:    EventPlayerEliminated,
+				Payload: PlayerEliminatedPayload{
+					PlayerID: action.TargetID,
+					Reason:   ReasonPrincessPlayed,
+					Card:     CardPrincess,
+				},
 				Timestamp: clock.Now(),
 			})
-
 			return ApplyResult{NewState: state, DomainEvents: events}, nil
 		}
 	}
 
-	// Добір нової карти
+	// Набір нової карти з колоди або спаленої карти
 	if len(state.Deck) > 0 {
-		drawIndex := rng.Intn(len(state.Deck))
-		newCard := state.Deck[drawIndex]
+		newCard := state.Deck[0]
+		state.Deck = state.Deck[1:]
 
-		// Видаляємо карту з колоди
-		state.Deck = append(state.Deck[:drawIndex], state.Deck[drawIndex+1:]...)
 		target.Hand = append(target.Hand, newCard)
 		state.Players[action.TargetID] = target
 
@@ -76,24 +89,18 @@ func ApplyPrince(state GameState, action Action, rng RNG, clock Clock, startEven
 			Timestamp: clock.Now(),
 		})
 	} else {
-		// Якщо колода порожня → таргет бере BurnCard
 		if state.BurnCard != nil {
 			target.Hand = append(target.Hand, *state.BurnCard)
 			state.Players[action.TargetID] = target
-
 			events = append(events, DomainEvent{
 				EventID:   startEventID + 2,
 				Type:      EventCardDrawn,
 				Payload:   CardDrawnPayload{PlayerID: action.TargetID, Card: *state.BurnCard},
 				Timestamp: clock.Now(),
 			})
-			// BurnCard використана
 			state.BurnCard = nil
 		}
 	}
 
-	return ApplyResult{
-		NewState:     state,
-		DomainEvents: events,
-	}, nil
+	return ApplyResult{NewState: state, DomainEvents: events}, nil
 }

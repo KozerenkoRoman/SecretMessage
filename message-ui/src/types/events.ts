@@ -82,6 +82,7 @@ export interface CardPlayedPayload {
   player_id: string;
   card: CardType;
   target_id?: string;
+  discarded_card?: CardType;
 }
 
 /**

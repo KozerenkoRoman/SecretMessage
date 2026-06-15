@@ -1,26 +1,8 @@
 <template>
-  <!--
-    Головний контейнер: на ≥1024px (iPad landscape, всі цільові desktop-розширення)
-    розбивається на 12-колонковий грід: 8 колонок – ігрова зона, 4 – лог.
-    На <1024px (iPad portrait) грід згортається в одну колонку, лог ховається.
-    Висота через `h-app` (svh/dvh + vh fallback) щоб уникнути зрізаного контенту
-    на iOS Safari при появі/зникненні URL-бару.
-  -->
-  <!--
-    Розмір карт визначається ЄДИНОЮ змінною --card-primary-h, заданою
-    в @theme (style.css). Це гарантує що картки в руці гравця та
-    картки в модалках (Chancellor, Reveal, Guard guess) ВИГЛЯДАЮТЬ
-    ІДЕНТИЧНО. Secondary-картки (опоненти, колода, відбій, захист)
-    через --card-secondary-h = primary × 2/3 — інваріант гарантований
-    через calc() в CSS, не може бути порушений Tailwind-класом.
-  -->
   <div
     class="h-app bg-brand-bg text-white p-2 grid grid-cols-1 lg:grid-cols-12 overflow-hidden relative font-sans select-none gap-2 sm:gap-3"
   >
-    <!-- ЛІВА ЗОНА: ігрова дошка. Внутрішня вертикальна композиція через flex+min-h-0
-         дає змогу секціям коректно стискатися на 960px та розширюватися на 1600px. -->
     <div class="lg:col-span-8 flex flex-col h-full min-h-0 overflow-hidden">
-      <!-- HEADER -->
       <header
         class="w-full flex justify-between items-center bg-brand-surface/80 backdrop-blur px-3 py-2 rounded-xl border border-brand-border flex-shrink-0 gap-2 sm:gap-4 z-10 min-h-[44px] short:min-h-[40px] tall:min-h-[56px]"
       >
@@ -35,8 +17,9 @@
             <span
               class="text-xs font-medium text-brand-text-subtle hidden sm:inline max-w-[80px] truncate"
               :title="myPlayer?.username"
-              >{{ myPlayer?.username || $t("common.guest") }}</span
             >
+              {{ myPlayer?.username || $t("common.guest") }}
+            </span>
             <div
               class="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 p-[1px] shadow-inner flex-shrink-0"
             >
@@ -52,17 +35,30 @@
               {{ $t("board.room") }}{{ roomID }}
             </h2>
             <p class="text-xs text-slate-400">
-              {{ $t("board.time") }}
-              <span class="text-amber-400 font-mono font-bold text-sm">
-                {{ gameStore.gameState?.seconds_left ?? 0 }}{{ $t("board.timeUnit") }}
-              </span>
+              {{ $t("board.time")
+              }}<span class="text-amber-400 font-mono font-bold text-sm"
+                >{{ gameStore.gameState?.seconds_left ?? 0
+                }}{{ $t("board.timeUnit") }}</span
+              >
             </p>
           </div>
         </div>
+
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-2">
-            <template v-if="!gameState?.is_started">
-              <button v-if="canStartGame" @click="handleStartGame" class="btn-primary">
+            <template
+              v-if="
+                !gameState?.is_started &&
+                (!gameState?.turn_order || gameState.turn_order.length === 0)
+              "
+            >
+              <button
+                v-if="canStartGame"
+                @click="handleStartGame"
+                type="button"
+                class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                :disabled="isStarting"
+              >
                 {{ $t("board.start") }}
               </button>
               <div
@@ -97,18 +93,9 @@
         </div>
       </header>
 
-      <!-- MAIN: Ігровий стіл — займає весь доступний простір між header та footer.
-           min-h-0 + flex-1 на трьох рівнях гарантує, що секції стискаються,
-           а не виштовхують footer за межі viewport. -->
       <main
         class="flex-1 min-h-0 flex flex-col my-1 gap-1 sm:gap-2 overflow-hidden w-full mx-auto"
       >
-        <!-- Опоненти: висота = card-secondary-h + 4rem (64px) запасу на:
-             header імені/рахунку (~32px) + padding панелі (16px) + py-2
-             "повітря" навколо карт (16px). Це гарантує що картки-сорочки
-             повністю вміщаються БЕЗ обрізання. flex-shrink-0 робить
-             контейнер жорстким — він НЕ стискається у вузьких viewport,
-             а виходить за межі через wrap (square:flex-wrap). -->
         <div
           class="w-full flex justify-center items-stretch gap-2 sm:gap-4 lg:gap-6 flex-wrap square:flex-wrap wide:flex-nowrap flex-shrink-0"
           style="height: calc(var(--card-secondary-h) + 4rem)"
@@ -139,21 +126,18 @@
                   <template v-if="player.is_protected">
                     <span
                       class="font-bold text-[11px] tall:text-xs truncate max-w-[150px] transition-all duration-200 px-1.5 py-0.5 rounded bg-brand-warning text-slate-950 font-black shadow"
-                      >{{ $t("board.protection") }}</span
                     >
+                      {{ $t("board.protection") }}
+                    </span>
                   </template>
                   <template v-if="player.is_out"> ({{ $t("status.out") }})</template>
                 </span>
                 <span
                   class="text-[12px] tall:text-xs retina:text-sm bg-brand-surface-dim text-yellow-400 px-1 py-0.5 rounded font-mono flex-shrink-0"
                 >
-                  ★{{ player.score || 0 }}</span
-                >
+                  ★{{ player.score || 0 }}
+                </span>
               </div>
-
-              <!-- Card row: НЕ використовуємо overflow-hidden (це і обрізало картки).
-                   py-2 додає вертикальне "повітря", щоб тінь+рамка карти не торкалися
-                   меж панелі. items-center центрує картки вертикально. -->
               <div
                 class="flex justify-center items-center w-full relative px-2 sm:px-3 lg:px-5 py-2 flex-1 min-h-0"
               >
@@ -165,9 +149,6 @@
                     :key="cIdx"
                     class="card-secondary rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative"
                   >
-                    <!-- object-contain зберігає пропорції зображення сорочки;
-                         object-cover різав 5:7-карту, бо src-зображення може
-                         бути іншого співвідношення. -->
                     <img
                       :src="deckBackImage"
                       :alt="$t('common.cardBackAlt')"
@@ -203,8 +184,6 @@
           </template>
         </div>
 
-        <!-- Стіл (колода + відбій): flex-1 + min-h-0 щоб займав весь залишок між опонентами і футером
-             замість фіксованого h-[40vh] (який ламався на 960px і 1600px). -->
         <div
           class="flex-1 min-h-0 flex items-center justify-center p-2 sm:p-3 bg-brand-bg-dark/40 rounded-2xl border border-slate-800/60 w-full overflow-hidden"
         >
@@ -229,16 +208,14 @@
                   >
                 </div>
               </div>
-              <div class="text-xs sm:text-sm tall:text-base font-bold text-slate-400 font-mono mt-0.5">
+              <div
+                class="text-xs sm:text-sm tall:text-base font-bold text-slate-400 font-mono mt-0.5"
+              >
                 {{ $t("board.discardPile") }}{{ globalDiscardPile.length }}
               </div>
             </div>
-            <div
-              class="h-full max-h-[80%] w-[1px] bg-brand-surface flex-shrink-0"
-            ></div>
-            <div
-              class="flex-scroll flex flex-col justify-start gap-1 pl-1 h-full"
-            >
+            <div class="h-full max-h-[80%] w-[1px] bg-brand-surface flex-shrink-0"></div>
+            <div class="flex-scroll flex flex-col justify-start gap-1 pl-1 h-full">
               <div
                 class="flex justify-between items-center border-b border-slate-800 pb-1 flex-shrink-0"
               >
@@ -247,13 +224,6 @@
                   >{{ $t("board.table") }}</span
                 >
               </div>
-              <!-- Стіл відбою: РІВНО 2 горизонтальних ряди (utility .discard-grid).
-                   Кожна карта = card-secondary (= 2/3 висоти руки гравця).
-                   Якщо карт більше, ніж вміщає ширина — горизонтальний скрол.
-                   Ітеруємо ПРЯМО по globalDiscardPile (хронологічний порядок,
-                   гарантований watcher-ом). Key = entry.seq, monotonically
-                   зростаюче ціле — забезпечує стабільну Vue-діфузію без
-                   ре-рендеру вже видимих карт при додаванні нових. -->
               <div
                 class="discard-grid custom-scrollbar w-full flex-1 min-h-0 px-1 pt-2 sm:pt-4 pb-1"
               >
@@ -288,9 +258,6 @@
         </div>
       </main>
 
-      <!-- FOOTER (рука гравця): висота прив'язана до --card-primary-h + запас на
-           paddings/мітку карти. Це робить footer та primary-картки нерозривно
-           пов'язаними — змінюємо --card-primary-h в одному місці і ВСЕ масштабується. -->
       <footer
         class="w-full max-w-2xl xtall:max-w-3xl mx-auto bg-brand-bg-dark/90 backdrop-blur-md p-1.5 sm:p-2 short:p-1 rounded-t-2xl border-t border-x border-slate-800 flex flex-col items-center shadow-2xl flex-shrink-0 z-10 relative"
         style="height: calc(var(--card-primary-h) + 1.5rem)"
@@ -309,8 +276,6 @@
               class="w-12 sm:w-16 lg:w-20 h-auto object-contain animate-fade-in flex-shrink-0"
             />
           </div>
-
-          <!-- CHANCELLOR PANEL -->
           <div
             v-if="showChancellorPanel"
             class="w-full flex flex-col items-center h-full justify-between"
@@ -345,8 +310,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Контент руки (Стандартний стан) -->
           <div
             v-else
             class="flex justify-center gap-2 sm:gap-3 lg:gap-4 relative z-10 items-center w-full h-full"
@@ -377,10 +340,6 @@
                 >{{ getCardName(cardType) }}</span
               >
             </div>
-
-            <!-- Карта захисту: secondary (вона лише індикатор, не активна рука).
-                 Розмір автоматично 2/3 від основних рук — інваріант підтримано
-                 без додаткових Tailwind-класів. -->
             <div
               v-if="myPlayer?.is_protected"
               class="game-card card-secondary border-2 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
@@ -405,13 +364,12 @@
       </footer>
     </div>
 
-    <!-- Лог: показуємо на iPad landscape (≥1024px) і вище. На portrait/square ховаємо
-         щоб не з'їдати простір ігрової дошки. max-h на батьківському grid контейнері. -->
-    <div class="lg:col-span-4 h-full max-h-app overflow-hidden hidden lg:block pt-1 min-h-0">
+    <div
+      class="lg:col-span-4 h-full max-h-app overflow-hidden hidden lg:block pt-1 min-h-0"
+    >
       <GameLogPanel />
     </div>
 
-    <!-- Модальні вікна -->
     <ActionModal
       :is-open="showActionModal"
       :card-type="String(activePlay.cardType)"
@@ -477,6 +435,7 @@ const props = defineProps({
   roomID: { type: String, required: true },
   gameState: { type: Object, required: true },
   myID: { type: String, default: "" },
+  isStarting: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -490,6 +449,7 @@ const emit = defineEmits([
 const { t } = useI18n();
 const gameStore = useGameStore();
 const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
+
 const showLeaveConfirm = ref(false);
 const showActionModal = ref(false);
 const activePlay = ref({ cardType: "", handIndex: 0, targetID: "", guessCard: "" });
@@ -497,24 +457,6 @@ const lastPlayedCardsByPlayer = ref({});
 const localSecondsLeft = ref(0);
 let localTimerInterval = null;
 
-// =============================================================================
-// ХРОНОЛОГІЧНА ПОСЛІДОВНІСТЬ ВІДБОЮ
-// -----------------------------------------------------------------------------
-// `discardSequence` — масив УСІХ скинутих карт у глобальному порядку гри:
-// перший елемент = карта, зіграна на 1-му ході; останній = щойно зіграна.
-// Не сортуємо post-hoc (це і ламало порядок раніше через ненадійне поле
-// card.turn). Замість цього стежимо за ростом per-player discard_pile
-// масивів і дописуємо НОВІ карти в момент їхньої появи у state-update.
-// Оскільки бекенд надсилає state послідовно після кожного CARD_PLAYED,
-// порядок отримання станів = хронологічний порядок гри.
-//
-// `discardSeenLengths` — мапа { playerId -> last_observed_discard_length }.
-// Дозволяє визначити скільки нових карт з'явилось у конкретного гравця
-// між двома апдейтами стану. Якщо за один state з'являється >1 нової
-// карти у гравця (рідко, але можливо при батч-обробці), додаємо їх у
-// тому порядку, в якому вони лежать у бекенд-масиві (бекенд-порядок
-// per-player вже хронологічний).
-// =============================================================================
 const discardSequence = ref([]);
 const discardSeenLengths = ref({});
 let discardSeqCounter = 0;
@@ -534,11 +476,9 @@ const effectiveMyID = computed(() => {
 const totalCardsInHands = computed(() => {
   const playersData = props.gameState?.players;
   if (!playersData) return 0;
-
   const playersList = Array.isArray(playersData)
     ? playersData
     : Object.values(playersData);
-
   return playersList.reduce((sum, p) => {
     if (!p) return sum;
     const count =
@@ -624,8 +564,6 @@ watch(
       if (!newGameState || !newGameState.players || !newGameState.turn_order) return;
       const playersData = newGameState.players;
       const turnOrder = newGameState.turn_order;
-
-      // Будуємо map { id -> player } для O(1) lookup при ітерації turn_order.
       const playerById = {};
       if (Array.isArray(playersData)) {
         playersData.forEach((p) => {
@@ -637,18 +575,12 @@ watch(
           if (raw && typeof raw === "object") playerById[id] = { ...raw, id };
         });
       }
-
       const oldPlayers = oldGameState?.players
         ? Array.isArray(oldGameState.players)
           ? oldGameState.players
           : Object.values(oldGameState.players)
         : [];
       const currentActiveID = turnOrder[newGameState.current_turn];
-
-      // Список ID для обробки: УСІ гравці з turn_order (включно зі мною),
-      // потім будь-які гравці поза turn_order (eliminated, але мають
-      // discard_pile з минулих ходів). Цей порядок гарантує, що при
-      // одночасній появі кількох карт ми додаємо їх у порядку turn_order.
       const idsInTurnOrder = Array.isArray(turnOrder) ? [...turnOrder] : [];
       const allKnownIds = Object.keys(playerById);
       const extraIds = allKnownIds.filter((id) => !idsInTurnOrder.includes(id));
@@ -657,20 +589,14 @@ watch(
       orderedIds.forEach((pid) => {
         const p = playerById[pid];
         if (!p) return;
-
         const oldP = oldPlayers.find((o) => o && o.id === pid);
         const currentDiscardLength = Array.isArray(p.discard_pile)
           ? p.discard_pile.length
           : 0;
         const oldDiscardLength =
           oldP && Array.isArray(oldP.discard_pile) ? oldP.discard_pile.length : 0;
-
-        // ---- Хронологічний tracker -------------------------------------
-        // discardSeenLengths — стійкий counter (переживає випадкові
-        // re-eval-и watcher-а). Якщо backend-масив виріс — дописуємо
-        // ВСІ нові елементи в discardSequence у порядку їхньої появи
-        // у backend-масиві (per-player порядок вже хронологічний).
         const seenLen = discardSeenLengths.value[pid] || 0;
+
         if (currentDiscardLength > seenLen) {
           for (let i = seenLen; i < currentDiscardLength; i++) {
             const rawCard = p.discard_pile[i];
@@ -685,21 +611,18 @@ watch(
           }
           discardSeenLengths.value[pid] = currentDiscardLength;
         } else if (currentDiscardLength < seenLen) {
-          // Backend «вкоротив» масив (нова партія / round reset / прибрана
-          // карта). Синхронізуємо counter, але НЕ перевизначаємо
-          // discardSequence тут — повний reset робиться окремими вотчерами
-          // на round_number / deck.length.
           discardSeenLengths.value[pid] = currentDiscardLength;
         }
 
-        // ---- Last-played indicator (без змін у логіці) -----------------
         if (pid === effectiveMyID.value) return;
+
         if (currentDiscardLength > oldDiscardLength) {
           const lastCard = p.discard_pile[currentDiscardLength - 1];
           lastPlayedCardsByPlayer.value[pid] = lastCard;
         } else if (pid === currentActiveID) {
           delete lastPlayedCardsByPlayer.value[pid];
         }
+
         if (currentDiscardLength === 0) {
           delete lastPlayedCardsByPlayer.value[pid];
         }
@@ -712,8 +635,6 @@ watch(
 watch(
   () => totalCardsInHands.value,
   (newCount, oldCount) => {
-    // Зростання загальної кількості карт у руках = початок нової роздачі/раунду.
-    // Скидаємо як indicator, так і chronological tracker.
     if (newCount > oldCount) {
       lastPlayedCardsByPlayer.value = {};
       resetDiscardTracking();
@@ -739,7 +660,6 @@ watch(
 watch(
   () => props.gameState?.deck?.length,
   (newDeckLength, oldDeckLength) => {
-    // Колода виросла → нова партія/перетасовка → відбій спорожнів на бекенді.
     if (newDeckLength && oldDeckLength && newDeckLength > oldDeckLength) {
       handleCloseRevealModal();
       lastPlayedCardsByPlayer.value = {};
@@ -757,7 +677,6 @@ watch(
       localTimerInterval = setInterval(() => {
         if (localSecondsLeft.value > 0) {
           localSecondsLeft.value--;
-
           if (gameStore.gameState) {
             gameStore.gameState.seconds_left = localSecondsLeft.value;
           }
@@ -778,8 +697,16 @@ const handleClearError = () => {
   gameStore.clearError();
 };
 
-const handleStartGame = () => emit("start-game");
-
+const handleStartGame = () => {
+  if (
+    props.isStarting ||
+    props.gameState?.is_started ||
+    (props.gameState?.turn_order && props.gameState.turn_order.length > 0)
+  ) {
+    return;
+  }
+  emit("start-game");
+};
 const getCardDesc = (type) =>
   getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
 const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-brand-surface-dim";
@@ -790,19 +717,6 @@ const getCardValue = (type) => {
   return val !== undefined ? val : "?";
 };
 
-// =============================================================================
-// globalDiscardPile — РЕАКТИВНИЙ ХРОНОЛОГІЧНИЙ список карт у відбої.
-// -----------------------------------------------------------------------------
-// На відміну від попередньої реалізації, ми НЕ перебудовуємо порядок з
-// per-player масивів і НЕ покладаємось на ненадійне поле card.turn.
-// Замість цього читаємо discardSequence — масив, який поповнюється
-// watcher-ом у момент отримання кожного state-update від бекенду.
-// Порядок отримання state-update = порядок гри = хронологія ходів.
-//
-// Розрахунок поля owner винесено сюди (а не в watcher), щоб username
-// залишався reactive: якщо гравець десь змінить ім'я, всі його старі
-// карти у відбої одразу відобразять нове.
-// =============================================================================
 const globalDiscardPile = computed(() => {
   const playersData = props.gameState?.players;
   const lookupOwner = (pid) => {
@@ -813,7 +727,6 @@ const globalDiscardPile = computed(() => {
     }
     return playersData[pid]?.username || t("common.player");
   };
-
   return discardSequence.value.map((entry) => ({
     type: entry.type,
     owner: lookupOwner(entry.playerId),
@@ -908,10 +821,7 @@ const isOpponentLeft = computed(() => {
   return playersList.length < 2;
 });
 
-const handleChancellorClick = (index) => {
-  // Заглушка для кліку по карті канцлера
-};
-
+const handleChancellorClick = (index) => {};
 const handleChancellorModalSubmit = ({ keepHandIndex, bottomOrder }) => {
   const me = effectiveMyID.value;
   if (!me) return;

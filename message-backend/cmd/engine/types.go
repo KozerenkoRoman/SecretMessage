@@ -178,9 +178,10 @@ func (s GameState) Clone() GameState {
 // CardPlayedPayload — гравець зіграв карту з руки.
 // Подія: EventCardPlayed.
 type CardPlayedPayload struct {
-	PlayerID string   `json:"player_id"`
-	Card     CardType `json:"card"`
-	TargetID string   `json:"target_id,omitempty"`
+	PlayerID      string   `json:"player_id"`
+	Card          CardType `json:"card"`
+	TargetID      string   `json:"target_id,omitempty"`
+	DiscardedCard CardType `json:"discarded_card,omitempty"`
 }
 
 func (CardPlayedPayload) IsEventPayload()              {}
@@ -227,8 +228,9 @@ func (p PriestEffectPayload) Mask(viewerID string) EventPayload {
 // Reason: "guard_hit", "baron_lost", "princess_played", "left", тощо.
 // Подія: EventPlayerEliminated.
 type PlayerEliminatedPayload struct {
-	PlayerID string `json:"player_id"`
-	Reason   string `json:"reason"`
+	PlayerID string   `json:"player_id"`
+	Reason   string   `json:"reason"`
+	Card     CardType `json:"card"`
 }
 
 func (PlayerEliminatedPayload) IsEventPayload()              {}
@@ -349,8 +351,10 @@ func (p ChancellorResolvedPayload) Mask(viewerID string) EventPayload {
 // Без секретів — карти роздаються через RoundComparedPayload.
 // Подія: EventBaronResult.
 type BaronResultPayload struct {
-	WinnerID string `json:"winner_id"`
-	LoserID  string `json:"loser_id"`
+	WinnerID   string   `json:"winner_id"`
+	LoserID    string   `json:"loser_id"`
+	WinnerCard CardType `json:"winner_card"`
+	LoserCard  CardType `json:"loser_card"`
 }
 
 func (BaronResultPayload) IsEventPayload()              {}

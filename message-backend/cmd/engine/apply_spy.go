@@ -1,5 +1,7 @@
 package engine
 
+import "slices"
+
 func ApplySpy(state GameState, action Action, clock Clock, startEventID uint64) (ApplyResult, error) {
 	player, ok := state.Players[action.PlayerID]
 	if !ok {
@@ -9,12 +11,14 @@ func ApplySpy(state GameState, action Action, clock Clock, startEventID uint64) 
 		return ApplyResult{}, NewError(ErrPlayerAlreadyOut, "player_id=%s", action.PlayerID)
 	}
 
-	events := []DomainEvent{{
-		EventID:   startEventID,
-		Type:      EventCardPlayed,
-		Payload:   CardPlayedPayload{PlayerID: action.PlayerID, Card: CardSpy},
-		Timestamp: clock.Now(),
-	}}
+	events := []DomainEvent{
+		{
+			EventID:   startEventID,
+			Type:      EventCardPlayed,
+			Payload:   CardPlayedPayload{PlayerID: action.PlayerID, Card: CardSpy},
+			Timestamp: clock.Now(),
+		},
+	}
 
 	return ApplyResult{
 		NewState:     state,
@@ -23,23 +27,28 @@ func ApplySpy(state GameState, action Action, clock Clock, startEventID uint64) 
 }
 
 func ResolveSpyBonus(state GameState) GameState {
-	spyOwners := []string{}
+	activeSpyOwners := make([]string, 0)
 
+	// 1. Спочатку скидаємо прапорець абсолютно всім гравцям перед перевіркою
 	for id, p := range state.Players {
-		for _, c := range p.DiscardPile {
-			if c == CardSpy {
-				spyOwners = append(spyOwners, id)
-				break
-			}
+		p.SpyPointsAwarded = false
+		state.Players[id] = p
+	}
+
+	// 2. Шукаємо тих, хто зіграв шпигуна (НЕВАЖЛИВО, чи гравець IsOut чи ні)
+	for id, p := range state.Players {
+		hasSpy := slices.Contains(p.DiscardPile, CardSpy)
+		if hasSpy {
+			activeSpyOwners = append(activeSpyOwners, id)
 		}
 	}
 
-	// Бонус нараховується ЛІШЕ якщо Шпигун у відбої є рівно в ОДНОГО гравця
-	if len(spyOwners) == 1 {
-		winnerID := spyOwners[0]
+	// 3. Якщо такий гравець рівно один — нараховуємо бал
+	if len(activeSpyOwners) == 1 {
+		winnerID := activeSpyOwners[0]
 		p := state.Players[winnerID]
 		p.SpyPointsAwarded = true
-		p.Score++ // Обов'язково додаємо очко в структуру даних сервера!
+		p.Score++
 		state.Players[winnerID] = p
 	}
 

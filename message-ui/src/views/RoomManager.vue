@@ -10,14 +10,15 @@
         <div
           class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"
         ></div>
-        <p class="text-brand-text-subtle font-medium text-sm mb-1">{{ $t("room.connecting") }}</p>
+        <p class="text-brand-text-subtle font-medium text-sm mb-1">
+          {{ $t("room.connecting") }}
+        </p>
         <p
           class="text-amber-400 font-mono text-xs tracking-wider mb-6 truncate px-2"
           :title="roomID"
         >
           {{ roomID }}...
         </p>
-
         <button
           @click="handleLeaveRoom"
           type="button"
@@ -33,11 +34,12 @@
       :roomID="roomID"
       :gameState="gameState"
       :myID="myID"
+      :isStarting="isSubmitting"
       @play-card="handlePlayCard"
       @start-game="handleStartGameSignal"
       @leave-game="handleLeaveRoom"
       @next-round="triggerNextRound"
-      @restart-game="triggerRestartGame"
+      @restart-game="handleStartGameSignal"
     />
   </div>
 </template>
@@ -56,17 +58,35 @@ const router = useRouter();
 
 const roomID = computed(() => route.params.id);
 const loading = ref(true);
-const gameState = computed(() => gameStore.gameState);
+const isSubmitting = ref(false);
 
+const gameState = computed(() => gameStore.gameState);
 const myID = computed(() => {
   return authStore.user?.id || localStorage.getItem("user_id") || "";
 });
+
+// Перевірка, чи гра дійсно триває в реальному часі (як на Go-бекенді)
+const isActualGameStarted = (state) => {
+  if (!state) return false;
+  if (state.is_game_over || state.phase === "ROUND_END") {
+    return false;
+  }
+
+  return (
+    state.is_started || (Array.isArray(state.turn_order) && state.turn_order.length > 0)
+  );
+};
 
 watch(
   () => gameStore.gameState,
   (newState) => {
     if (newState) {
       loading.value = false;
+      if (newState.is_game_over || newState.phase === "ROUND_END") {
+        isSubmitting.value = false;
+      } else {
+        isSubmitting.value = false;
+      }
     }
   },
   { immediate: true }
@@ -80,17 +100,22 @@ onMounted(() => {
 });
 
 const triggerNextRound = () => {
+  if (isSubmitting.value) return;
   console.log("[RoomManager] Надсилаємо запит NEXT_ROUND на бекенд...");
+  isSubmitting.value = true;
   gameStore.sendWSMessage("NEXT_ROUND", null, null, null);
 };
 
-const triggerRestartGame = () => {
-  console.log("[RoomManager] Надсилаємо запит START_GAME для перезапуску сесії...");
-  gameStore.sendWSMessage("START_GAME", null, null, null);
-};
-
 const handleStartGameSignal = () => {
+  // Жорстке блокування на фронтенді, якщо запущено або триває еміт
+  if (isSubmitting.value || isActualGameStarted(gameStore.gameState)) {
+    console.warn(
+      "[RoomManager] Запит START_GAME відхилено фронтендом: гра вже запущена або триває обробка."
+    );
+    return;
+  }
   console.log("[RoomManager] Надсилаємо сигнал START_GAME на сервер...");
+  isSubmitting.value = true;
   gameStore.sendWSMessage("START_GAME", null, null, null);
 };
 

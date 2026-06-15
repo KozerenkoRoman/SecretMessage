@@ -345,9 +345,7 @@ func (r *Room) HandlePlayerLeave(ctx context.Context, playerID string) error {
 	log.Info("Гравець вийшов з активної партії — фіксуємо поразку")
 
 	for _, card := range player.Hand {
-		if card != engine.CardSpy {
-			player.DiscardPile = append(player.DiscardPile, card)
-		}
+		player.DiscardPile = append(player.DiscardPile, card)
 	}
 	player.Hand = nil
 	player.IsOut = true
@@ -1016,7 +1014,7 @@ func (r *Room) NextRound() error {
 		player.Hand = []engine.CardType{card}
 		player.DiscardPile = []engine.CardType{}
 
-		// ВАЖЛИВО: Саме тут гравець знову стає активним!
+		player.SpyPointsAwarded = false
 		player.IsOut = false
 		player.IsProtected = false
 		r.state.Players[id] = player
@@ -1268,9 +1266,7 @@ func (r *Room) eliminatePlayer(playerID string) error {
 
 	// Очищаємо руку гравця та міняємо статус
 	for _, card := range player.Hand {
-		if card != engine.CardSpy {
-			player.DiscardPile = append(player.DiscardPile, card)
-		}
+		player.DiscardPile = append(player.DiscardPile, card)
 	}
 	player.Hand = nil
 	player.IsOut = true

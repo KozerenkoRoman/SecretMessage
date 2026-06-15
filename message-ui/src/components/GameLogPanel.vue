@@ -72,6 +72,44 @@
               </span>
             </template>
 
+            <template #discarded_card>
+              <span
+                class="text-orange-400 font-medium underline decoration-orange-500/40"
+              >
+                {{
+                  log.namedArgs?.discarded_card
+                    ? log.namedArgs.discarded_card.includes(".")
+                      ? $t(log.namedArgs.discarded_card)
+                      : log.namedArgs.discarded_card
+                    : ""
+                }}
+              </span>
+            </template>
+
+            <template #winner_card>
+              <span class="text-emerald-400 font-medium italic">
+                {{
+                  log.namedArgs?.winner_card
+                    ? log.namedArgs.winner_card.includes(".")
+                      ? $t(log.namedArgs.winner_card)
+                      : log.namedArgs.winner_card
+                    : ""
+                }}
+              </span>
+            </template>
+
+            <template #loser_card>
+              <span class="text-rose-400 font-medium italic">
+                {{
+                  log.namedArgs?.loser_card
+                    ? log.namedArgs.loser_card.includes(".")
+                      ? $t(log.namedArgs.loser_card)
+                      : log.namedArgs.loser_card
+                    : ""
+                }}
+              </span>
+            </template>
+
             <template #guess>
               <span class="text-rose-400 font-medium italic">
                 {{
@@ -91,7 +129,7 @@
             </template>
 
             <template #reason>
-              <span class="text-slate-400 italic text-[10px]">
+              <span class="text-slate-400 italic text-[11px]">
                 {{
                   log.namedArgs?.reason
                     ? log.namedArgs.reason.includes(".")

@@ -197,6 +197,7 @@ export const useGameStore = defineStore('gameStore', () => {
           }
 
           if (Array.isArray(packet.events)) {
+            let lastDrawnPlayerId = null;
             packet.events.forEach((ev) => {
               if (!ev || typeof ev !== 'object') return;
               const payload = ev.payload || {};
@@ -221,11 +222,20 @@ export const useGameStore = defineStore('gameStore', () => {
                   addToLog('log.priest_effect', { player: getPlayerName(payload.viewer_id), target: getPlayerName(payload.target_id) });
                   break;
                 case 'CARD_PLAYED':
-                  addToLog(payload.target_id ? 'log.card_played_targeted' : 'log.card_played', {
-                    player: getPlayerName(payload.player_id),
-                    card: getCardKey(payload.card),
-                    target: getPlayerName(payload.target_id)
-                  });
+                  const isPrince = Number(payload.card) === 5;
+                  if (isPrince && payload.discarded_card !== undefined && payload.discarded_card !== null) {
+                    addToLog('log.prince_effect', {
+                      player: getPlayerName(payload.player_id),
+                      target: getPlayerName(payload.target_id),
+                      discarded_card: getCardKey(payload.discarded_card)
+                    });
+                  } else {
+                    addToLog(payload.target_id ? 'log.card_played_targeted' : 'log.card_played', {
+                      player: getPlayerName(payload.player_id),
+                      card: getCardKey(payload.card),
+                      target: getPlayerName(payload.target_id)
+                    });
+                  }
                   break;
                 case 'GUARD_HIT':
                   addToLog('log.guard_hit', { player: getPlayerName(payload.player_id), target: getPlayerName(payload.target_id), guess: getCardKey(payload.guess) });
@@ -234,7 +244,7 @@ export const useGameStore = defineStore('gameStore', () => {
                   addToLog('log.guard_miss', { player: getPlayerName(payload.player_id), target: getPlayerName(payload.target_id), guess: getCardKey(payload.guess) });
                   break;
                 case 'BARON_RESULT':
-                  addToLog('log.baron_result', { winner: getPlayerName(payload.winner_id), loser: getPlayerName(payload.loser_id) });
+                  addToLog('log.baron_result', { winner: getPlayerName(payload.winner_id), loser: getPlayerName(payload.loser_id), loser_card: getCardKey(payload.loser_card) });
                   break;
                 case 'PLAYER_ELIMINATED':
                   addToLog('log.player_eliminated', { player: getPlayerName(payload.player_id), reason: `reasons.${payload.reason}` });
@@ -252,6 +262,11 @@ export const useGameStore = defineStore('gameStore', () => {
                   addToLog('log.player_left', { player: getPlayerName(payload.player_id) });
                   break;
                 case 'CARD_DRAWN':
+                  if (payload.player_id === lastDrawnPlayerId) {
+                    console.log(`[Log Skipper] Пропущено дублюючу подію CARD_DRAWN для гравця: ${payload.player_id}`);
+                    break;
+                  }
+                  lastDrawnPlayerId = payload.player_id;
                   addToLog('log.card_drawn', { player: getPlayerName(payload.player_id) });
                   break;
                 case 'CHANCELLOR_DRAWN':

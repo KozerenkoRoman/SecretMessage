@@ -61,7 +61,7 @@ VALUES ($1, $2, $3, 'admin', $4)
 ON CONFLICT (username) DO NOTHING;
 
 -- name: GetLeaderboard :many
-SELECT u.username, u.avatar_seed, s.games_played, s.games_won, s.total_score, s.updated_at
+SELECT u.username, u.avatar_seed, s.games_played, s.games_won, s.total_score, s.updated_at, s.spy_bonuses_received
 FROM user_stats as s
 JOIN users as u ON s.user_id = u.id
 ORDER BY s.total_score DESC, s.games_won DESC

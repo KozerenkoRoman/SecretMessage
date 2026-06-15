@@ -68,7 +68,9 @@
             {{ player.total_score }}
           </div>
           <div class="text-xs text-brand-text-subtle font-mono">
-            Wan:{{ player.games_won }} / Spy:{{ player.games_played - player.games_won }}
+            Total:{{ player.games_played }} / Wan:{{ player.games_won }} / Spy:{{
+              player.spy_bonuses_received
+            }}
           </div>
         </div>
       </div>

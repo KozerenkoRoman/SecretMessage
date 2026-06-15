@@ -484,6 +484,10 @@ func (s *Storage) GetLeaderboardTop(ctx context.Context, limit int32) ([]gen.Get
 	if err != nil {
 		return nil, fmt.Errorf("failed to get leaderboard: %w", err)
 	}
+
+	if len(leaderboard) == 0 {
+		leaderboard = make([]gen.GetLeaderboardRow, 0)
+	}
 	return leaderboard, nil
 }
 

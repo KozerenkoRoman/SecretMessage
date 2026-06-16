@@ -135,6 +135,7 @@ export const en = {
 
   // ==== Board =========================================================
   board: {
+    addBot: "Add bot",
     leave: "Leave",
     room: "Room:",
     time: "Time:",

@@ -44,11 +44,12 @@ type RoomResult struct {
 }
 
 var SystemBotNames = []gen.User{
-	{ID: uuid.MustParse("00000000-aaaa-0000-0000-111122223333"), Username: "BotAlpha", Email: "bot_alpha@local.host", AvatarSeed: "BotAlpha"},
-	{ID: uuid.MustParse("00000000-bbbb-0000-0000-111122223333"), Username: "BotBeta", Email: "bot_beta@local.host", AvatarSeed: "BotBeta"},
-	{ID: uuid.MustParse("00000000-cccc-0000-0000-111122223333"), Username: "BotGamma", Email: "bot_gamma@local.host", AvatarSeed: "BotGamma"},
-	{ID: uuid.MustParse("00000000-dddd-0000-0000-111122223333"), Username: "BotDelta", Email: "bot_delta@local.host", AvatarSeed: "BotDelta"},
-	{ID: uuid.MustParse("00000000-eeee-0000-0000-111122223333"), Username: "BotEpsilon", Email: "bot_epsilon@local.host", AvatarSeed: "BotEpsilon"},
+	{ID: uuid.MustParse("00000000-0000-0000-0000-000000000001"), Username: "Admin", UserRole: "admin", Email: "admin@local.host", AvatarSeed: "Admin"},
+	{ID: uuid.MustParse("00000000-0000-0000-0001-000000000000"), Username: "BotAlpha", UserRole: "bot", Email: "bot_alpha@local.host", AvatarSeed: "BotAlpha"},
+	{ID: uuid.MustParse("00000000-0000-0000-0002-000000000000"), Username: "BotBeta", UserRole: "bot", Email: "bot_beta@local.host", AvatarSeed: "BotBeta"},
+	{ID: uuid.MustParse("00000000-0000-0000-0003-000000000000"), Username: "BotGamma", UserRole: "bot", Email: "bot_gamma@local.host", AvatarSeed: "BotGamma"},
+	{ID: uuid.MustParse("00000000-0000-0000-0004-000000000000"), Username: "BotDelta", UserRole: "bot", Email: "bot_delta@local.host", AvatarSeed: "BotDelta"},
+	{ID: uuid.MustParse("00000000-0000-0000-0005-000000000000"), Username: "BotEpsilon", UserRole: "bot", Email: "bot_epsilon@local.host", AvatarSeed: "BotEpsilon"},
 }
 
 func New(ctx context.Context, cfg *config.Config, log *logrus.Logger) (*Storage, error) {
@@ -197,6 +198,50 @@ func (s *Storage) runMigrations(ctx context.Context) error {
 	return nil
 }
 
+func (s *Storage) SeedUsers(ctx context.Context, logger *logrus.Logger) {
+	for _, u := range SystemBotNames {
+		var username, email, rawPassword, avatarSeed string
+		var err error
+
+		// Розділяємо джерело даних залежно від ролі користувача в структурі
+		if u.UserRole == "admin" {
+			username = s.cfg.AdminUser
+			rawPassword = s.cfg.AdminPass
+		} else {
+			username = u.Username
+			rawPassword = fmt.Sprintf("%s@%s", u.Username, s.cfg.AdminPass)
+		}
+		avatarSeed = u.AvatarSeed
+		email = u.Email
+
+		// Хешуємо пароль (спільна операція)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(rawPassword), bcrypt.DefaultCost)
+		if err != nil {
+			logger.Errorf("Попередження: не вдалося захешувати пароль для %s (%s): %v", username, u.UserRole, err)
+			continue
+		}
+
+		// Виконуємо відповідний метод бази даних
+		if err = s.Queries.SeedUser(ctx, gen.SeedUserParams{
+			ID:           u.ID,
+			Username:     username,
+			Email:        email,
+			PasswordHash: string(hashedPassword),
+			AvatarSeed:   avatarSeed,
+			UserRole:     u.UserRole,
+		}); err != nil {
+			logger.Errorf("Попередження: не вдалося виконати початкове заповнення для %s (%s): %v", username, u.UserRole, err)
+			continue
+		}
+
+		if u.UserRole == "admin" {
+			logger.Infof("Перевірка Database Seeding: адміністратор '%s' готовий до роботи.", username)
+		} else {
+			logger.Infof("Перевірка Database Seeding: бот '%s' [ID: %s] готовий до роботи.", username, u.ID.String())
+		}
+	}
+}
+
 // SaveGameResult записує історію та атомарно оновлює статистику всіх гравців
 func (s *Storage) SaveGameResult(ctx context.Context, input GameResultInput) error {
 	// 1. Починаємо транзакцію, щоб дані збереглися атомарно
@@ -328,7 +373,6 @@ func (s *Storage) writeEventsLog(ctx context.Context, roomID string, turnID int,
 			return nil, fmt.Errorf("failed to marshal domain event payload:%w", err)
 		}
 
-		// 🌟 sqlc згенерував InsertGameEvent так, що він повертає (int, error), бо в кінці запиту стоїть RETURNING event_id
 		actualEventID, err := txQueries.InsertGameEvent(ctx, gen.InsertGameEventParams{
 			RoomID:      roomID,
 			TurnID:      turnID,
@@ -353,67 +397,14 @@ func (s *Storage) writeEventsLog(ctx context.Context, roomID string, turnID int,
 }
 
 func (s *Storage) GetBotNames() []gen.User {
-	res := make([]gen.User, len(SystemBotNames))
-	copy(res, SystemBotNames)
-	return res
-}
-
-func (s *Storage) SeedUsers(ctx context.Context, logger *logrus.Logger) {
-	if err := s.seedAdmin(ctx, logger); err != nil {
-		logger.Errorf("Попередження: не вдалося виконати початкове заповнення адміна: %v", err)
-	}
-
-	for _, botName := range SystemBotNames {
-		if err := s.seedBot(ctx, logger, botName); err != nil {
-			logger.Errorf("Попередження: не вдалося виконати початкове заповнення бота %s: %v", botName.Username, err)
+	var bots []gen.User
+	for _, u := range SystemBotNames {
+		if u.UserRole == "bot" {
+			bots = append(bots, u)
 		}
 	}
-}
 
-func (s *Storage) seedAdmin(ctx context.Context, logger *logrus.Logger) error {
-	adminUser := s.cfg.AdminUser
-	adminEmail := s.cfg.AdminEmail
-	adminPass := s.cfg.AdminPass
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("failed to hash admin password: %w", err)
-	}
-
-	err = s.Queries.SeedAdminUser(ctx, gen.SeedAdminUserParams{
-		Username:     adminUser,
-		Email:        adminEmail,
-		PasswordHash: string(hashedPassword),
-		AvatarSeed:   uuid.New().String(),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to seed admin user: %w", err)
-	}
-
-	logger.Infof("Перевірка Database Seeding: адміністратор '%s' готовий до роботи.", adminUser)
-	return nil
-}
-
-func (s *Storage) seedBot(ctx context.Context, logger *logrus.Logger, bot gen.User) error {
-	botPass := fmt.Sprintf("%s@%s", bot.Username, s.cfg.AdminPass)
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(botPass), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("failed to hash bot password: %w", err)
-	}
-
-	err = s.Queries.SeedBotUser(ctx, gen.SeedBotUserParams{
-		ID:           bot.ID,
-		Username:     bot.Username,
-		Email:        bot.Email,
-		PasswordHash: string(hashedPassword),
-		AvatarSeed:   bot.AvatarSeed,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to seed static bot user %s: %w", bot.Username, err)
-	}
-
-	logger.Infof("Перевірка Database Seeding: бот '%s' [ID: %s] готовий до роботи.", bot.Username, bot.ID.String())
-	return nil
+	return bots
 }
 
 func (s *Storage) BlockUser(ctx context.Context, userIDStr string, reason string) error {

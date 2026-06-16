@@ -247,49 +247,28 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	return items, nil
 }
 
-const seedAdminUser = `-- name: SeedAdminUser :exec
-INSERT INTO users (username, email, password_hash, user_role, avatar_seed)
-VALUES ($1, $2, $3, 'admin', $4)
-ON CONFLICT (username) DO NOTHING
-`
-
-type SeedAdminUserParams struct {
-	Username     string `json:"username"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
-	AvatarSeed   string `json:"avatar_seed"`
-}
-
-func (q *Queries) SeedAdminUser(ctx context.Context, arg SeedAdminUserParams) error {
-	_, err := q.db.Exec(ctx, seedAdminUser,
-		arg.Username,
-		arg.Email,
-		arg.PasswordHash,
-		arg.AvatarSeed,
-	)
-	return err
-}
-
-const seedBotUser = `-- name: SeedBotUser :exec
+const seedUser = `-- name: SeedUser :exec
 INSERT INTO users (id, username, email, password_hash, user_role, avatar_seed)
-VALUES ($1, $2, $3, $4, 'bot', $5)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (username) DO NOTHING
 `
 
-type SeedBotUserParams struct {
+type SeedUserParams struct {
 	ID           uuid.UUID `json:"id"`
 	Username     string    `json:"username"`
 	Email        string    `json:"email"`
 	PasswordHash string    `json:"password_hash"`
+	UserRole     string    `json:"user_role"`
 	AvatarSeed   string    `json:"avatar_seed"`
 }
 
-func (q *Queries) SeedBotUser(ctx context.Context, arg SeedBotUserParams) error {
-	_, err := q.db.Exec(ctx, seedBotUser,
+func (q *Queries) SeedUser(ctx context.Context, arg SeedUserParams) error {
+	_, err := q.db.Exec(ctx, seedUser,
 		arg.ID,
 		arg.Username,
 		arg.Email,
 		arg.PasswordHash,
+		arg.UserRole,
 		arg.AvatarSeed,
 	)
 	return err

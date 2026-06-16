@@ -28,14 +28,9 @@ UPDATE users
 SET is_banned = FALSE, ban_reason = NULL, banned_at = NULL, updated_at = NOW() 
 WHERE id = $1;
 
--- name: SeedAdminUser :exec
-INSERT INTO users (username, email, password_hash, user_role, avatar_seed)
-VALUES ($1, $2, $3, 'admin', $4)
-ON CONFLICT (username) DO NOTHING;
-
--- name: SeedBotUser :exec
+-- name: SeedUser :exec
 INSERT INTO users (id, username, email, password_hash, user_role, avatar_seed)
-VALUES ($1, $2, $3, $4, 'bot', $5)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (username) DO NOTHING;
 
 -- name: GetLeaderboard :many

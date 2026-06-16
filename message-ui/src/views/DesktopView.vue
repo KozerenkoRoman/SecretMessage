@@ -30,7 +30,7 @@
             <h1 class="text-xl font-bold text-amber-500 font-mono leading-tight">
               {{ $t("desktop.brand") }}
             </h1>
-            <p class="text-xs text-slate-400">
+            <p class="text-xm text-slate-400">
               {{ $t("desktop.welcome", { username: currentUsername }) }}
             </p>
           </div>

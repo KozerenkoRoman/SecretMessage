@@ -3,7 +3,6 @@ import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
 import { CARD_INFO_NUMBERS } from '../constants/cards';
 
-const gameLog = ref([]);
 const EMPTY_GAME_STATE = Object.freeze({
   is_started: false,
   players: {},
@@ -48,6 +47,10 @@ export const useGameStore = defineStore('gameStore', () => {
   const gameState = ref(makeEmptyGameState());
   const revealedCardData = ref(null);
   const authToken = ref(localStorage.getItem('token') || '');
+
+  // Перенесено всередину стору для коректного скидання
+  const gameLog = ref([]);
+
   const myID = computed(() => extractUserIdFromToken(authToken.value));
 
   let timerInterval = null;
@@ -94,6 +97,10 @@ export const useGameStore = defineStore('gameStore', () => {
     error.value = null;
   }
 
+  function clearLog() {
+    gameLog.value = [];
+  }
+
   function setErrorFromPacket(packet) {
     if (!packet || typeof packet !== 'object') {
       error.value = { code: 'ERR_INTERNAL', message: 'Unknown error', details: null };
@@ -116,6 +123,11 @@ export const useGameStore = defineStore('gameStore', () => {
     const targetRoomID = roomID || '';
     if (socket.value && socket.value.readyState === WebSocket.OPEN) {
       console.log(`[WS] Сокет уже відкритий. Міняємо кімнату з "${currentRoomID.value}" на "${targetRoomID}"`);
+
+      if (currentRoomID.value !== targetRoomID) {
+        clearLog();
+      }
+
       currentRoomID.value = targetRoomID;
       if (targetRoomID) {
         sendWSMessage('JOIN', targetRoomID, null, null);
@@ -128,6 +140,7 @@ export const useGameStore = defineStore('gameStore', () => {
       return;
     }
 
+    clearLog();
     currentRoomID.value = targetRoomID;
     isIntentionallyClosed.value = false;
     refreshAuthToken();
@@ -360,6 +373,7 @@ export const useGameStore = defineStore('gameStore', () => {
   function leaveCurrentRoom() {
     stopLocalTimer();
     clearError();
+    clearLog();
     if (currentRoomID.value) {
       sendWSMessage('LEAVE', currentRoomID.value, null, null);
       currentRoomID.value = '';
@@ -375,6 +389,7 @@ export const useGameStore = defineStore('gameStore', () => {
     }
     isIntentionallyClosed.value = true;
     revealedCardData.value = null;
+    clearLog();
     if (reconnectTimeout) {
       clearTimeout(reconnectTimeout);
       reconnectTimeout = null;
@@ -448,6 +463,7 @@ export const useGameStore = defineStore('gameStore', () => {
     myCards,
     refreshAuthToken,
     clearError,
+    clearLog,
     clearRevealedData,
     leaveCurrentRoom,
     connectToHub,

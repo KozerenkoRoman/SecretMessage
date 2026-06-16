@@ -31,7 +31,7 @@ const (
 
 type GameState struct {
 	Seed        int64             `json:"seed"`
-	Sequence    uint64            `json:"seq"`
+	Sequence    int               `json:"seq"`
 	Phase       Phase             `json:"phase"`
 	Deck        []CardType        `json:"deck"`
 	Players     map[string]Player `json:"players"`
@@ -49,6 +49,7 @@ type GameState struct {
 type Player struct {
 	ID               string     `json:"id"`
 	Username         string     `json:"username"`
+	UserRole         string     `json:"user_role"`
 	Hand             []CardType `json:"hand"`
 	DiscardPile      []CardType `json:"discard_pile"`
 	IsOut            bool       `json:"is_out"`
@@ -60,7 +61,7 @@ type Player struct {
 
 // Очікуваний екшен (для Chancellor)
 type PendingAction struct {
-	Type     string `json:"type"`
+	Type     Phase  `json:"type"`
 	PlayerID string `json:"player_id"`
 }
 
@@ -121,7 +122,7 @@ type EventPayload interface {
 // DomainEvent — суворо типізована подія домену.
 // Поле Payload завжди реалізовує EventPayload, ніколи не nil-able map.
 type DomainEvent struct {
-	EventID   uint64       `json:"event_id"`
+	EventID   int          `json:"event_id"`
 	Type      EventType    `json:"type"`
 	Payload   EventPayload `json:"payload"`
 	Timestamp time.Time    `json:"timestamp"`
@@ -158,6 +159,7 @@ func (s GameState) Clone() GameState {
 		cloned.Players[id] = Player{
 			ID:               player.ID,
 			Username:         player.Username,
+			UserRole:         player.UserRole,
 			Hand:             handCopy,
 			DiscardPile:      discardCopy,
 			IsOut:            player.IsOut,

@@ -33,16 +33,16 @@ func TestMultiRoundSimulation(t *testing.T) {
 	// --- РАУНД 1 ---
 	// Крок 1: p1 грає Шпигуна (Spy)
 	action1 := engine.Action{PlayerID: "p1", HandIndex: 0}
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Крок 2: p2 грає Принцесу (Princess) і вибуває
 	action2 := engine.Action{PlayerID: "p2", HandIndex: 0}
-	result2, err := engine.Apply(result1.NewState, action2, rng, clock, 200)
+	result2, err := engine.Apply(result1.NewState, action2, rng, clock)
 	require.NoError(t, err)
 
 	// Завершуємо перший раунд підрахунком балів
-	final1 := engine.ResolveRoundEnd(result2.NewState, clock, 300).NewState
+	final1 := engine.ResolveRoundEnd(result2.NewState, clock).NewState
 
 	// Перевірка балів після Раунду 1 (Перемога + Шпигунський бонус = 2 очки)
 	assert.True(t, final1.Players["p1"].SpyPointsAwarded, "p1 має отримати бонус Spy")
@@ -67,17 +67,17 @@ func TestMultiRoundSimulation(t *testing.T) {
 
 	// Крок 3: p1 грає першого Guard (індекс 0) проти p2, але називає неправильну карту (промах)
 	action3 := engine.Action{PlayerID: "p1", HandIndex: 0, TargetID: "p2", Guess: engine.CardPrincess}
-	result3, err := engine.Apply(newRound, action3, rng, clock, 400)
+	result3, err := engine.Apply(newRound, action3, rng, clock)
 	require.NoError(t, err)
 
 	// Крок 4: p2 грає Барона (Baron, індекс 0) проти p1.
 	// Тепер у p1 в руці залишився Guard (сила 1), а у p2 в руці залишився Priest (сила 2). Порівняння можливе!
 	action4 := engine.Action{PlayerID: "p2", HandIndex: 0, TargetID: "p1"}
-	result4, err := engine.Apply(result3.NewState, action4, rng, clock, 500)
+	result4, err := engine.Apply(result3.NewState, action4, rng, clock)
 	require.NoError(t, err)
 
 	// Завершуємо другий раунд
-	final2 := engine.ResolveRoundEnd(result4.NewState, clock, 600).NewState
+	final2 := engine.ResolveRoundEnd(result4.NewState, clock).NewState
 
 	// Перевірка фіналу: в результаті боїв має залишитися один активний гравець
 	activeCount := 0

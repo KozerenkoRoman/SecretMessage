@@ -41,7 +41,7 @@ func TestFullRoundSimulation(t *testing.T) {
 	}
 
 	// Застосовуємо дію до нашого стану
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err, "Дія має виконатися без помилок")
 
 	finalState := result1.NewState

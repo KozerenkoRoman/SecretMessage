@@ -27,6 +27,7 @@
 export const EngineErrorCodes = {
   // --- Загальні / службові ---------------------------------------------------
   Internal: "ERR_INTERNAL",
+  ErrInvalidAction: "ERR_INVALID_ACTION",
 
   // --- Валідація стану гри ---------------------------------------------------
   InvalidPhase: "ERR_INVALID_PHASE",

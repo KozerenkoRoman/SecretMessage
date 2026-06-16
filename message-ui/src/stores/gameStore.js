@@ -359,6 +359,7 @@ export const useGameStore = defineStore('gameStore', () => {
 
   function leaveCurrentRoom() {
     stopLocalTimer();
+    clearError();
     if (currentRoomID.value) {
       sendWSMessage('LEAVE', currentRoomID.value, null, null);
       currentRoomID.value = '';
@@ -397,6 +398,42 @@ export const useGameStore = defineStore('gameStore', () => {
     }, 0);
   }
 
+  async function addBotToRoom(roomID, botName = "Бот") {
+    try {
+      refreshAuthToken();
+      const token = authToken.value;
+
+      if (!token) {
+        throw new Error("Користувач не авторизований для додавання бота");
+      }
+
+      const response = await fetch(`/api/rooms/${roomID}/bot`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ bot_name: botName })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Помилка сервера: ${response.status}`);
+      }
+
+      console.log(`[gameStore] Бота "${botName}" успішно додано в кімнату ${roomID}`);
+      return true;
+    } catch (err) {
+      console.error('[gameStore] Помилка при додаванні бота:', err);
+      // Прокидаємо помилку в реактивне поле, щоб GameErrorModal її вивів
+      error.value = {
+        code: 'ERR_ADD_BOT',
+        message: err.message || 'Не вдалося додати бота'
+      };
+      return false;
+    }
+  }
+
   return {
     gameState,
     gameLog,
@@ -416,5 +453,6 @@ export const useGameStore = defineStore('gameStore', () => {
     connectToHub,
     sendWSMessage,
     disconnect,
+    addBotToRoom,
   };
 });

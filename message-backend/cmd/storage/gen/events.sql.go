@@ -7,57 +7,47 @@ package gen
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getRoomHistory = `-- name: GetRoomHistory :many
-SELECT 
-    t.sequence_id, t.action_type, t.player_id, t.hand_index, t.target_id, t.guess_card, t.played_at,
-    e.event_id, e.event_type, e.payload
-FROM game_turns t
-LEFT JOIN game_events e ON t.id = e.turn_id
-WHERE t.room_id = $1
-ORDER BY t.sequence_id ASC, e.event_id ASC
+const deleteGameEventsByRoom = `-- name: DeleteGameEventsByRoom :exec
+DELETE FROM game_events
+WHERE room_id = $1
 `
 
-type GetRoomHistoryRow struct {
-	SequenceID int32         `json:"sequence_id"`
-	ActionType string        `json:"action_type"`
-	PlayerID   string        `json:"player_id"`
-	HandIndex  int32         `json:"hand_index"`
-	TargetID   pgtype.Text   `json:"target_id"`
-	GuessCard  sql.NullInt32 `json:"guess_card"`
-	PlayedAt   time.Time     `json:"played_at"`
-	EventID    sql.NullInt64 `json:"event_id"`
-	EventType  pgtype.Text   `json:"event_type"`
-	Payload    []byte        `json:"payload"`
+func (q *Queries) DeleteGameEventsByRoom(ctx context.Context, roomID string) error {
+	_, err := q.db.Exec(ctx, deleteGameEventsByRoom, roomID)
+	return err
 }
 
-func (q *Queries) GetRoomHistory(ctx context.Context, roomID string) ([]GetRoomHistoryRow, error) {
-	rows, err := q.db.Query(ctx, getRoomHistory, roomID)
+const getGameEventsByRoom = `-- name: GetGameEventsByRoom :many
+SELECT game_events.id, game_events.room_id, game_events.turn_id, game_events.event_id, game_events.event_type, game_events.payload, game_events.state_before, game_events.created_at
+FROM game_events
+WHERE room_id = $1
+ORDER BY event_id ASC
+`
+
+type GetGameEventsByRoomRow struct {
+	GameEvent GameEvent `json:"game_event"`
+}
+
+func (q *Queries) GetGameEventsByRoom(ctx context.Context, roomID string) ([]GetGameEventsByRoomRow, error) {
+	rows, err := q.db.Query(ctx, getGameEventsByRoom, roomID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetRoomHistoryRow
+	var items []GetGameEventsByRoomRow
 	for rows.Next() {
-		var i GetRoomHistoryRow
+		var i GetGameEventsByRoomRow
 		if err := rows.Scan(
-			&i.SequenceID,
-			&i.ActionType,
-			&i.PlayerID,
-			&i.HandIndex,
-			&i.TargetID,
-			&i.GuessCard,
-			&i.PlayedAt,
-			&i.EventID,
-			&i.EventType,
-			&i.Payload,
+			&i.GameEvent.ID,
+			&i.GameEvent.RoomID,
+			&i.GameEvent.TurnID,
+			&i.GameEvent.EventID,
+			&i.GameEvent.EventType,
+			&i.GameEvent.Payload,
+			&i.GameEvent.StateBefore,
+			&i.GameEvent.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -69,59 +59,42 @@ func (q *Queries) GetRoomHistory(ctx context.Context, roomID string) ([]GetRoomH
 	return items, nil
 }
 
-const logDomainEvent = `-- name: LogDomainEvent :exec
-INSERT INTO game_events (room_id, turn_id, event_id, event_type, payload, created_at)
-VALUES ($1, $2, $3, $4, $5, NOW())
+const insertGameEvent = `-- name: InsertGameEvent :one
+INSERT INTO game_events (
+    room_id, 
+    turn_id, 
+    event_id, 
+    event_type, 
+    payload, 
+    state_before
+) 
+SELECT 
+    $1, 
+    $2, 
+    (SELECT COUNT(*) FROM game_events WHERE room_id = $1) + 1, 
+    $3, 
+    $4, 
+    $5
+RETURNING event_id
 `
 
-type LogDomainEventParams struct {
-	RoomID    string          `json:"room_id"`
-	TurnID    uuid.NullUUID   `json:"turn_id"`
-	EventID   int64           `json:"event_id"`
-	EventType string          `json:"event_type"`
-	Payload   json.RawMessage `json:"payload"`
+type InsertGameEventParams struct {
+	RoomID      string `json:"room_id"`
+	TurnID      int    `json:"turn_id"`
+	EventType   string `json:"event_type"`
+	Payload     []byte `json:"payload"`
+	StateBefore []byte `json:"state_before"`
 }
 
-func (q *Queries) LogDomainEvent(ctx context.Context, arg LogDomainEventParams) error {
-	_, err := q.db.Exec(ctx, logDomainEvent,
+func (q *Queries) InsertGameEvent(ctx context.Context, arg InsertGameEventParams) (int, error) {
+	row := q.db.QueryRow(ctx, insertGameEvent,
 		arg.RoomID,
 		arg.TurnID,
-		arg.EventID,
 		arg.EventType,
 		arg.Payload,
+		arg.StateBefore,
 	)
-	return err
-}
-
-const logTurn = `-- name: LogTurn :one
-INSERT INTO game_turns (
-    room_id, sequence_id, action_type, player_id, hand_index, target_id, guess_card, played_at
-)
-VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-RETURNING id
-`
-
-type LogTurnParams struct {
-	RoomID     string        `json:"room_id"`
-	SequenceID int32         `json:"sequence_id"`
-	ActionType string        `json:"action_type"`
-	PlayerID   string        `json:"player_id"`
-	HandIndex  int32         `json:"hand_index"`
-	TargetID   pgtype.Text   `json:"target_id"`
-	GuessCard  sql.NullInt32 `json:"guess_card"`
-}
-
-func (q *Queries) LogTurn(ctx context.Context, arg LogTurnParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, logTurn,
-		arg.RoomID,
-		arg.SequenceID,
-		arg.ActionType,
-		arg.PlayerID,
-		arg.HandIndex,
-		arg.TargetID,
-		arg.GuessCard,
-	)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
+	var event_id int
+	err := row.Scan(&event_id)
+	return event_id, err
 }

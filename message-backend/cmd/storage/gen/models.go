@@ -6,47 +6,26 @@ package gen
 
 import (
 	"database/sql"
-	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type GameEvent struct {
-	ID        uuid.UUID       `json:"id"`
-	RoomID    string          `json:"room_id"`
-	TurnID    uuid.NullUUID   `json:"turn_id"`
-	EventID   int64           `json:"event_id"`
-	EventType string          `json:"event_type"`
-	Payload   json.RawMessage `json:"payload"`
-	CreatedAt time.Time       `json:"created_at"`
-}
-
-type GameHistory struct {
-	ID         uuid.UUID       `json:"id"`
-	RoomID     string          `json:"room_id"`
-	WinnerID   uuid.NullUUID   `json:"winner_id"`
-	FinalState json.RawMessage `json:"final_state"`
-	PlayedAt   time.Time       `json:"played_at"`
-}
-
-type GameTurn struct {
-	ID         uuid.UUID     `json:"id"`
-	RoomID     string        `json:"room_id"`
-	SequenceID int32         `json:"sequence_id"`
-	ActionType string        `json:"action_type"`
-	PlayerID   string        `json:"player_id"`
-	HandIndex  int32         `json:"hand_index"`
-	TargetID   pgtype.Text   `json:"target_id"`
-	GuessCard  sql.NullInt32 `json:"guess_card"`
-	PlayedAt   time.Time     `json:"played_at"`
+	ID          int32     `json:"id"`
+	RoomID      string    `json:"room_id"`
+	TurnID      int       `json:"turn_id"`
+	EventID     int       `json:"event_id"`
+	EventType   string    `json:"event_type"`
+	Payload     []byte    `json:"payload"`
+	StateBefore []byte    `json:"state_before"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Room struct {
-	ID        string          `json:"id"`
-	State     json.RawMessage `json:"state"`
-	UpdatedAt time.Time       `json:"updated_at"`
+	ID        string    `json:"id"`
+	State     []byte    `json:"state"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type User struct {
@@ -64,10 +43,12 @@ type User struct {
 }
 
 type UserStat struct {
-	UserID             uuid.UUID `json:"user_id"`
-	GamesPlayed        int32     `json:"games_played"`
-	GamesWon           int32     `json:"games_won"`
-	SpyBonusesReceived int32     `json:"spy_bonuses_received"`
-	TotalScore         int32     `json:"total_score"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	UserID       uuid.UUID `json:"user_id"`
+	GamesPlayed  int       `json:"games_played"`
+	GamesWon     int       `json:"games_won"`
+	RoundsPlayed int       `json:"rounds_played"`
+	RoundsWon    int       `json:"rounds_won"`
+	SpyBonuses   int       `json:"spy_bonuses"`
+	TotalScore   int       `json:"total_score"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }

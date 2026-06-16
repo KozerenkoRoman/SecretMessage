@@ -54,20 +54,32 @@
                 (!gameState?.turn_order || gameState.turn_order.length === 0)
               "
             >
-              <button
-                v-if="canStartGame"
-                @click="handleStartGame"
-                type="button"
-                class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                :disabled="isStarting"
-              >
-                {{ $t("board.start") }}
-              </button>
-              <div
-                v-else
-                class="status-pill bg-brand-info/20 text-blue-400 border-blue-500/40 animate-pulse"
-              >
-                {{ $t("board.waiting") }}
+              <div class="flex items-center gap-2">
+                <button
+                  v-if="canStartGame || arrangedPlayers.length < 4"
+                  @click="handleDelayAndAddBot"
+                  type="button"
+                  class="px-3 py-2 bg-slate-700 hover:bg-slate-600 active:bg-slate-800 text-amber-400 font-bold rounded-xl text-xs border border-brand-border transition-all flex items-center gap-1 disabled:opacity-50"
+                  :disabled="isBotSubmitting"
+                >
+                  <span class="text-base leading-none">🤖</span> + Бота
+                </button>
+
+                <button
+                  v-if="canStartGame"
+                  @click="handleStartGame"
+                  type="button"
+                  class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  :disabled="isStarting"
+                >
+                  {{ $t("board.start") }}
+                </button>
+                <div
+                  v-else
+                  class="status-pill bg-brand-info/20 text-blue-400 border-blue-500/40 animate-pulse"
+                >
+                  {{ $t("board.waiting") }}
+                </div>
               </div>
             </template>
             <template v-else>
@@ -454,6 +466,7 @@ const emit = defineEmits([
   "leave-game",
   "next-round",
   "restart-game",
+  "add-bot",
 ]);
 
 const { t } = useI18n();
@@ -462,6 +475,7 @@ const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
 
 const showLeaveConfirm = ref(false);
 const showActionModal = ref(false);
+const isBotSubmitting = ref(false);
 const activePlay = ref({ cardType: "", handIndex: 0, targetID: "", guessCard: "" });
 const lastPlayedCardsByPlayer = ref({});
 const localSecondsLeft = ref(0);
@@ -816,6 +830,15 @@ const handleRestartGameRequest = () => {
   emit("restart-game");
 };
 
+const handleDelayAndAddBot = async () => {
+  if (isBotSubmitting.value) return;
+  isBotSubmitting.value = true;
+
+  emit("add-bot", "", () => {
+    isBotSubmitting.value = false;
+  });
+};
+
 const showChancellorPanel = computed(() => {
   const isChancellorPhase = props.gameState?.phase === "RESOLVE_CHANCELLOR";
   const hasThreeCards = myHandCards.value.length === 3;
@@ -836,11 +859,13 @@ const handleChancellorClick = (index) => {};
 const handleChancellorModalSubmit = ({ keepHandIndex, bottomOrder }) => {
   const me = effectiveMyID.value;
   if (!me) return;
+
   const chancellorPayload = {
     player_id: me,
     keep_hand_index: Number(keepHandIndex),
-    bottom_order: bottomOrder.map((card) => Number(card)),
+    bottom_order: bottomOrder,
   };
+
   gameStore.sendWSMessage("CHANCELLOR_RESOLVE", null, null, chancellorPayload);
 };
 </script>

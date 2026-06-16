@@ -40,7 +40,7 @@ func TestMultiplayerRoundWithElimination(t *testing.T) {
 		HandIndex: 0,
 		TargetID:  "p2",
 	}
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка порівняння: p1 вибуває, бо його Вартовий (1) менший за Принцесу (8) гравця p2
@@ -56,7 +56,7 @@ func TestMultiplayerRoundWithElimination(t *testing.T) {
 		PlayerID:  "p2",
 		HandIndex: 0,
 	}
-	result2, err := engine.Apply(nextState, action2, rng, clock, 200)
+	result2, err := engine.Apply(nextState, action2, rng, clock)
 	require.NoError(t, err)
 	assert.True(t, result2.NewState.Players["p2"].IsOut, "p2 має вибути після розіграшу Princess")
 

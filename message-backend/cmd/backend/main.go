@@ -26,7 +26,6 @@ func main() {
 		ForceColors:   true,
 	})
 	logger.SetLevel(logrus.DebugLevel)
-
 	logger.Info("Запуск сервера Love Letter...")
 
 	cfg := config.Load()
@@ -39,9 +38,7 @@ func main() {
 		_ = store.Close(ctx)
 	}()
 
-	if err := store.SeedAdmin(ctx, logger); err != nil {
-		logger.Errorf("Попередження: не вдалося виконати початкове заповнення адміна: %v", err)
-	}
+	store.SeedUsers(ctx, logger)
 
 	logger.Infof("Успішно підключено до PostgreSQL на порту %d! Міграції перевірено/застосовано.", cfg.DBPort)
 

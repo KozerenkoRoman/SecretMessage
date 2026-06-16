@@ -30,7 +30,7 @@ func TestApply_PrinceForcesPrincessDiscard(t *testing.T) {
 
 	// Хід: p1 грає Prince проти p2
 	action := engine.Action{PlayerID: "p1", HandIndex: 0, TargetID: "p2"}
-	result, err := engine.Apply(state, action, rng, clock, 100)
+	result, err := engine.Apply(state, action, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка: p2 має вибути, бо Princess була скинута

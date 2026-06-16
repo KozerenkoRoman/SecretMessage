@@ -48,21 +48,22 @@ type ErrorCode string
 
 const (
 	// --- Загальні / службові -------------------------------------------------
-	ErrInternal ErrorCode = "ERR_INTERNAL" // Невідома/непередбачена внутрішня помилка.
+	ErrInternal      ErrorCode = "ERR_INTERNAL"       // Невідома/непередбачена внутрішня помилка.
+	ErrInvalidAction ErrorCode = "ERR_INVALID_ACTION" // Невідома дія (напр., невідома карта, невідома карта відсутня у руці).
 
 	// --- Валідація стану гри -------------------------------------------------
-	ErrInvalidPhase           ErrorCode = "ERR_INVALID_PHASE"             // Дія прийшла у невідповідній фазі (напр., MAIN_ACTION очікувалась).
-	ErrInvalidState           ErrorCode = "ERR_INVALID_STATE"             // Загальна неконсистентність стану (turn_order пустий тощо).
-	ErrEmptyTurnOrder         ErrorCode = "ERR_EMPTY_TURN_ORDER"          // У стані відсутній порядок ходів.
-	ErrCurrentTurnOutOfRange  ErrorCode = "ERR_CURRENT_TURN_OUT_OF_RANGE" // CurrentTurn вийшов за межі TurnOrder.
-	ErrNoPlayers              ErrorCode = "ERR_NO_PLAYERS"                // У стані немає гравців.
+	ErrInvalidPhase             ErrorCode = "ERR_INVALID_PHASE"               // Дія прийшла у невідповідній фазі (напр., MAIN_ACTION очікувалась).
+	ErrInvalidState             ErrorCode = "ERR_INVALID_STATE"               // Загальна неконсистентність стану (turn_order пустий тощо).
+	ErrEmptyTurnOrder           ErrorCode = "ERR_EMPTY_TURN_ORDER"            // У стані відсутній порядок ходів.
+	ErrCurrentTurnOutOfRange    ErrorCode = "ERR_CURRENT_TURN_OUT_OF_RANGE"   // CurrentTurn вийшов за межі TurnOrder.
+	ErrNoPlayers                ErrorCode = "ERR_NO_PLAYERS"                  // У стані немає гравців.
 	ErrCardEffectNotImplemented ErrorCode = "ERR_CARD_EFFECT_NOT_IMPLEMENTED" // Ефект карти не реалізовано (баг).
 
 	// --- Валідація гравця ----------------------------------------------------
-	ErrPlayerNotFound    ErrorCode = "ERR_PLAYER_NOT_FOUND"    // Гравця з вказаним ID нема в кімнаті.
-	ErrPlayerAlreadyOut  ErrorCode = "ERR_PLAYER_ALREADY_OUT"  // Гравець вже вибув з раунду.
-	ErrPlayerProtected   ErrorCode = "ERR_PLAYER_PROTECTED"    // Гравець під захистом Покоївки.
-	ErrPlayerHasNoCards  ErrorCode = "ERR_PLAYER_HAS_NO_CARDS" // У гравця нема карт у руці.
+	ErrPlayerNotFound   ErrorCode = "ERR_PLAYER_NOT_FOUND"    // Гравця з вказаним ID нема в кімнаті.
+	ErrPlayerAlreadyOut ErrorCode = "ERR_PLAYER_ALREADY_OUT"  // Гравець вже вибув з раунду.
+	ErrPlayerProtected  ErrorCode = "ERR_PLAYER_PROTECTED"    // Гравець під захистом Покоївки.
+	ErrPlayerHasNoCards ErrorCode = "ERR_PLAYER_HAS_NO_CARDS" // У гравця нема карт у руці.
 
 	// --- Валідація дії -------------------------------------------------------
 	ErrOutOfTurn        ErrorCode = "ERR_OUT_OF_TURN"        // Не черга цього гравця.
@@ -71,14 +72,14 @@ const (
 	ErrMustPlayCountess ErrorCode = "ERR_MUST_PLAY_COUNTESS" // У руці Графиня + (Король/Принц) — обов'язково Графиня.
 
 	// --- Валідація цілі ------------------------------------------------------
-	ErrTargetRequired     ErrorCode = "ERR_TARGET_REQUIRED"     // Карта потребує ціль, але її не передано.
-	ErrTargetNotFound     ErrorCode = "ERR_TARGET_NOT_FOUND"    // Ціль з вказаним ID відсутня.
-	ErrTargetAlreadyOut   ErrorCode = "ERR_TARGET_ALREADY_OUT"  // Ціль вже вибула з раунду.
-	ErrTargetProtected    ErrorCode = "ERR_TARGET_PROTECTED"    // Ціль під захистом Покоївки.
+	ErrTargetRequired   ErrorCode = "ERR_TARGET_REQUIRED"    // Карта потребує ціль, але її не передано.
+	ErrTargetNotFound   ErrorCode = "ERR_TARGET_NOT_FOUND"   // Ціль з вказаним ID відсутня.
+	ErrTargetAlreadyOut ErrorCode = "ERR_TARGET_ALREADY_OUT" // Ціль вже вибула з раунду.
+	ErrTargetProtected  ErrorCode = "ERR_TARGET_PROTECTED"   // Ціль під захистом Покоївки.
 
 	// --- Карто-специфічні валідації -----------------------------------------
-	ErrGuardCannotGuessGuard ErrorCode = "ERR_GUARD_CANNOT_GUESS_GUARD" // Вартовий не може вгадувати Вартового.
-	ErrGuardGuessRequired    ErrorCode = "ERR_GUARD_GUESS_REQUIRED"    // У дії Вартового відсутнє поле guess_card.
+	ErrGuardCannotGuessGuard ErrorCode = "ERR_GUARD_CANNOT_GUESS_GUARD"  // Вартовий не може вгадувати Вартового.
+	ErrGuardGuessRequired    ErrorCode = "ERR_GUARD_GUESS_REQUIRED"      // У дії Вартового відсутнє поле guess_card.
 	ErrBaronNoCardsToCompare ErrorCode = "ERR_BARON_NO_CARDS_TO_COMPARE" // Один з гравців немає карти для Баронового порівняння.
 
 	// --- Chancellor (резолв) -------------------------------------------------
@@ -137,7 +138,8 @@ func (e *GameError) Is(target error) bool {
 
 // NewError створює GameError з даним кодом і необов'язковим dev-повідомленням.
 // Приклад:
-//   return NewError(ErrPlayerNotFound, "player_id=%s", action.PlayerID)
+//
+//	return NewError(ErrPlayerNotFound, "player_id=%s", action.PlayerID)
 func NewError(code ErrorCode, format string, args ...any) *GameError {
 	msg := ""
 	if format != "" {
@@ -160,7 +162,8 @@ func WrapError(code ErrorCode, cause error, format string, args ...any) *GameErr
 }
 
 // WithDetails додає контекстне поле до помилки (chainable).
-//   return NewError(ErrInvalidHandIndex, "").WithDetails("index", idx, "hand_size", n)
+//
+//	return NewError(ErrInvalidHandIndex, "").WithDetails("index", idx, "hand_size", n)
 func (e *GameError) WithDetails(kv ...any) *GameError {
 	if e == nil || len(kv) == 0 {
 		return e
@@ -187,9 +190,10 @@ func (e *GameError) WithDetails(kv ...any) *GameError {
 // Якщо err не є GameError — повертає ErrInternal.
 //
 // Це ОСНОВНА точка інтеграції для network-шару:
-//   if err := engine.Apply(...); err != nil {
-//       packet.ErrorCode = engine.CodeOf(err) // → "ERR_PLAYER_NOT_FOUND"
-//   }
+//
+//	if err := engine.Apply(...); err != nil {
+//	    packet.ErrorCode = engine.CodeOf(err) // → "ERR_PLAYER_NOT_FOUND"
+//	}
 func CodeOf(err error) ErrorCode {
 	if err == nil {
 		return ""

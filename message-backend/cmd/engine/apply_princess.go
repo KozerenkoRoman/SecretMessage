@@ -1,6 +1,7 @@
+/* ===== FILE: engine\apply_princess.go ===== */
 package engine
 
-func ApplyPrincess(state GameState, action Action, clock Clock, startEventID uint64) (ApplyResult, error) {
+func ApplyPrincess(state GameState, action Action, clock Clock) (ApplyResult, error) {
 	player, ok := state.Players[action.PlayerID]
 	if !ok {
 		return ApplyResult{}, NewError(ErrPlayerNotFound, "player_id=%s", action.PlayerID)
@@ -10,27 +11,37 @@ func ApplyPrincess(state GameState, action Action, clock Clock, startEventID uin
 	}
 
 	events := []DomainEvent{{
-		EventID:   startEventID,
 		Type:      EventCardPlayed,
 		Payload:   CardPlayedPayload{PlayerID: action.PlayerID, Card: CardPrincess},
 		Timestamp: clock.Now(),
 	}}
 
-	// Princess → миттєве вибуття
 	player.IsOut = true
-	player.DiscardPile = append(player.DiscardPile, CardPrincess)
+	// Карта вже була додана до DiscardPile в engine.go, тому очищуємо руку
 	player.Hand = []CardType{}
+	state.Players[action.PlayerID] = player // Захист інтерфейсу дії чи прямий ID
+
+	// Альтернативно використовуємо action.PlayerID для надійності:
 	state.Players[action.PlayerID] = player
 
 	events = append(events, DomainEvent{
-		EventID:   startEventID + 1,
 		Type:      EventPlayerEliminated,
 		Payload:   PlayerEliminatedPayload{PlayerID: action.PlayerID, Reason: ReasonPrincessPlayed},
 		Timestamp: clock.Now(),
 	})
 
-	return ApplyResult{
-		NewState:     state,
-		DomainEvents: events,
-	}, nil
+	// ФІКС: Обов'язкова перевірка кінця раунду
+	aliveCount := 0
+	for _, p := range state.Players {
+		if !p.IsOut {
+			aliveCount++
+		}
+	}
+	if aliveCount <= 1 {
+		roundResult := ResolveRoundEnd(state, clock)
+		state = roundResult.NewState
+		events = append(events, roundResult.DomainEvents...)
+	}
+
+	return ApplyResult{NewState: state, DomainEvents: events}, nil
 }

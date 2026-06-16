@@ -10,10 +10,6 @@ sql:
         out: "gen"
         sql_package: "pgx/v5"
         overrides:
-          - db_type: "jsonb"
-            go_type:
-              import: "encoding/json"
-              type: "RawMessage"
           - db_type: "uuid"
             go_type:
               import: "github.com/google/uuid"
@@ -89,3 +85,22 @@ sql:
             go_type:
               import: "time"
               type: "Duration"
+              
+          - db_type: "pg_catalog.interval"
+            go_type:
+              import: "time"
+              type: "Duration"
+
+          - db_type: "integer"
+            go_type:
+              type: "int"
+          - db_type: "pg_catalog.int4"
+            go_type:
+              type: "int"
+
+          - db_type: "bigint"
+            go_type:
+              type: "int"
+          - db_type: "pg_catalog.int8"
+            go_type:
+              type: "int"              

@@ -1,13 +1,12 @@
 package engine
 
-func ApplyPriest(state GameState, action Action, clock Clock, startEventID uint64) (ApplyResult, error) {
+func ApplyPriest(state GameState, action Action, clock Clock) (ApplyResult, error) {
 	shouldApply, err := CanTargetPlayer(state, action.PlayerID, action.TargetID)
 	if err != nil {
 		return ApplyResult{}, err
 	}
 
 	events := []DomainEvent{{
-		EventID:   startEventID,
 		Type:      EventCardPlayed,
 		Payload:   CardPlayedPayload{PlayerID: action.PlayerID, Card: CardPriest, TargetID: action.TargetID},
 		Timestamp: clock.Now(),
@@ -32,8 +31,7 @@ func ApplyPriest(state GameState, action Action, clock Clock, startEventID uint6
 
 	if len(target.Hand) > 0 {
 		events = append(events, DomainEvent{
-			EventID: startEventID + 1,
-			Type:    EventPriestEffect,
+			Type: EventPriestEffect,
 			Payload: PriestEffectPayload{
 				ViewerID: action.PlayerID,
 				TargetID: action.TargetID,

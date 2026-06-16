@@ -62,6 +62,7 @@ const uk: ErrorDictionary = {
   [EngineErrorCodes.TargetNotFound]: "Цільового гравця не знайдено.",
   [EngineErrorCodes.TargetProtected]: "Цей гравець захищений Покоївкою - оберіть іншу ціль.",
   [EngineErrorCodes.TargetRequired]: "Оберіть гравця-ціль.",
+  [EngineErrorCodes.ErrInvalidAction]: "Невідома дія.",
 };
 
 const en: ErrorDictionary = {
@@ -89,6 +90,7 @@ const en: ErrorDictionary = {
   [EngineErrorCodes.TargetNotFound]: "Target player was not found.",
   [EngineErrorCodes.TargetProtected]: "This player is protected by the Handmaid - choose another target.",
   [EngineErrorCodes.TargetRequired]: "Please select a target player.",
+  [EngineErrorCodes.ErrInvalidAction]: "Unknown action.",
 };
 
 // -----------------------------------------------------------------------------

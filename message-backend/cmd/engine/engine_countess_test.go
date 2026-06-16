@@ -31,7 +31,7 @@ func TestApply_CountessForcedPlay(t *testing.T) {
 
 	// Хід: p1 грає Countess (примусово, бо в руці King)
 	action := engine.Action{PlayerID: "p1", HandIndex: 0}
-	result, err := engine.Apply(state, action, rng, clock, 100)
+	result, err := engine.Apply(state, action, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка: Countess має бути у discard

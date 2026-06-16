@@ -126,7 +126,8 @@ const emit = defineEmits(["submit"]);
 const chosenKeepIndex = ref(null);
 const bottomSelection = ref([]);
 
-const getCardDesc = (type) => getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
+const getCardDesc = (type) =>
+  getCardInfoHelper(type, t)?.desc || t("cards.noDescription");
 const getCardColor = (type) => getCardInfoHelper(type)?.color || "bg-brand-surface-dim";
 const getCardName = (type) => getCardInfoHelper(type, t)?.name || t("cards.unknown");
 const getCardValue = (type) => {
@@ -187,10 +188,10 @@ watch(
 
 const handleSubmit = () => {
   if (!isReadyToSubmit.value) return;
-  const remainingCards = bottomSelection.value.map((idx) => props.cards[idx]);
+  const cardsForBottom = bottomSelection.value.map((idx) => props.cards[idx]);
   emit("submit", {
     keepHandIndex: chosenKeepIndex.value,
-    bottomOrder: remainingCards,
+    bottomOrder: cardsForBottom,
   });
 };
 </script>

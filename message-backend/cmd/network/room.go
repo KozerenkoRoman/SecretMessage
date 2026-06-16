@@ -48,6 +48,7 @@ import (
 	"sync"
 	"time"
 
+	"secret-message/cmd/bot"
 	"secret-message/cmd/engine"
 	"secret-message/cmd/storage"
 
@@ -121,6 +122,7 @@ type Room struct {
 
 	state         engine.GameState
 	turnStartedAt time.Time
+	botManager    *bot.BotManager
 }
 
 // RoomLobbyInfo — DTO для списку лобі.
@@ -398,8 +400,7 @@ func (r *Room) HandlePlayerLeave(ctx context.Context, playerID string) error {
 		}
 
 		// Якщо гра завершилась через вихід опонентів, також підраховуємо Шпигуна
-		startEventID := r.state.Sequence*1000 + 2
-		roundResult := engine.ResolveRoundEnd(r.state, r.clock, startEventID)
+		roundResult := engine.ResolveRoundEnd(r.state, r.clock)
 		r.state = roundResult.NewState
 		events = append(events, roundResult.DomainEvents...)
 
@@ -429,8 +430,7 @@ func (r *Room) HandlePlayerLeave(ctx context.Context, playerID string) error {
 
 	// Якщо колода випорожнилась ПІСЛЯ передачі ходу — резолвимо раунд безпечно
 	if len(r.state.Deck) == 0 {
-		startEventID := r.state.Sequence * 1000
-		roundResult := engine.ResolveRoundEnd(r.state, r.clock, startEventID+50)
+		roundResult := engine.ResolveRoundEnd(r.state, r.clock)
 		r.state = roundResult.NewState
 		events = append(events, roundResult.DomainEvents...)
 	}
@@ -584,6 +584,19 @@ func (r *Room) Start(ctx context.Context) {
 	}
 	defer turnTimer.Stop()
 
+	// Допоміжна функція для безпечного запуску ШІ бота
+	triggerBotCheck := func() {
+		if r.botManager == nil {
+			return
+		}
+		r.mu.RLock()
+		currentState := r.state.Clone()
+		r.mu.RUnlock()
+
+		// Запускаємо перевірку в окремій горутині, щоб не блокувати головний цикл кімнати
+		go r.botManager.RunCheck(ctx, &currentState, r)
+	}
+
 	// resetTurnTimer — БЕЗПЕЧНИЙ ідіоматичний reset.
 	//
 	// Чому саме так:
@@ -654,6 +667,9 @@ func (r *Room) Start(ctx context.Context) {
 		return r.state.TurnOrder[idx]
 	}
 
+	// Первинний тригер для бота, якщо гра вже запущена і перший гравець — бот
+	triggerBotCheck()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -661,33 +677,42 @@ func (r *Room) Start(ctx context.Context) {
 			return
 
 		case inAct := <-r.actions:
-			// Спецсигнал від StartGame/NextRound: новий хід — повний reset.
 			if inAct.RequestID == MsgStartGame {
 				resetTurnTimer(true)
+				triggerBotCheck() // Активуємо бота на старті гри
 				continue
 			}
 
-			// Запам'ятовуємо, чий хід ДО обробки дії, щоб після неї
-			// зрозуміти: це справді перехід ходу чи внутрішня
-			// субфаза (Chancellor) того самого гравця.
 			prevActive := activePlayer()
 
-			err := r.processAction(ctx, inAct)
+			// 1. Обробили екшен та отримали реальні події (DomainEvents)
+			events, err := r.processAction(ctx, inAct)
+
+			// Відправляємо помилку клієнту, якщо вона є
 			if inAct.errChan != nil {
 				inAct.errChan <- err
 			}
-			if err != nil {
-				continue
-			}
 
-			newActive := activePlayer()
-			// fullReset тільки якщо активний гравець фактично змінився
-			// (включно з кейсом, коли був "" і з'явився, або навпаки).
-			fullReset := newActive != prevActive
-			resetTurnTimer(fullReset)
+			if err == nil {
+				r.mu.RLock()
+				currentState := r.state.Clone()
+				r.mu.RUnlock()
+
+				if r.botManager != nil {
+					r.botManager.HandleGameUpdate(&currentState, events)
+				}
+
+				newActive := activePlayer()
+				fullReset := (newActive != prevActive)
+				resetTurnTimer(fullReset)
+
+				// Стан змінився успішно — даємо команду ботам перевірити свій хід
+				triggerBotCheck()
+			}
 
 		case <-turnTimer.C:
 			r.handleAFKTick()
+			// Після AFK ходу стан зміниться, що знову запустить ланцюжок через дії
 		}
 	}
 }
@@ -861,6 +886,7 @@ func (r *Room) AddPlayer(playerID string) error {
 		r.state.Players[playerID] = engine.Player{
 			ID:          playerID,
 			Username:    username,
+			UserRole:    "user",
 			AvatarSeed:  avatarSeed,
 			Hand:        []engine.CardType{},
 			DiscardPile: []engine.CardType{},
@@ -892,62 +918,51 @@ func (r *Room) AddPlayer(playerID string) error {
 func (r *Room) StartGame() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	log := r.log.WithField("room_id", r.id)
 
 	if len(r.state.Players) < 2 {
 		return fmt.Errorf("cannot start game: minimum 2 players required")
 	}
 
-	// ПЕРЕВІРКА НА ПЕРЕЗАПУСК: якщо гра вже йшла, але завершилась
-	isRestart := len(r.state.TurnOrder) > 0 && (r.state.IsGameOver || r.state.Phase == "FINISHED")
-
+	isRestart := len(r.state.TurnOrder) > 0 && (r.state.IsGameOver || r.state.Phase == engine.PhaseFinished)
 	if len(r.state.TurnOrder) > 0 && !isRestart {
 		return fmt.Errorf("game has already been started")
 	}
 
 	log.Info("Ініціалізація старту гри (або перезапуску сесії), формування колоди...")
+
 	deck, burn := engine.PrepareNewDeck(r.rng)
 	r.state.Deck = deck
 	r.state.BurnCard = &burn
 
-	// Формуємо чергу ходів на основі поточних підключених гравців
 	turnOrder := make([]string, 0, len(r.state.Players))
-
 	for id, player := range r.state.Players {
 		turnOrder = append(turnOrder, id)
 		if len(r.state.Deck) == 0 {
 			return fmt.Errorf("not enough cards in the deck to distribute to players")
 		}
-
-		// Роздаємо стартову карту
 		card := r.state.Deck[0]
 		r.state.Deck = r.state.Deck[1:]
-
 		player.Hand = []engine.CardType{card}
-		player.DiscardPile = []engine.CardType{} // Очищуємо старий відбій
-		player.IsOut = false                     // Повертаємо вибулих у гру
-		player.IsProtected = false               // Знімаємо захист
-		player.SpyPointsAwarded = false          // Скидаємо прапорці шпигуна
-
-		// ЯКЩО ЦЕ ПЕРЕЗАПУСК — ОБНУЛЯЄМО РАХУНОК ДО 0
+		player.DiscardPile = []engine.CardType{}
+		player.IsOut = false
+		player.IsProtected = false
+		player.SpyPointsAwarded = false
 		if isRestart {
 			player.Score = 0
 		}
-
 		r.state.Players[id] = player
 	}
 
-	// Скидаємо загальні ігрові прапорці кімнати
 	r.state.TurnOrder = turnOrder
 	r.state.CurrentTurn = 0
 	r.state.Phase = engine.PhaseMainAction
 	r.state.WinnerID = ""
 	r.state.IsGameOver = false
-
-	// Нарощуємо Sequence, щоб фронтенд побачив новий пакет даних
 	r.state.Sequence++
 
-	// Видаємо першому гравцю другу карту для початку ходу
+	// Роздача другої карти першому гравцю
 	firstPlayerID := turnOrder[0]
 	firstPlayer := r.state.Players[firstPlayerID]
 	if len(r.state.Deck) == 0 {
@@ -958,9 +973,30 @@ func (r *Room) StartGame() error {
 	firstPlayer.Hand = append(firstPlayer.Hand, drawCard)
 	r.state.Players[firstPlayerID] = firstPlayer
 
-	// Зберігаємо оновлений стан у базу даних
+	// 1. ОДИН РАЗ зберігаємо початковий стан у БД
 	if err := r.saveToDB(context.Background()); err != nil {
 		return fmt.Errorf("failed to save initialized game state: %w", err)
+	}
+
+	// 2. Збираємо ботів, використовуючи твоє нове поле UserRole
+	var botIDs []string
+	for id, player := range r.state.Players {
+		if player.UserRole == "bot" {
+			botIDs = append(botIDs, id)
+		}
+	}
+
+	if len(botIDs) > 0 {
+		log.Infof("Ініціалізуємо BotManager для ботів: %v", botIDs)
+		if r.botManager == nil {
+			r.botManager = bot.NewBotManager(r.id, botIDs, r.log)
+		} else {
+			r.botManager.Reset()
+		}
+		initialState := r.state.Clone()
+		r.botManager.HandleGameUpdate(&initialState, nil)
+	} else {
+		r.botManager = nil
 	}
 
 	log.WithFields(logrus.Fields{
@@ -968,15 +1004,15 @@ func (r *Room) StartGame() error {
 		"deck_left":     len(r.state.Deck),
 		"first_player":  firstPlayerID,
 		"is_restart":    isRestart,
-	}).Info("Гру успішно розпочато з нуля!")
+	}).Info("Гру успішно розпочато!")
 
-	// Перезапускаємо таймер ходу через внутрішню чергу
+	// 3. Надсилаємо єдиний екшен для запуску таймера кімнати
 	select {
 	case r.actions <- inboundAction{PlayerID: systemPlayerID, RequestID: MsgStartGame}:
 	default:
 	}
 
-	// Розсилаємо новий стан усім клієнтам у кімнаті
+	// 4. Вебсокет-розсилка оновленого стейту
 	go r.BroadcastState(UpdateTypeRoomUpdated, nil)
 	return nil
 }
@@ -990,8 +1026,24 @@ func (r *Room) NextRound() error {
 	if r.state.Phase == engine.PhaseFinished {
 		return fmt.Errorf("cannot start next round: the game is already finished")
 	}
-	if len(r.conns) < 2 {
-		return fmt.Errorf("cannot start next round: insufficient connected players (%d online)", len(r.conns))
+
+	// Рахуємо підключених людей + ботів ---
+	totalReadyPlayers := 0
+	for _, playerID := range r.state.TurnOrder {
+		p, exists := r.state.Players[playerID]
+		if !exists {
+			continue
+		}
+
+		// Гравець вважається готовим, якщо це бот АБО якщо у нього є активний WebSocket
+		_, isOnline := r.conns[playerID]
+		if p.UserRole == "bot" || isOnline {
+			totalReadyPlayers++
+		}
+	}
+
+	if totalReadyPlayers < 2 {
+		return fmt.Errorf("cannot start next round: insufficient connected players and bots (%d ready)", totalReadyPlayers)
 	}
 
 	log.Info("Ініціалізація наступного раунду, перегенерація колоди...")
@@ -1070,10 +1122,11 @@ func (r *Room) NextRound() error {
 
 // processAction застосовує одну подію до стану.
 // Викликається лише з goroutine Start() — серіалізація гарантована каналом.
-func (r *Room) processAction(ctx context.Context, inAct inboundAction) error {
+func (r *Room) processAction(ctx context.Context, inAct inboundAction) ([]engine.DomainEvent, error) {
 	if inAct.RequestID == MsgStartGame {
-		return nil
+		return nil, nil
 	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -1086,57 +1139,58 @@ func (r *Room) processAction(ctx context.Context, inAct inboundAction) error {
 	})
 	log.Debug("Початок обробки дії з черги кімнати")
 
-	startEventID := r.state.Sequence * 1000
+	stateBefore := r.state.Clone()
+	turnID := rand.Intn(2147483647)
+
 	var (
-		result engine.ApplyResult
-		err    error
+		result      engine.ApplyResult
+		savedEvents []engine.DomainEvent
+		err         error
 	)
 
 	if !inAct.IsChancellorType {
-		// Уся валідація делегована engine.Apply (типізовані помилки).
-		result, err = engine.Apply(r.state, inAct.Action, r.rng, r.clock, startEventID)
+		result, err = engine.Apply(r.state, inAct.Action, r.rng, r.clock)
 		if err != nil {
 			log.WithField("error", err.Error()).Warn("Відхилено ігрову дію")
-			return err
+			return nil, err
 		}
-		err = r.store.LogApplyAction(ctx, r.id, r.state.Sequence, inAct.Action, result.DomainEvents)
+		// Передаємо в базу логів, отримуємо назад слайс з проставленими порядковими ID
+		savedEvents, err = r.store.LogApplyAction(ctx, r.id, turnID, result.DomainEvents, stateBefore)
 	} else {
-		result, err = engine.ResolveChancellor(r.state, inAct.ChancellorAction, r.clock, startEventID)
+		result, err = engine.ResolveChancellor(r.state, inAct.ChancellorAction, r.clock)
 		if err != nil {
 			log.WithField("error", err.Error()).Warn("Відхилено вибір Канцлера")
-			return err
+			return nil, err
 		}
-		err = r.store.LogChancellorResolveAction(ctx, r.id, r.state.Sequence, inAct.ChancellorAction, result.DomainEvents)
-
+		// Передаємо в базу логів
+		savedEvents, err = r.store.LogChancellorResolveAction(ctx, r.id, turnID, result.DomainEvents, stateBefore)
 	}
 
 	if err != nil {
 		log.WithField("error", err.Error()).Error("Критична помилка запису логів дії в БД")
-		return fmt.Errorf("failed to log action to storage: %w", err)
+		return nil, fmt.Errorf("failed to log action to storage:%w", err)
 	}
 
+	// Оновлюємо стан кімнати
 	r.state = result.NewState
 	r.state.Sequence++
 
 	if err := r.saveToDB(ctx); err != nil {
 		log.WithField("error", err.Error()).Error("Помилка збереження снапшоту")
-		return fmt.Errorf("failed to save room snapshot: %w", err)
+		return nil, fmt.Errorf("failed to save room snapshot:%w", err)
 	}
 
-	// archiveFinishedGame потребує snapshot стану — робимо clone під локом.
 	stateForArchive := r.state.Clone()
-
 	log.WithFields(logrus.Fields{
 		"seq_after": r.state.Sequence,
 		"phase":     r.state.Phase,
 	}).Info("Дію повністю зафіксовано. Запуск розсилки стану...")
 
-	// Виходимо з критичної секції перед side-effects.
-	// `defer r.mu.Unlock()` зніме лок одразу після return; оскільки наступні
-	// операції — це async-горутини та read-only операції над snapshot'ом, гонок не буде.
-	go r.BroadcastState(UpdateTypeRoomUpdated, result.DomainEvents)
+	go r.BroadcastState(UpdateTypeRoomUpdated, savedEvents)
+
 	r.archiveFinishedGame(stateForArchive)
-	return nil
+
+	return savedEvents, nil
 }
 
 // =============================================================================
@@ -1293,8 +1347,7 @@ func (r *Room) eliminatePlayer(playerID string) error {
 
 	// Якщо залишився один або нуль гравців — завершуємо раунд
 	if len(aliveIDs) <= 1 {
-		startEventID := r.state.Sequence * 1000
-		roundResult := engine.ResolveRoundEnd(r.state, r.clock, startEventID)
+		roundResult := engine.ResolveRoundEnd(r.state, r.clock)
 		r.state = roundResult.NewState
 		events = append(events, roundResult.DomainEvents...)
 		r.log.Info("Раунд автоматично завершено через дисконект гравця")
@@ -1314,8 +1367,7 @@ func (r *Room) eliminatePlayer(playerID string) error {
 
 	// Перевірка на випадок, якщо закінчилися карти в колоді
 	if len(r.state.Deck) == 0 {
-		startEventID := r.state.Sequence * 1000
-		roundResult := engine.ResolveRoundEnd(r.state, r.clock, startEventID+50)
+		roundResult := engine.ResolveRoundEnd(r.state, r.clock)
 		r.state = roundResult.NewState
 		events = append(events, roundResult.DomainEvents...)
 	}

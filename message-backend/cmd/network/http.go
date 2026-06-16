@@ -450,7 +450,7 @@ func (s *Server) HandleGetLeaderboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit := int32(10)
+	limit := 10
 
 	leaderboard, err := s.hub.store.Queries.GetLeaderboard(r.Context(), limit)
 	if err != nil {
@@ -470,7 +470,6 @@ func (s *Server) HandleGetUserStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Отримуємо Claims користувача, які наш Middleware (Auth) мав покласти в контекст запиту
-	// Якщо у тебе контекст працює інакше, адаптуй під свій Auth Middleware
 	ctxClaims, ok := r.Context().Value("user_claims").(*auth.Claims)
 	if !ok || ctxClaims == nil {
 		s.sendHTTPError(w, http.StatusUnauthorized, "Unauthorized")
@@ -499,4 +498,43 @@ func (s *Server) HandleGetUserStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.sendJSON(w, http.StatusOK, stats)
+}
+
+type AddBotRequest struct {
+	BotName string `json:"bot_name"`
+}
+
+func (s *Server) HandleAddBotToRoom(w http.ResponseWriter, r *http.Request) {
+	claims, _ := r.Context().Value(UserContextKey).(*auth.Claims)
+
+	roomID := r.PathValue("id")
+	if roomID == "" {
+		s.sendHTTPError(w, http.StatusBadRequest, "room id is required")
+		return
+	}
+
+	var req AddBotRequest
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.sendHTTPError(w, http.StatusBadRequest, "invalid json body")
+			return
+		}
+	}
+
+	room, err := s.hub.GetOrCreateRoom(roomID)
+	if err != nil {
+		s.sendHTTPError(w, http.StatusNotFound, "Кімнату не знайдено: "+err.Error())
+		return
+	}
+
+	if err := room.AddBotPlayer(req.BotName); err != nil {
+		s.log.Errorf("Користувач %s не зміг додати бота до кімнати %s: %v", claims.Username, roomID, err)
+		s.sendHTTPError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	s.sendJSON(w, http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "bot successfully added to room",
+	})
 }

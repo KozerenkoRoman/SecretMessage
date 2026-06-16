@@ -40,6 +40,7 @@
       @leave-game="handleLeaveRoom"
       @next-round="triggerNextRound"
       @restart-game="handleStartGameSignal"
+      @add-bot="handleAddBot"
     />
   </div>
 </template>
@@ -128,6 +129,22 @@ const handleLeaveRoom = () => {
 
 const handlePlayCard = (actionPayload) => {
   gameStore.sendWSMessage("ACTION", null, actionPayload, null);
+};
+
+const handleAddBot = async (botName, callback) => {
+  console.log(
+    `[RoomManager] Запит на створення бота: ${botName} для кімнати ${roomID.value}`
+  );
+
+  const success = await gameStore.addBotToRoom(roomID.value, botName);
+
+  if (!success) {
+    console.error("[RoomManager] Бекенд відхилив або виникла помилка створення бота.");
+  }
+
+  if (typeof callback === "function") {
+    callback();
+  }
 };
 
 onBeforeUnmount(() => {

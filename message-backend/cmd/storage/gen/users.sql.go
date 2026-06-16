@@ -8,7 +8,6 @@ package gen
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -76,7 +75,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 }
 
 const getLeaderboard = `-- name: GetLeaderboard :many
-SELECT u.username, u.avatar_seed, s.games_played, s.games_won, s.total_score, s.updated_at, s.spy_bonuses_received
+SELECT u.username, u.user_role, u.avatar_seed, s.user_id, s.games_played, s.games_won, s.rounds_played, s.rounds_won, s.spy_bonuses, s.total_score, s.updated_at
 FROM user_stats as s
 JOIN users as u ON s.user_id = u.id
 ORDER BY s.total_score DESC, s.games_won DESC
@@ -84,16 +83,13 @@ LIMIT $1
 `
 
 type GetLeaderboardRow struct {
-	Username           string    `json:"username"`
-	AvatarSeed         string    `json:"avatar_seed"`
-	GamesPlayed        int32     `json:"games_played"`
-	GamesWon           int32     `json:"games_won"`
-	TotalScore         int32     `json:"total_score"`
-	UpdatedAt          time.Time `json:"updated_at"`
-	SpyBonusesReceived int32     `json:"spy_bonuses_received"`
+	Username   string   `json:"username"`
+	UserRole   string   `json:"user_role"`
+	AvatarSeed string   `json:"avatar_seed"`
+	UserStat   UserStat `json:"user_stat"`
 }
 
-func (q *Queries) GetLeaderboard(ctx context.Context, limit int32) ([]GetLeaderboardRow, error) {
+func (q *Queries) GetLeaderboard(ctx context.Context, limit int) ([]GetLeaderboardRow, error) {
 	rows, err := q.db.Query(ctx, getLeaderboard, limit)
 	if err != nil {
 		return nil, err
@@ -104,12 +100,16 @@ func (q *Queries) GetLeaderboard(ctx context.Context, limit int32) ([]GetLeaderb
 		var i GetLeaderboardRow
 		if err := rows.Scan(
 			&i.Username,
+			&i.UserRole,
 			&i.AvatarSeed,
-			&i.GamesPlayed,
-			&i.GamesWon,
-			&i.TotalScore,
-			&i.UpdatedAt,
-			&i.SpyBonusesReceived,
+			&i.UserStat.UserID,
+			&i.UserStat.GamesPlayed,
+			&i.UserStat.GamesWon,
+			&i.UserStat.RoundsPlayed,
+			&i.UserStat.RoundsWon,
+			&i.UserStat.SpyBonuses,
+			&i.UserStat.TotalScore,
+			&i.UserStat.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -171,62 +171,28 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	return i, err
 }
 
-const getUserGameHistory = `-- name: GetUserGameHistory :many
-SELECT id, room_id, winner_id, final_state, played_at 
-FROM game_history 
-WHERE winner_id = $1 
-ORDER BY played_at DESC 
-LIMIT $2 OFFSET $3
-`
-
-type GetUserGameHistoryParams struct {
-	WinnerID uuid.NullUUID `json:"winner_id"`
-	Limit    int32         `json:"limit"`
-	Offset   int32         `json:"offset"`
-}
-
-func (q *Queries) GetUserGameHistory(ctx context.Context, arg GetUserGameHistoryParams) ([]GameHistory, error) {
-	rows, err := q.db.Query(ctx, getUserGameHistory, arg.WinnerID, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GameHistory
-	for rows.Next() {
-		var i GameHistory
-		if err := rows.Scan(
-			&i.ID,
-			&i.RoomID,
-			&i.WinnerID,
-			&i.FinalState,
-			&i.PlayedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getUserStats = `-- name: GetUserStats :one
-SELECT user_id, games_played, games_won, spy_bonuses_received, total_score, updated_at 
+SELECT user_stats.user_id, user_stats.games_played, user_stats.games_won, user_stats.rounds_played, user_stats.rounds_won, user_stats.spy_bonuses, user_stats.total_score, user_stats.updated_at
 FROM user_stats 
 WHERE user_id = $1
 `
 
-func (q *Queries) GetUserStats(ctx context.Context, userID uuid.UUID) (UserStat, error) {
+type GetUserStatsRow struct {
+	UserStat UserStat `json:"user_stat"`
+}
+
+func (q *Queries) GetUserStats(ctx context.Context, userID uuid.UUID) (GetUserStatsRow, error) {
 	row := q.db.QueryRow(ctx, getUserStats, userID)
-	var i UserStat
+	var i GetUserStatsRow
 	err := row.Scan(
-		&i.UserID,
-		&i.GamesPlayed,
-		&i.GamesWon,
-		&i.SpyBonusesReceived,
-		&i.TotalScore,
-		&i.UpdatedAt,
+		&i.UserStat.UserID,
+		&i.UserStat.GamesPlayed,
+		&i.UserStat.GamesWon,
+		&i.UserStat.RoundsPlayed,
+		&i.UserStat.RoundsWon,
+		&i.UserStat.SpyBonuses,
+		&i.UserStat.TotalScore,
+		&i.UserStat.UpdatedAt,
 	)
 	return i, err
 }
@@ -281,22 +247,6 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	return items, nil
 }
 
-const logGameHistory = `-- name: LogGameHistory :exec
-INSERT INTO game_history (room_id, winner_id, final_state, played_at)
-VALUES ($1, $2, $3, NOW())
-`
-
-type LogGameHistoryParams struct {
-	RoomID     string          `json:"room_id"`
-	WinnerID   uuid.NullUUID   `json:"winner_id"`
-	FinalState json.RawMessage `json:"final_state"`
-}
-
-func (q *Queries) LogGameHistory(ctx context.Context, arg LogGameHistoryParams) error {
-	_, err := q.db.Exec(ctx, logGameHistory, arg.RoomID, arg.WinnerID, arg.FinalState)
-	return err
-}
-
 const seedAdminUser = `-- name: SeedAdminUser :exec
 INSERT INTO users (username, email, password_hash, user_role, avatar_seed)
 VALUES ($1, $2, $3, 'admin', $4)
@@ -312,6 +262,31 @@ type SeedAdminUserParams struct {
 
 func (q *Queries) SeedAdminUser(ctx context.Context, arg SeedAdminUserParams) error {
 	_, err := q.db.Exec(ctx, seedAdminUser,
+		arg.Username,
+		arg.Email,
+		arg.PasswordHash,
+		arg.AvatarSeed,
+	)
+	return err
+}
+
+const seedBotUser = `-- name: SeedBotUser :exec
+INSERT INTO users (id, username, email, password_hash, user_role, avatar_seed)
+VALUES ($1, $2, $3, $4, 'bot', $5)
+ON CONFLICT (username) DO NOTHING
+`
+
+type SeedBotUserParams struct {
+	ID           uuid.UUID `json:"id"`
+	Username     string    `json:"username"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"password_hash"`
+	AvatarSeed   string    `json:"avatar_seed"`
+}
+
+func (q *Queries) SeedBotUser(ctx context.Context, arg SeedBotUserParams) error {
+	_, err := q.db.Exec(ctx, seedBotUser,
+		arg.ID,
 		arg.Username,
 		arg.Email,
 		arg.PasswordHash,
@@ -375,23 +350,28 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 }
 
 const updateUserStats = `-- name: UpdateUserStats :exec
-INSERT INTO user_stats (user_id, games_played, games_won, spy_bonuses_received, total_score, updated_at)
-VALUES ($1, $2, $3, $4, $5, NOW())
-ON CONFLICT (user_id) 
-DO UPDATE SET 
+INSERT INTO user_stats (user_id, games_played, games_won, rounds_played, rounds_won, spy_bonuses, total_score, updated_at) 
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, now()
+)
+ON CONFLICT (user_id) DO UPDATE SET
     games_played = user_stats.games_played + EXCLUDED.games_played,
     games_won = user_stats.games_won + EXCLUDED.games_won,
-    spy_bonuses_received = user_stats.spy_bonuses_received + EXCLUDED.spy_bonuses_received,
+    rounds_played = user_stats.rounds_played + EXCLUDED.rounds_played,
+    rounds_won = user_stats.rounds_won + EXCLUDED.rounds_won,
+    spy_bonuses = user_stats.spy_bonuses + EXCLUDED.spy_bonuses,
     total_score = user_stats.total_score + EXCLUDED.total_score,
-    updated_at = NOW()
+    updated_at = now()
 `
 
 type UpdateUserStatsParams struct {
-	UserID             uuid.UUID `json:"user_id"`
-	GamesPlayed        int32     `json:"games_played"`
-	GamesWon           int32     `json:"games_won"`
-	SpyBonusesReceived int32     `json:"spy_bonuses_received"`
-	TotalScore         int32     `json:"total_score"`
+	UserID       uuid.UUID `json:"user_id"`
+	GamesPlayed  int       `json:"games_played"`
+	GamesWon     int       `json:"games_won"`
+	RoundsPlayed int       `json:"rounds_played"`
+	RoundsWon    int       `json:"rounds_won"`
+	SpyBonuses   int       `json:"spy_bonuses"`
+	TotalScore   int       `json:"total_score"`
 }
 
 func (q *Queries) UpdateUserStats(ctx context.Context, arg UpdateUserStatsParams) error {
@@ -399,7 +379,9 @@ func (q *Queries) UpdateUserStats(ctx context.Context, arg UpdateUserStatsParams
 		arg.UserID,
 		arg.GamesPlayed,
 		arg.GamesWon,
-		arg.SpyBonusesReceived,
+		arg.RoundsPlayed,
+		arg.RoundsWon,
+		arg.SpyBonuses,
 		arg.TotalScore,
 	)
 	return err

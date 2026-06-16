@@ -18,7 +18,6 @@ import (
 	"github.com/exaring/otelpgx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -44,13 +43,12 @@ type RoomResult struct {
 	State json.RawMessage
 }
 
-// Внутрішня структура для уніфікації даних перед записом в БД
-type internalTurnData struct {
-	ActionType string
-	PlayerID   string
-	HandIndex  int
-	TargetID   string
-	GuessCard  int
+var SystemBotNames = []gen.User{
+	{ID: uuid.MustParse("00000000-aaaa-0000-0000-111122223333"), Username: "BotAlpha", Email: "bot_alpha@local.host", AvatarSeed: "BotAlpha"},
+	{ID: uuid.MustParse("00000000-bbbb-0000-0000-111122223333"), Username: "BotBeta", Email: "bot_beta@local.host", AvatarSeed: "BotBeta"},
+	{ID: uuid.MustParse("00000000-cccc-0000-0000-111122223333"), Username: "BotGamma", Email: "bot_gamma@local.host", AvatarSeed: "BotGamma"},
+	{ID: uuid.MustParse("00000000-dddd-0000-0000-111122223333"), Username: "BotDelta", Email: "bot_delta@local.host", AvatarSeed: "BotDelta"},
+	{ID: uuid.MustParse("00000000-eeee-0000-0000-111122223333"), Username: "BotEpsilon", Email: "bot_epsilon@local.host", AvatarSeed: "BotEpsilon"},
 }
 
 func New(ctx context.Context, cfg *config.Config, log *logrus.Logger) (*Storage, error) {
@@ -65,6 +63,10 @@ func New(ctx context.Context, cfg *config.Config, log *logrus.Logger) (*Storage,
 	poolCfg.MaxConnIdleTime = 1 * time.Hour
 	poolCfg.MaxConnLifetime = 24 * time.Hour
 	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer()
+	poolCfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET client_encoding TO 'UTF8';")
+		return err
+	}
 
 	db, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
@@ -206,21 +208,11 @@ func (s *Storage) SaveGameResult(ctx context.Context, input GameResultInput) err
 
 	txQueries := s.Queries.WithTx(tx)
 
-	// 1. Одразу записуємо матч в історію ігор, використовуючи готовий input.WinnerID
-	err = txQueries.LogGameHistory(ctx, gen.LogGameHistoryParams{
-		RoomID:     input.RoomID,
-		WinnerID:   input.WinnerID,
-		FinalState: input.FinalStateJS,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to log game history: %w", err)
-	}
-
-	// 2. Оновлюємо статистику (user_stats) для кожного учасника
+	// Розраховуємо та оновлюємо глобальну ігрову статистику для кожного учасника
 	for _, username := range input.AllPlayers {
 		usr, err := txQueries.GetUserByUsername(ctx, username)
 		if err != nil {
-			s.log.Errorf("Failed to get user stats for %s: %v", username, err)
+			s.log.Errorf("Failed to get user data for stats update %s:%v", username, err)
 			continue
 		}
 
@@ -247,13 +239,17 @@ func (s *Storage) SaveGameResult(ctx context.Context, input GameResultInput) err
 			scoreIncrement += 25
 		}
 
-		// Атомарний UPSERT через ON CONFLICT
+		// Виконуємо атомарний атомарний UPSERT через генератор SQLc
+		// Оскільки таблиця тепер містить RoundsPlayed та RoundsWon (з 0004 міграції), інкрементуємо їх за замовчуванням
+		// (Ці лічильники можна точніше наповнювати, якщо передавати з рушія кімнати)
 		err = txQueries.UpdateUserStats(ctx, gen.UpdateUserStatsParams{
-			UserID:             usr.ID,
-			GamesPlayed:        1,
-			GamesWon:           int32(gamesWonIncrement),
-			SpyBonusesReceived: int32(spyBonusesIncrement),
-			TotalScore:         int32(scoreIncrement),
+			UserID:       usr.ID,
+			GamesPlayed:  1,
+			GamesWon:     gamesWonIncrement,
+			RoundsPlayed: 1,
+			RoundsWon:    gamesWonIncrement,
+			SpyBonuses:   spyBonusesIncrement,
+			TotalScore:   scoreIncrement,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to update stats for user %s: %w", username, err)
@@ -297,99 +293,84 @@ func (s *Storage) GetGameState(ctx context.Context, roomID string) (engine.GameS
 	return state, nil
 }
 
-// LogApplyAction записує стандартний хід гравця (Apply) та його доменні події
-func (s *Storage) LogApplyAction(ctx context.Context, roomID string, sequence uint64, action engine.Action, events []engine.DomainEvent) error {
-	data := internalTurnData{
-		ActionType: "APPLY",
-		PlayerID:   action.PlayerID,
-		HandIndex:  action.HandIndex,
-		TargetID:   action.TargetID,
-		GuessCard:  int(action.Guess), // Карта представлена як число
-	}
-	return s.writeTurnAndEvents(ctx, roomID, sequence, data, events)
+func (s *Storage) LogApplyAction(ctx context.Context, roomID string, turnID int, events []engine.DomainEvent, stateBefore engine.GameState) ([]engine.DomainEvent, error) {
+	return s.writeEventsLog(ctx, roomID, turnID, events, stateBefore)
 }
 
-// LogChancellorResolveAction записує специфічний хід резолву Канцлера
-func (s *Storage) LogChancellorResolveAction(ctx context.Context, roomID string, sequence uint64, action engine.ChancellorResolveAction, events []engine.DomainEvent) error {
-	data := internalTurnData{
-		ActionType: "CHANCELLOR_RESOLVE",
-		PlayerID:   action.PlayerID,
-		HandIndex:  action.KeepHandIndex, // Мапимо обраний індекс карти, яку залишили
-		TargetID:   "",                   // У Канцлера немає таргета при резолві
-		GuessCard:  0,                    // Канцлер не вгадує карти
-	}
-	return s.writeTurnAndEvents(ctx, roomID, sequence, data, events)
+func (s *Storage) LogChancellorResolveAction(ctx context.Context, roomID string, turnID int, events []engine.DomainEvent, stateBefore engine.GameState) ([]engine.DomainEvent, error) {
+	return s.writeEventsLog(ctx, roomID, turnID, events, stateBefore)
 }
 
-func (s *Storage) writeTurnAndEvents(ctx context.Context, roomID string, sequence uint64, turn internalTurnData, events []engine.DomainEvent) error {
+func (s *Storage) writeEventsLog(ctx context.Context, roomID string, turnID int, events []engine.DomainEvent, stateBefore engine.GameState) ([]engine.DomainEvent, error) {
+	if len(events) == 0 {
+		return nil, nil
+	}
+
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to start database transaction: %w", err)
+		return nil, fmt.Errorf("failed to start database transaction:%w", err)
 	}
 	defer tx.Rollback(ctx)
 
 	txQueries := s.Queries.WithTx(tx)
 
-	// Мапимо текстове поле в pgtype.Text
-	targetID := pgtype.Text{
-		String: turn.TargetID,
-		Valid:  turn.TargetID != "",
-	}
-
-	var guessCard sql.NullInt32
-	if turn.GuessCard > 0 {
-		guessCard = sql.NullInt32{Int32: int32(turn.GuessCard), Valid: true}
-	}
-
-	// 1. Записуємо хід у таблицю game_turns та отримуємо згенерований UUID ходу
-	// Примітка: залежно від генерації sqlc, turnUUID тут буде типу uuid.UUID
-	turnUUID, err := txQueries.LogTurn(ctx, gen.LogTurnParams{
-		RoomID:     roomID,
-		SequenceID: int32(sequence),
-		ActionType: turn.ActionType,
-		PlayerID:   turn.PlayerID,
-		HandIndex:  int32(turn.HandIndex),
-		TargetID:   targetID,
-		GuessCard:  guessCard,
-	})
+	stateBeforeRaw, err := json.Marshal(stateBefore)
 	if err != nil {
-		return fmt.Errorf("db error saving game turn: %w", err)
+		return nil, fmt.Errorf("failed to marshal state_before snapshot:%w", err)
 	}
 
-	// 2. Створюємо правильну структуру uuid.NullUUID згідно з перевизначенням sqlc
-	turnIDParam := uuid.NullUUID{
-		UUID:  turnUUID,
-		Valid: true,
-	}
+	// Створюємо новий слайс, де збережемо івенти з реальними ID з бази
+	savedEvents := make([]engine.DomainEvent, len(events))
 
-	// 3. Логуємо кожну доменну подію
-	for _, event := range events {
+	for i, event := range events {
 		payloadRaw, err := json.Marshal(event.Payload)
 		if err != nil {
-			return fmt.Errorf("failed to marshal domain event payload: %w", err)
+			return nil, fmt.Errorf("failed to marshal domain event payload:%w", err)
 		}
 
-		err = txQueries.LogDomainEvent(ctx, gen.LogDomainEventParams{
-			RoomID:    roomID,
-			TurnID:    turnIDParam, // Передаємо згенерований нами uuid.NullUUID
-			EventID:   int64(event.EventID),
-			EventType: string(event.Type),
-			Payload:   json.RawMessage(payloadRaw),
+		// 🌟 sqlc згенерував InsertGameEvent так, що він повертає (int, error), бо в кінці запиту стоїть RETURNING event_id
+		actualEventID, err := txQueries.InsertGameEvent(ctx, gen.InsertGameEventParams{
+			RoomID:      roomID,
+			TurnID:      turnID,
+			EventType:   string(event.Type),
+			Payload:     json.RawMessage(payloadRaw),
+			StateBefore: json.RawMessage(stateBeforeRaw),
 		})
 		if err != nil {
-			return fmt.Errorf("db error saving domain event: %w", err)
+			return nil, fmt.Errorf("db error saving custom game event: %w", err)
 		}
+
+		// Записуємо згенерований базою ID назад у структуру
+		event.EventID = actualEventID
+		savedEvents[i] = event
 	}
 
-	// 4. Підтверджуємо транзакцію
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	return nil
+	return savedEvents, nil
 }
 
-func (s *Storage) SeedAdmin(ctx context.Context, logger *logrus.Logger) error {
+func (s *Storage) GetBotNames() []gen.User {
+	res := make([]gen.User, len(SystemBotNames))
+	copy(res, SystemBotNames)
+	return res
+}
+
+func (s *Storage) SeedUsers(ctx context.Context, logger *logrus.Logger) {
+	if err := s.seedAdmin(ctx, logger); err != nil {
+		logger.Errorf("Попередження: не вдалося виконати початкове заповнення адміна: %v", err)
+	}
+
+	for _, botName := range SystemBotNames {
+		if err := s.seedBot(ctx, logger, botName); err != nil {
+			logger.Errorf("Попередження: не вдалося виконати початкове заповнення бота %s: %v", botName.Username, err)
+		}
+	}
+}
+
+func (s *Storage) seedAdmin(ctx context.Context, logger *logrus.Logger) error {
 	adminUser := s.cfg.AdminUser
 	adminEmail := s.cfg.AdminEmail
 	adminPass := s.cfg.AdminPass
@@ -413,29 +394,28 @@ func (s *Storage) SeedAdmin(ctx context.Context, logger *logrus.Logger) error {
 	return nil
 }
 
-// GetAllGameResults — Використовується для адмін-панелі (GET /api/admin/games).
-// Оскільки в наданому sqlc-файлі немає прямого GetAllGameResults, але є GetUserGameHistory,
-// ми створимо метод, який повертає історію ігор. Якщо winner_id порожній (NullUUID{Valid: false}),
-// ми можемо отримати загальну історію або історію конкретного гравця.
-// Для повноцінного адмін-методу ми передамо порожній WinnerID (або ви можете згенерувати окремий SQL запит).
-func (s *Storage) GetAllGameResults(ctx context.Context) ([]gen.GameHistory, error) {
-	// Для демонстрації використовуємо GetUserGameHistory із Valid: false, щоб отримати останні матчі,
-	// або якщо sqlc налаштовано суворо на фільтрацію, цей метод поверне матчі без переможців (нічиї).
-	// Якщо вам потрібні абсолютно всі матчі, додайте в users.sql: `-- name: GetAllGames :many SELECT * FROM game_history ORDER BY played_at DESC`
-	params := gen.GetUserGameHistoryParams{
-		WinnerID: uuid.NullUUID{Valid: false},
-		Limit:    100, // Ліміт для адмінки
-		Offset:   0,
+func (s *Storage) seedBot(ctx context.Context, logger *logrus.Logger, bot gen.User) error {
+	botPass := fmt.Sprintf("%s@%s", bot.Username, s.cfg.AdminPass)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(botPass), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash bot password: %w", err)
 	}
 
-	games, err := s.Queries.GetUserGameHistory(ctx, params)
+	err = s.Queries.SeedBotUser(ctx, gen.SeedBotUserParams{
+		ID:           bot.ID,
+		Username:     bot.Username,
+		Email:        bot.Email,
+		PasswordHash: string(hashedPassword),
+		AvatarSeed:   bot.AvatarSeed,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("storage get game history: %w", err)
+		return fmt.Errorf("failed to seed static bot user %s: %w", bot.Username, err)
 	}
-	return games, nil
+
+	logger.Infof("Перевірка Database Seeding: бот '%s' [ID: %s] готовий до роботи.", bot.Username, bot.ID.String())
+	return nil
 }
 
-// BlockUser — адаптує вхідні рядкові дані під sqlc метод BanUser
 func (s *Storage) BlockUser(ctx context.Context, userIDStr string, reason string) error {
 	// 1. Парсимо string у uuid.UUID
 	userUUID, err := uuid.Parse(userIDStr)
@@ -475,7 +455,7 @@ func (s *Storage) UnblockUser(ctx context.Context, userIDStr string) error {
 }
 
 // GetLeaderboardTop — обгортка для отримання лідерборду з фіксованим лімітом
-func (s *Storage) GetLeaderboardTop(ctx context.Context, limit int32) ([]gen.GetLeaderboardRow, error) {
+func (s *Storage) GetLeaderboardTop(ctx context.Context, limit int) ([]gen.GetLeaderboardRow, error) {
 	if limit <= 0 {
 		limit = 10 // значення за замовчуванням
 	}

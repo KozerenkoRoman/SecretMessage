@@ -33,7 +33,7 @@ func TestApply_HandmaidProtectsFromTargetedAttack(t *testing.T) {
 
 	// 1. Хід: p1 розігрує Поковку (Handmaid) під індексом 0
 	action1 := engine.Action{PlayerID: "p1", HandIndex: 0}
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка: статус захисту змінився на true
@@ -46,7 +46,7 @@ func TestApply_HandmaidProtectsFromTargetedAttack(t *testing.T) {
 		TargetID:  "p1",
 		Guess:     engine.CardPrincess,
 	}
-	result2, err := engine.Apply(result1.NewState, action2, rng, clock, 200)
+	result2, err := engine.Apply(result1.NewState, action2, rng, clock)
 	require.NoError(t, err)
 
 	// Головна перевірка безпеки: p1 живий, бо ефект карти Guard змазався об захист
@@ -101,7 +101,7 @@ func TestHandmaidProtectionLifecycle(t *testing.T) {
 		HandIndex: 0, // CardHandmaid
 	}
 
-	result1, err := engine.Apply(state, action1, rng, clock, 1000)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Перевіряємо, що після розіграшу Служниці Гравець 1 став ЗАХИЩЕНИМ
@@ -119,7 +119,7 @@ func TestHandmaidProtectionLifecycle(t *testing.T) {
 		HandIndex: 0, // Скидає свою Служницю
 	}
 
-	result2, err := engine.Apply(state2, action2, rng, clock, 2000)
+	result2, err := engine.Apply(state2, action2, rng, clock)
 	require.NoError(t, err)
 
 	// Тепер хід знову має повернутися до Гравця 1 (індекс 0 в TurnOrder)

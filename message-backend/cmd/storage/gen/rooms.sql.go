@@ -7,7 +7,6 @@ package gen
 
 import (
 	"context"
-	"encoding/json"
 )
 
 const checkHealth = `-- name: CheckHealth :one
@@ -49,8 +48,8 @@ DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()
 `
 
 type SaveRoomParams struct {
-	ID    string          `json:"id"`
-	State json.RawMessage `json:"state"`
+	ID    string `json:"id"`
+	State []byte `json:"state"`
 }
 
 func (q *Queries) SaveRoom(ctx context.Context, arg SaveRoomParams) error {

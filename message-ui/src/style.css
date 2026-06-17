@@ -134,13 +134,19 @@
   box-shadow:
     0 10px 25px -5px rgba(0, 0, 0, 0.5),
     0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  /*
+    ВАЖЛИВО: opacity та filter НЕ анімуються тут.
+    Перемикання класу game-card-playable <-> game-card-disabled
+    відбувається миттєво, тому швидкі state-update від сервера
+    (ROOM_UPDATED при ході бота) не викликають "blink"-ефект.
+    Анімуємо лише hover-related властивості.
+  */
   transition:
     transform 0.18s ease,
-    box-shadow 0.25s ease,
-    filter 0.2s ease,
-    opacity 0.2s ease;
+    box-shadow 0.25s ease;
   user-select: none;
   overflow: visible !important;
+  will-change: transform;
 }
 
 /* Карта, якою можна ходити (хід гравця) */
@@ -166,6 +172,9 @@
   cursor: not-allowed;
   opacity: 0.4;
   filter: grayscale(20%);
+  /* Зупиняємо glow-анімацію без рестарту, щоб при поверненні ходу
+     анімація продовжилась з того ж кадру, а не "стрибала". */
+  animation-play-state: paused;
 }
 
 /* Порожній слот картки (на столі відбою) */

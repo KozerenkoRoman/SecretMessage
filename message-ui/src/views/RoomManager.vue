@@ -50,7 +50,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useGameStore } from "../stores/gameStore";
 import { useAuthStore } from "../stores/auth";
-import BoardView from "./BoardView.vue";
+import BoardView from "./board/BoardView.vue";
 
 const gameStore = useGameStore();
 const authStore = useAuthStore();
@@ -78,16 +78,19 @@ const isActualGameStarted = (state) => {
   );
 };
 
+/*
+  Знімаємо loading-екран коли стор отримав хоч один ROOM_UPDATED
+  (hasReceivedState) АБО коли state-version інкрементувався. Раніше тут
+  було watch на gameStore.gameState, який очікував зміну посилання -
+  після переходу стора на in-place merge посилання більше не змінюється,
+  через що екран "Підключення..." висів вічно.
+*/
 watch(
-  () => gameStore.gameState,
-  (newState) => {
-    if (newState) {
+  () => [gameStore.hasReceivedState, gameStore.stateVersion],
+  ([received]) => {
+    if (received) {
       loading.value = false;
-      if (newState.is_game_over || newState.phase === "ROUND_END") {
-        isSubmitting.value = false;
-      } else {
-        isSubmitting.value = false;
-      }
+      isSubmitting.value = false;
     }
   },
   { immediate: true }

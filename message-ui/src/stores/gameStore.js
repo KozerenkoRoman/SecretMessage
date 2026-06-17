@@ -25,6 +25,98 @@ function makeEmptyGameState() {
   };
 }
 
+/**
+ * Поверхнево-рекурсивне in-place злиття серверного state у локальний.
+ * - Примітиви: присвоюємо лише коли значення відрізняється.
+ * - Масиви: якщо довжина і кожен елемент-примітив рівні — НЕ чіпаємо
+ *   існуюче посилання (ключовий момент для стабільної reactivity та
+ *   уникання небажаних DOM-перебудов / blink-ефектів). Інакше мутуємо
+ *   через splice, зберігаючи саме посилання на масив.
+ * - Об'єкти: рекурсивно зливаємо ключі; видаляємо ті, яких більше нема.
+ *
+ * Повертає той самий target (для зручності).
+ */
+function mergeState(target, source) {
+  if (!target || typeof target !== 'object') return source;
+  if (!source || typeof source !== 'object') return target;
+
+  if (Array.isArray(source)) {
+    if (!Array.isArray(target)) return source;
+    return mergeArray(target, source);
+  }
+
+  // Видаляємо ключі, яких більше нема в новому стані
+  for (const k of Object.keys(target)) {
+    if (!(k in source)) delete target[k];
+  }
+
+  for (const k of Object.keys(source)) {
+    const sv = source[k];
+    const tv = target[k];
+
+    if (sv === null || typeof sv !== 'object') {
+      if (tv !== sv) target[k] = sv;
+      continue;
+    }
+
+    if (Array.isArray(sv)) {
+      if (Array.isArray(tv)) {
+        mergeArray(tv, sv);
+      } else {
+        target[k] = sv.slice();
+      }
+      continue;
+    }
+
+    if (tv && typeof tv === 'object' && !Array.isArray(tv)) {
+      mergeState(tv, sv);
+    } else {
+      target[k] = mergeState({}, sv);
+    }
+  }
+  return target;
+}
+
+function mergeArray(target, source) {
+  // Швидкий шлях: однакова довжина та однакові примітиви/ID-збіги -
+  // нічого не робимо, посилання зберігається.
+  if (target.length === source.length) {
+    let identical = true;
+    for (let i = 0; i < source.length; i++) {
+      const a = target[i];
+      const b = source[i];
+      if (a === b) continue;
+      if (a && b && typeof a === 'object' && typeof b === 'object') {
+        identical = false; // далі смержимо поелементно
+        break;
+      }
+      identical = false;
+      break;
+    }
+    if (identical) return target;
+  }
+
+  // Узгоджуємо довжину одним splice — це краще, ніж створювати новий масив.
+  if (target.length > source.length) {
+    target.splice(source.length, target.length - source.length);
+  }
+  for (let i = 0; i < source.length; i++) {
+    const sv = source[i];
+    const tv = target[i];
+    if (sv === null || typeof sv !== 'object') {
+      if (tv !== sv) target[i] = sv;
+    } else if (Array.isArray(sv)) {
+      if (Array.isArray(tv)) mergeArray(tv, sv);
+      else target[i] = sv.slice();
+    } else if (tv && typeof tv === 'object' && !Array.isArray(tv)) {
+      mergeState(tv, sv);
+    } else {
+      target[i] = mergeState({}, sv);
+    }
+  }
+  return target;
+}
+
 function extractUserIdFromToken(token) {
   if (!token || typeof token !== 'string') return '';
   try {
@@ -48,6 +140,51 @@ export const useGameStore = defineStore('gameStore', () => {
   const revealedCardData = ref(null);
   const authToken = ref(localStorage.getItem('token') || '');
 
+  /*
+    Сигнальні ref'и для UI.
+    Раніше підписники (RoomManager) визначали "ми отримали стан від сервера"
+    за фактом перепризначення gameState.value (через spread). Після того як
+    ми перейшли на in-place mergeState (для усунення мерехтіння карт),
+    кореневе посилання НЕ змінюється, тож shallow watch на gameState
+    більше не тригериться. Тому надаємо явні сигнали:
+      - hasReceivedState: ми хоча б раз отримали валідний ROOM_UPDATED
+      - stateVersion:     монотонний лічильник для watcher'ів, які хочуть
+                          реагувати на КОЖНЕ оновлення стану, а не лише
+                          на зміну посилання.
+  */
+  const hasReceivedState = ref(false);
+  const stateVersion = ref(0);
+
+  /*
+    Похідні (derived) поля стану дошки. Раніше ця логіка жила у
+    BoardView.vue усередині важкого watch({ deep: true }), що:
+      - перебудовував усе при кожному ROOM_UPDATED;
+      - блукав по ВСІХ гравцях .find()'ом і spread'ив об'єкти;
+      - писав у локальний стан компонента, який гасився при ремаунті.
+    Тут ми обчислюємо все ОДИН раз при отриманні WS-пакета й тримаємо
+    стабільні посилання, тож компонент лише читає плоскі ref'и.
+  */
+  // Глобальна послідовність відбою з монотонним seq.
+  const discardSequence = ref([]);
+  // pid -> остання зіграна карта (число або об'єкт {type:...}).
+  const lastPlayedCardsByPlayer = ref({});
+  // pid -> скільки карт у discard_pile ми вже зафіксували
+  // (внутрішній прапор, не експонується назовні).
+  const _discardSeenLengths = Object.create(null);
+  let _discardSeqCounter = 0;
+
+  // Стабільні UID для слотів руки поточного гравця.
+  // [{ uid, cardType, index }] — :key='slot.uid' у v-for НЕ змінюється,
+  // поки кількість карт стабільна, тому DOM-вузли не пересоздаються.
+  const handSlots = ref([]);
+  let _handSlotCounter = 0;
+  const _nextHandUid = () => `hand-${++_handSlotCounter}`;
+
+  // Локальний таймер: тримаємо ВІДОКРЕМЛЕНО від gameState.seconds_left,
+  // щоб тиканина не мутувала об'єкт, що мерджиться сервером (інакше
+  // отримаємо feedback-loop і повторні рендери щосекунди).
+  const secondsLeft = ref(0);
+
   // Перенесено всередину стору для коректного скидання
   const gameLog = ref([]);
 
@@ -55,6 +192,14 @@ export const useGameStore = defineStore('gameStore', () => {
 
   let timerInterval = null;
   let reconnectTimeout = null;
+
+  function _resetBoardDerived() {
+    discardSequence.value = [];
+    lastPlayedCardsByPlayer.value = {};
+    for (const k of Object.keys(_discardSeenLengths)) delete _discardSeenLengths[k];
+    _discardSeqCounter = 0;
+    handSlots.value = [];
+  }
 
   const isGameStarted = computed(() => {
     return (
@@ -101,6 +246,172 @@ export const useGameStore = defineStore('gameStore', () => {
     gameLog.value = [];
   }
 
+  /**
+   * Робимо легкий snapshot ключових полів СТАРОГО стану ДО злиття,
+   * щоб після mergeState мати з чим порівнювати (mergeState мутує
+   * gameState.value in-place, тож після нього "старого" стану вже нема).
+   * Повертає лише те, що реально потрібне для дерев'яної логіки дошки.
+   */
+  function _snapshotForBoardDerivation(state) {
+    if (!state || typeof state !== 'object') return { discardLenByPid: {} };
+    const playersData = state.players;
+    const out = { discardLenByPid: Object.create(null) };
+    if (!playersData) return out;
+    if (Array.isArray(playersData)) {
+      for (const p of playersData) {
+        if (!p || typeof p !== 'object' || typeof p.id !== 'string') continue;
+        out.discardLenByPid[p.id] = Array.isArray(p.discard_pile) ? p.discard_pile.length : 0;
+      }
+    } else {
+      for (const id of Object.keys(playersData)) {
+        const p = playersData[id];
+        if (!p || typeof p !== 'object') continue;
+        out.discardLenByPid[id] = Array.isArray(p.discard_pile) ? p.discard_pile.length : 0;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Оновлює derived-поля для дошки після того, як newState уже злито в
+   * gameState.value. Все відбувається ОДИН раз на пакет ROOM_UPDATED.
+   * @param newState - власне gameState.value (in-place після merge)
+   * @param prevSnap - snapshot, зроблений ДО merge (через _snapshotForBoardDerivation)
+   */
+  function _updateBoardDerived(newState, prevSnap) {
+    if (!newState || typeof newState !== 'object') return;
+
+    const playersData = newState.players;
+    if (!playersData || typeof playersData !== 'object') return;
+
+    // Нормалізуємо до плоского масиву [{id, ...}], не мутуючи playersData.
+    let playersList;
+    if (Array.isArray(playersData)) {
+      playersList = playersData.filter(
+        (p) => p && typeof p === 'object' && typeof p.id === 'string' && p.id.length > 0
+      );
+    } else {
+      playersList = [];
+      for (const id of Object.keys(playersData)) {
+        const raw = playersData[id];
+        if (raw && typeof raw === 'object') playersList.push({ raw, id });
+      }
+    }
+
+    const turnOrder = Array.isArray(newState.turn_order) ? newState.turn_order : [];
+    const currentTurnIdx = typeof newState.current_turn === 'number' ? newState.current_turn : -1;
+    const currentActiveID = currentTurnIdx >= 0 && currentTurnIdx < turnOrder.length
+      ? turnOrder[currentTurnIdx]
+      : newState.current_player_id || '';
+
+    const localId = myID.value;
+
+    // ---- discard sequence + lastPlayedCardsByPlayer ----
+    // Йдемо у порядку turn_order (далі - усі інші id-ки), щоб події у відбої
+    // лягали детерміновано в одному порядку у всіх клієнтів.
+    const seenIds = new Set();
+    const ordered = [];
+    for (const id of turnOrder) {
+      const found = playersList.find((p) =>
+        Array.isArray(playersData) ? p.id === id : p.id === id
+      );
+      if (found) {
+        ordered.push(found);
+        seenIds.add(id);
+      }
+    }
+    for (const p of playersList) {
+      if (!seenIds.has(p.id)) ordered.push(p);
+    }
+
+    // lpc - реактивний proxy від ref, тому правки ключів (lpc[pid] = ...,
+    // delete lpc[pid]) автоматично трекаються Vue. Жодного ручного
+    // re-assign'у наприкінці не потрібно.
+    const lpc = lastPlayedCardsByPlayer.value;
+
+    for (const entry of ordered) {
+      const pid = entry.id;
+      const p = Array.isArray(playersData) ? entry : entry.raw;
+      const discard = Array.isArray(p.discard_pile) ? p.discard_pile : null;
+      const curLen = discard ? discard.length : 0;
+      const seenLen = _discardSeenLengths[pid] || 0;
+      const prevLen = prevSnap?.discardLenByPid?.[pid] ?? seenLen;
+
+      if (curLen > seenLen && discard) {
+        for (let i = seenLen; i < curLen; i++) {
+          const rawCard = discard[i];
+          const isObject = typeof rawCard === 'object' && rawCard !== null;
+          discardSequence.value.push({
+            seq: _discardSeqCounter++,
+            type: isObject ? rawCard.type : rawCard,
+            playerId: pid,
+          });
+        }
+        _discardSeenLengths[pid] = curLen;
+      } else if (curLen < seenLen) {
+        // Колоду / partію перетасували - синхронізуємо лічильник, але
+        // НЕ чіпаємо discardSequence: він глобальний по партії та чиститься
+        // явно (round-bump / leave / нова кімната).
+        _discardSeenLengths[pid] = curLen;
+      }
+
+      // lastPlayedCardsByPlayer - тільки для опонентів, на основі дельти
+      // ВІДНОСНО ПОПЕРЕДНЬОГО ПАКЕТА (а не до seenLen).
+      if (pid === localId) continue;
+      if (curLen > prevLen && discard) {
+        const lastCard = discard[curLen - 1];
+        if (lpc[pid] !== lastCard) lpc[pid] = lastCard;
+      } else if (pid === currentActiveID && lpc[pid] !== undefined) {
+        delete lpc[pid];
+      }
+      if (curLen === 0 && lpc[pid] !== undefined) {
+        delete lpc[pid];
+      }
+    }
+
+    // ---- handSlots для локального гравця ----
+    const myHand = (() => {
+      if (!localId) return [];
+      if (Array.isArray(playersData)) {
+        const me = playersData.find((p) => p && p.id === localId);
+        return me && Array.isArray(me.hand) ? me.hand : [];
+      }
+      const me = playersData[localId];
+      if (me && Array.isArray(me.hand)) return me.hand;
+      return Array.isArray(newState.my_hand) ? newState.my_hand : [];
+    })();
+
+    const slots = handSlots.value;
+    if (slots.length !== myHand.length) {
+      // Кількість карт реально змінилась - перевипускаємо UID-и.
+      // Реюзаємо UID-и для тих позицій, що збереглися (стабільний :key).
+      const fresh = [];
+      for (let i = 0; i < myHand.length; i++) {
+        const existing = slots[i];
+        fresh.push({
+          uid: existing ? existing.uid : _nextHandUid(),
+          cardType: myHand[i],
+          index: i,
+        });
+      }
+      handSlots.value = fresh;
+    } else {
+      // Та сама кількість - точково оновлюємо лише ті слоти, де
+      // cardType/index реально змінилися. UID не змінюється ніколи у
+      // цій гілці, тож DOM-вузли карт не пересоздаються.
+      for (let i = 0; i < myHand.length; i++) {
+        const slot = slots[i];
+        if (!slot) {
+          slots[i] = { uid: _nextHandUid(), cardType: myHand[i], index: i };
+        } else if (slot.cardType !== myHand[i] || slot.index !== i) {
+          // Створюємо новий об'єкт-обгортку (щоб тригернути реактивність
+          // у v-for, який ітерує по slots), але зберігаємо УЖЕ виданий uid.
+          slots[i] = { uid: slot.uid, cardType: myHand[i], index: i };
+        }
+      }
+    }
+  }
+
   function setErrorFromPacket(packet) {
     if (!packet || typeof packet !== 'object') {
       error.value = { code: 'ERR_INTERNAL', message: 'Unknown error', details: null };
@@ -126,6 +437,11 @@ export const useGameStore = defineStore('gameStore', () => {
 
       if (currentRoomID.value !== targetRoomID) {
         clearLog();
+        // Нова кімната - старий state вже не релевантний; чекаємо на свіжий
+        // ROOM_UPDATED перш ніж вважати з'єднання "готовим".
+        hasReceivedState.value = false;
+        stateVersion.value = 0;
+        _resetBoardDerived();
       }
 
       currentRoomID.value = targetRoomID;
@@ -143,6 +459,9 @@ export const useGameStore = defineStore('gameStore', () => {
     clearLog();
     currentRoomID.value = targetRoomID;
     isIntentionallyClosed.value = false;
+    hasReceivedState.value = false;
+    stateVersion.value = 0;
+    _resetBoardDerived();
     refreshAuthToken();
     const token = authToken.value;
     if (!token) {
@@ -193,7 +512,40 @@ export const useGameStore = defineStore('gameStore', () => {
           let rawState = packet.state || packet.payload;
           if (!rawState || typeof rawState !== 'object') return;
 
-          let updatedState = JSON.parse(JSON.stringify(rawState));
+          // Знімок попереднього стану (лише потрібні поля) ДО merge,
+          // бо mergeState мутує gameState.value in-place.
+          const prevSnap = _snapshotForBoardDerivation(gameState.value);
+          const prevRound = typeof gameState.value?.round_number === 'number'
+            ? gameState.value.round_number
+            : null;
+          const prevDeckLen = Array.isArray(gameState.value?.deck)
+            ? gameState.value.deck.length
+            : null;
+
+          // Структурне злиття: НЕ робимо JSON-клон, інакше всі масиви
+          // (зокрема hand[]) отримують нові посилання на кожному
+          // ROOM_UPDATED, що ламає reactivity-діффінг та може провокувати
+          // мерехтіння карт через будь-які transition-залежні стилі.
+          // Замість цього мутуємо існуючі поля коли їхня структура збіглася.
+          const updatedState = mergeState(gameState.value, rawState);
+
+          // Якщо почався новий раунд або колода свіжо перегенерована,
+          // глобальний відбій логічно скидається.
+          const newRound = typeof updatedState.round_number === 'number'
+            ? updatedState.round_number
+            : null;
+          const newDeckLen = Array.isArray(updatedState.deck)
+            ? updatedState.deck.length
+            : null;
+          const roundBumped = prevRound !== null && newRound !== null && newRound > prevRound;
+          const deckGrew = prevDeckLen !== null && newDeckLen !== null && newDeckLen > prevDeckLen;
+          if (roundBumped || deckGrew) {
+            discardSequence.value = [];
+            for (const k of Object.keys(_discardSeenLengths)) delete _discardSeenLengths[k];
+            _discardSeqCounter = 0;
+            lastPlayedCardsByPlayer.value = {};
+          }
+
           const getPlayerName = (id) => {
             if (!id) return '...';
             return updatedState.players?.[id]?.username || `Гравець (${id.substring(0, 4)})`;
@@ -206,7 +558,15 @@ export const useGameStore = defineStore('gameStore', () => {
 
           const currentUuid = myID.value;
           if (updatedState.players && updatedState.players[currentUuid]) {
-            updatedState.my_hand = [...updatedState.players[currentUuid].hand];
+            const srcHand = updatedState.players[currentUuid].hand;
+            if (Array.isArray(srcHand)) {
+              if (!Array.isArray(updatedState.my_hand)) {
+                updatedState.my_hand = [];
+              }
+              // Зливаємо у наявний масив, щоб не зламати посилання,
+              // вже узгоджене mergeState'ом вище.
+              mergeArray(updatedState.my_hand, srcHand);
+            }
           }
 
           if (Array.isArray(packet.events)) {
@@ -292,16 +652,25 @@ export const useGameStore = defineStore('gameStore', () => {
             });
           }
 
-          gameState.value = {
-            ...gameState.value,
-            ...updatedState
-          };
+          // Перерахунок derived-полів дошки (discardSequence,
+          // lastPlayedCardsByPlayer, handSlots). Робиться РАЗ на пакет.
+          _updateBoardDerived(gameState.value, prevSnap);
+
+          // mergeState вже застосував зміни in-place до gameState.value,
+          // тому окремо перезаписувати об'єкт не потрібно.
           if (typeof updatedState.seconds_left === 'number') {
-            const currentLocalSeconds = gameState.value.seconds_left;
-            if (Math.abs(currentLocalSeconds - updatedState.seconds_left) > 1) {
-              startLocalTimer(updatedState.seconds_left);
-            }
-          };
+            // Дрейф > 1с -> рестартуємо локальний тікер під серверну
+            // істину. Тікер мутує ЛИШЕ secondsLeft, не gameState, тому
+            // не провокує feedback-loop у merge.
+            const drift = Math.abs(secondsLeft.value - updatedState.seconds_left);
+            if (drift > 1) startLocalTimer(updatedState.seconds_left);
+          }
+
+          // Сигналізуємо UI, що стан отримано/оновлено. Це КРИТИЧНО для
+          // RoomManager: він знімає loading-екран саме за цим прапором,
+          // а не за зміною посилання gameState (його більше немає).
+          hasReceivedState.value = true;
+          stateVersion.value++;
         }
       } catch (err) {
         console.error('[WS] Помилка десеріалізації:', err);
@@ -328,16 +697,24 @@ export const useGameStore = defineStore('gameStore', () => {
   function startLocalTimer(initialSeconds) {
     if (timerInterval) {
       clearInterval(timerInterval);
+      timerInterval = null;
     }
-    if (typeof initialSeconds !== 'number' || initialSeconds <= 0) return;
+    if (typeof initialSeconds !== 'number' || initialSeconds <= 0) {
+      secondsLeft.value = 0;
+      return;
+    }
 
-    gameState.value.seconds_left = initialSeconds;
+    // ВАЖЛИВО: тикаємо ВИКЛЮЧНО локальний secondsLeft. НЕ мутуємо
+    // gameState.seconds_left, інакше тікер інвалідуватиме всю реактивну
+    // піддерево щосекунди (re-render storm) і конфліктуватиме з merge.
+    secondsLeft.value = initialSeconds;
 
     timerInterval = setInterval(() => {
-      if (gameState.value && gameState.value.seconds_left > 0) {
-        gameState.value.seconds_left--;
+      if (secondsLeft.value > 0) {
+        secondsLeft.value--;
       } else {
         clearInterval(timerInterval);
+        timerInterval = null;
       }
     }, 1000);
   }
@@ -347,6 +724,7 @@ export const useGameStore = defineStore('gameStore', () => {
       clearInterval(timerInterval);
       timerInterval = null;
     }
+    secondsLeft.value = 0;
   }
 
   function sendWSMessage(type, overrideRoomID = null, actionPayload = null, chancellorPayload = null) {
@@ -379,6 +757,9 @@ export const useGameStore = defineStore('gameStore', () => {
       currentRoomID.value = '';
       revealedCardData.value = null;
       gameState.value = makeEmptyGameState();
+      hasReceivedState.value = false;
+      stateVersion.value = 0;
+      _resetBoardDerived();
     }
   }
 
@@ -400,6 +781,9 @@ export const useGameStore = defineStore('gameStore', () => {
     }
     isConnected.value = false;
     currentRoomID.value = '';
+    hasReceivedState.value = false;
+    stateVersion.value = 0;
+    _resetBoardDerived();
   }
 
   function addToLog(messageKey, namedArgs = {}) {
@@ -413,7 +797,7 @@ export const useGameStore = defineStore('gameStore', () => {
     }, 0);
   }
 
-  async function addBotToRoom(roomID, botName = "Бот") {
+  async function addBotToRoom(roomID) {
     try {
       refreshAuthToken();
       const token = authToken.value;
@@ -427,8 +811,7 @@ export const useGameStore = defineStore('gameStore', () => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ bot_name: botName })
+        }
       });
 
       if (!response.ok) {
@@ -436,7 +819,7 @@ export const useGameStore = defineStore('gameStore', () => {
         throw new Error(errorData.error || `Помилка сервера: ${response.status}`);
       }
 
-      console.log(`[gameStore] Бота "${botName}" успішно додано в кімнату ${roomID}`);
+      console.log(`[gameStore] Бота успішно додано в кімнату ${roomID}`);
       return true;
     } catch (err) {
       console.error('[gameStore] Помилка при додаванні бота:', err);
@@ -461,6 +844,13 @@ export const useGameStore = defineStore('gameStore', () => {
     isGameStarted,
     activePlayers,
     myCards,
+    hasReceivedState,
+    stateVersion,
+    // Derived board state (раніше було у BoardView.vue)
+    discardSequence,
+    lastPlayedCardsByPlayer,
+    handSlots,
+    secondsLeft,
     refreshAuthToken,
     clearError,
     clearLog,

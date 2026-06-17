@@ -473,6 +473,7 @@ const { t } = useI18n();
 const gameStore = useGameStore();
 const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
 
+// Стан інтерфейсу
 const showLeaveConfirm = ref(false);
 const showActionModal = ref(false);
 const isBotSubmitting = ref(false);
@@ -481,6 +482,7 @@ const lastPlayedCardsByPlayer = ref({});
 const localSecondsLeft = ref(0);
 let localTimerInterval = null;
 
+// Логіка трекінгу скинутих карт
 const discardSequence = ref([]);
 const discardSeenLengths = ref({});
 let discardSeqCounter = 0;
@@ -491,6 +493,7 @@ const resetDiscardTracking = () => {
   discardSeqCounter = 0;
 };
 
+// --- Computed властивості ---
 const effectiveMyID = computed(() => {
   const fromStore = storeMyID.value;
   if (typeof fromStore === "string" && fromStore.length > 0) return fromStore;
@@ -578,11 +581,8 @@ const isMyTurn = computed(() => {
   return props.gameState?.current_player_id === me;
 });
 
-onUnmounted(() => {
-  if (localTimerInterval) clearInterval(localTimerInterval);
-});
 
-// Слідкуємо за станом гри для оновлення стосу скидання
+// --- Watchers (Слідкування за станом) ---
 watch(
   () => props.gameState,
   (newGameState, oldGameState) => {
@@ -717,7 +717,7 @@ watch(
 
 watch(
   () => props.roomID,
-  (newRoomID, oldRoomID) => {
+  (newRoomID) => {
     if (newRoomID) {
       if (typeof gameStore.clearLog === "function") {
         gameStore.clearLog();
@@ -732,12 +732,12 @@ watch(
   { immediate: true }
 );
 
-const handleCloseRevealModal = () => {
-  gameStore.clearRevealedData();
-};
-const handleClearError = () => {
-  gameStore.clearError();
-};
+onUnmounted(() => {
+  if (localTimerInterval) clearInterval(localTimerInterval);
+});
+
+const handleCloseRevealModal = () => gameStore.clearRevealedData();
+const handleClearError = () => gameStore.clearError();
 
 const handleStartGame = () => {
   if (
@@ -834,8 +834,8 @@ const handleActionModalSubmit = ({ handIndex, targetID, guessCardId }) => {
     player_id: me,
     is_chancellor_type: false,
     hand_index: Number(handIndex),
-    target_id: targetID,
-    guess_card: guessCardId,
+    target_id: targetID || "",
+    guess_card: guessCardId ? Number(guessCardId) : 0,
   };
   emit("play-card", actionPayload);
 };
@@ -850,10 +850,11 @@ const handleRestartGameRequest = () => {
 const handleDelayAndAddBot = async () => {
   if (isBotSubmitting.value) return;
   isBotSubmitting.value = true;
-
-  emit("add-bot", "", () => {
-    isBotSubmitting.value = false;
-  });
+  try {
+    emit("add-bot");
+  } finally {
+    setTimeout(() => {isBotSubmitting.value = false}, 600);
+  }
 };
 
 const showChancellorPanel = computed(() => {

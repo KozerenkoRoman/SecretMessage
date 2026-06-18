@@ -51,6 +51,7 @@ func (b *BotBrain) decideMainAction(state *engine.GameState, me engine.Player, t
 
 	// Обираємо найкращу ціль на основі наявної інформації
 	targetID := b.findBestTarget(state, memory)
+	memory.TargetID = targetID
 
 	// ПЕРЕВІРКА: Чи знає хтось із живих суперників нашу карту?
 	isMyCardDisclosed := false
@@ -277,27 +278,53 @@ func (b *BotBrain) findBestTarget(state *engine.GameState, memory *BotMemory) st
 }
 
 func (b *BotBrain) evaluateBestGuardGuess(mem *BotMemory) (engine.CardType, float64) {
+	if mem.TargetID != "" {
+		if lastCard, ok := mem.LastPlayedCard[mem.TargetID]; ok && lastCard == engine.CardCountess {
+
+			// Формуємо пул карт, які зазвичай супроводжують Графиню
+			countessTriggers := []engine.CardType{engine.CardPrince, engine.CardKing, engine.CardPrincess}
+
+			var bestCountessGuess engine.CardType = engine.CardPrince
+			maxCountessProb := -1.0
+
+			for _, card := range countessTriggers {
+				prob := mem.GetCardProbability(card)
+				if prob > maxCountessProb {
+					maxCountessProb = prob
+					bestCountessGuess = card
+				}
+			}
+
+			// Якщо в колоді ще залишилися ці карти, повертаємо найімовірнішу з них із вагомим бонусом
+			if maxCountessProb > 0 {
+				b.log.WithFields(logrus.Fields{
+					"bot_id":      b.BotID,
+					"target_id":   mem.TargetID,
+					"reason":      "target_played_countess_before",
+					"best_guess":  bestCountessGuess,
+					"probability": maxCountessProb,
+				}).Debug("Бот помітив скинуту Графиню і фокусується на [5, 7, 9]")
+				return bestCountessGuess, maxCountessProb * 150.0 // Коефіцієнт впевненості
+			}
+		}
+	}
+
+	// 2. ДЕФОЛТНА ЛОГІКА (якщо Графині не було):
 	var bestGuess engine.CardType = engine.CardPriest
-	maxProb := -1.0 // Починаємо з від'ємного значення, щоб обробити навіть нульові ймовірності
+	maxProb := -1.0
 
 	for card := engine.CardSpy; card <= engine.CardPrincess; card++ {
 		if card == engine.CardGuard {
 			continue
 		}
 		prob := mem.GetCardProbability(card)
-
-		// Сценарій 1: Знайшли карту з чітко більшою ймовірністю
 		if prob > maxProb {
 			maxProb = prob
 			bestGuess = card
-
-			// Сценарій 2: Ймовірності однакові, але поточна карта — Принц.
-			// Робимо вибір на користь Принца для превентивного захисту.
 		} else if math.Abs(prob-maxProb) < 1e-9 && card == engine.CardPrince {
 			bestGuess = engine.CardPrince
 		}
 	}
-
 	return bestGuess, maxProb * 100.0
 }
 

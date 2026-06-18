@@ -17,9 +17,11 @@ var CardRegistry = map[engine.CardType]int{
 
 type BotMemory struct {
 	BotID               string
-	VisibleCounts       map[engine.CardType]int // Тільки ПУБЛІЧНО відкриті карти (відбій)
-	TotalUnknown        int                     // Карти, які бот фізично не бачив (колода + закриті руки ворогів)
+	VisibleCounts       map[engine.CardType]int
+	TotalUnknown        int
 	KnownOpponentCards  map[string]engine.CardType
+	LastPlayedCard      map[string]engine.CardType // остання зіграна карта
+	TargetID            string                     // поточна ціль бота
 	IsSpyBonusContested bool
 }
 
@@ -28,11 +30,10 @@ func NewBotMemory(botID string, state *engine.GameState, tracker *DeckTracker) *
 		BotID:              botID,
 		VisibleCounts:      make(map[engine.CardType]int),
 		KnownOpponentCards: tracker.KnownOpponentCards,
+		LastPlayedCard:     tracker.LastPlayedCard, // Лінк на трекер
 	}
 
 	spyDiscardedCount := 0
-
-	// 1. Рахуємо тільки ПУБЛІЧНІ карти (те, що бачать абсолютно всі)
 	for _, player := range state.Players {
 		for _, card := range player.DiscardPile {
 			mem.VisibleCounts[card]++
@@ -40,7 +41,6 @@ func NewBotMemory(botID string, state *engine.GameState, tracker *DeckTracker) *
 				spyDiscardedCount++
 			}
 		}
-		// Якщо гравець вибув, його рука зазвичай теж стає видимою (залежить від правил вашого рушія)
 		if player.IsOut && len(player.Hand) > 0 {
 			mem.VisibleCounts[player.Hand[0]]++
 		}
@@ -50,41 +50,32 @@ func NewBotMemory(botID string, state *engine.GameState, tracker *DeckTracker) *
 		mem.IsSpyBonusContested = true
 	}
 
-	// Рахуємо суму тільки публічних карт
 	visibleSum := 0
 	for _, count := range mem.VisibleCounts {
 		visibleSum += count
 	}
 
-	// 2. Рахуємо карти у ВЛАСНІЙ руці (їх бачить тільки цей бот)
 	myHandSize := 0
 	if me, exists := state.Players[botID]; exists {
 		myHandSize = len(me.Hand)
 		for _, card := range me.Hand {
-			mem.VisibleCounts[card]++ // Тимчасово додаємо свої карти як "побачені нами"
+			mem.VisibleCounts[card]++
 		}
 	}
 
-	// Загальна кількість карт у грі: 21.
-	// Невідомі для нас — це ті, які не у відбої і не в нашій власніруч.
 	mem.TotalUnknown = max(21-visibleSum-myHandSize, 0)
-
 	return mem
 }
 
-// GetCardProbability повертає математичну ймовірність того, що у випадкового гравця в руці саме ця карта
 func (m *BotMemory) GetCardProbability(card engine.CardType) float64 {
 	if m.TotalUnknown <= 0 {
 		return 0.0
 	}
-
 	maxInDeck := CardRegistry[card]
 	visible := m.VisibleCounts[card]
 	left := maxInDeck - visible
-
 	if left <= 0 {
 		return 0.0
 	}
-
 	return float64(left) / float64(m.TotalUnknown)
 }

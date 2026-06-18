@@ -6,8 +6,8 @@ type DeckTracker struct {
 	BotID              string
 	KnownBottomCards   []engine.CardType
 	KnownOpponentCards map[string]engine.CardType
-	// Нове поле: хто з гравців знає нашу конкретну карту
-	AmIDisclosedTo map[string]engine.CardType
+	AmIDisclosedTo     map[string]engine.CardType // хто з гравців знає нашу конкретну карту
+	LastPlayedCard     map[string]engine.CardType // Відстеження останньої зіграної карти
 }
 
 func NewDeckTracker(botID string) *DeckTracker {
@@ -16,6 +16,7 @@ func NewDeckTracker(botID string) *DeckTracker {
 		KnownBottomCards:   make([]engine.CardType, 0),
 		KnownOpponentCards: make(map[string]engine.CardType),
 		AmIDisclosedTo:     make(map[string]engine.CardType),
+		LastPlayedCard:     make(map[string]engine.CardType),
 	}
 }
 
@@ -23,6 +24,7 @@ func (t *DeckTracker) Reset() {
 	t.KnownBottomCards = make([]engine.CardType, 0)
 	t.KnownOpponentCards = make(map[string]engine.CardType)
 	t.AmIDisclosedTo = make(map[string]engine.CardType)
+	t.LastPlayedCard = make(map[string]engine.CardType)
 }
 
 // RecordChancellorAction фіксує порядок карт, скинутих Канцлером
@@ -45,9 +47,9 @@ func (t *DeckTracker) TrackGameState(state *engine.GameState) {
 		if p.IsOut {
 			delete(t.KnownOpponentCards, id)
 			delete(t.AmIDisclosedTo, id) // Якщо ворог вибув, він більше не загроза
+			delete(t.LastPlayedCard, id)
 		}
 	}
-
 	// Слідкуємо за залишком відомого нам дна колоди
 	if deckSize < len(t.KnownBottomCards) && deckSize > 0 {
 		t.KnownBottomCards = t.KnownBottomCards[:deckSize]
@@ -61,11 +63,6 @@ func (t *DeckTracker) TrackGameState(state *engine.GameState) {
 	// Якщо настав хід нашого бота, ворог тепер знає лише 50% (бо ми взяли другу карту).
 	// Для агресивного захисту ми можемо зберігати статус «розкритий», але очистимо його,
 	// якщо події показують, що загроза минула.
-	if state.Phase == engine.PhaseMainAction && activePlayerID == t.BotID {
-		// Залишаємо AmIDisclosedTo для аналізу всередині decideMainAction.
-		// Він очиститься в HandleDomainEvent, коли карту буде зіграно.
-	}
-
 	if state.Phase == engine.PhaseMainAction && activePlayerID != t.BotID {
 		if len(t.KnownBottomCards) > 0 && len(state.Deck) == len(t.KnownBottomCards)-1 {
 			drawnFromBottom := t.KnownBottomCards[len(t.KnownBottomCards)-1]
@@ -79,6 +76,9 @@ func (t *DeckTracker) HandleDomainEvent(event engine.DomainEvent) {
 	switch event.Type {
 	case engine.EventCardPlayed:
 		if payload, ok := event.Payload.(engine.CardPlayedPayload); ok {
+			// Фіксація останньої зіграної карти для аналізу Графині
+			t.LastPlayedCard[payload.PlayerID] = payload.Card
+
 			// Сценарій 1: Гравець зіграв карту зі своєї руки.
 			// Якщо це не наш бот — очищуємо пам'ять про нього, бо його рука змінилася.
 			if payload.PlayerID != t.BotID {
@@ -119,16 +119,13 @@ func (t *DeckTracker) HandleDomainEvent(event engine.DomainEvent) {
 			} else {
 				delete(t.KnownOpponentCards, payload.PlayerID)
 			}
-
 			// Логіка для AmIDisclosedTo: при обміні Королем карти міняються!
-			if payload.PlayerID == t.BotID {
+			if payload.PlayerID == t.BotID || payload.TargetID == t.BotID {
 				// Ми віддали карту TargetID. Тепер TargetID точно знає, що у нього наша стара карта,
 				// а інші гравці, які знали нашу карту, тепер мають хибну інформацію.
 				t.AmIDisclosedTo = make(map[string]engine.CardType)
 				// Але тепер TargetID знає нашу нову карту? Ні, бо він дав нам свою наосліп.
 				// Проте TargetID знає, яку карту отримав ВІД нас.
-			} else if payload.TargetID == t.BotID {
-				t.AmIDisclosedTo = make(map[string]engine.CardType)
 			}
 		}
 

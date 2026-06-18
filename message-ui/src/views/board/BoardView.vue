@@ -19,6 +19,7 @@
         @add-bot="handleDelayAndAddBot"
         @start-game="handleStartGame"
       />
+
       <main
         class="flex-1 min-h-0 flex flex-col my-1 gap-1 sm:gap-2 overflow-hidden w-full mx-auto"
       >
@@ -41,6 +42,7 @@
           :getCardImage="getCardImage"
         />
       </main>
+
       <footer
         class="w-full max-w-2xl xtall:max-w-3xl mx-auto bg-brand-bg-dark/90 backdrop-blur-md p-1.5 sm:p-2 short:p-1 rounded-t-2xl border-t border-x border-slate-800 flex flex-col items-center shadow-2xl flex-shrink-0 z-10 relative"
         style="height: calc(var(--card-primary-h) + 1.5rem)"
@@ -59,6 +61,7 @@
               class="w-12 sm:w-16 lg:w-20 h-auto object-contain animate-fade-in flex-shrink-0"
             />
           </div>
+
           <div
             v-if="showChancellorPanel"
             class="w-full flex flex-col items-center h-full justify-between"
@@ -72,7 +75,7 @@
               class="flex justify-center gap-2 sm:gap-3 lg:gap-4 items-center flex-1 min-h-0 w-full overflow-hidden"
             >
               <div
-                v-for="slot in myHandSlots"
+                v-for="slot in localHandSlots"
                 :key="slot.uid"
                 @click="handleChancellorClick(slot.index)"
                 class="game-card card-primary ring-2 ring-amber-500/50 bg-cover bg-center transition-all duration-200 hover:scale-105 cursor-pointer flex flex-col justify-between overflow-hidden"
@@ -93,6 +96,7 @@
               </div>
             </div>
           </div>
+
           <div
             v-else
             class="flex justify-center gap-2 sm:gap-3 lg:gap-4 relative z-10 items-center w-full h-full"
@@ -101,7 +105,7 @@
               {{ $t("board.waitingForCards") }}
             </div>
             <div
-              v-for="slot in myHandSlots"
+              v-for="slot in localHandSlots"
               :key="slot.uid"
               @click="isMyTurn ? handleCardClick(slot.cardType, slot.index) : null"
               class="game-card card-primary bg-cover bg-center flex flex-col justify-between overflow-hidden"
@@ -123,6 +127,7 @@
                 >{{ getCardName(slot.cardType) }}</span
               >
             </div>
+
             <div
               v-if="myPlayer?.is_protected"
               class="game-card card-secondary border-2 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
@@ -146,11 +151,13 @@
         </div>
       </footer>
     </div>
+
     <div
       class="lg:col-span-4 h-full max-h-app overflow-hidden hidden lg:block pt-1 min-h-0"
     >
       <GameLogPanel />
     </div>
+
     <ActionModal
       :is-open="showActionModal"
       :card-type="String(activePlay.cardType)"
@@ -164,7 +171,7 @@
       :is-open="!!revealedCardData"
       v-if="revealedCardData"
       :data="revealedCardData"
-      :players="props.gameState.players"
+      :players="props.gameState?.players"
       @close="handleCloseRevealModal"
     />
     <ChancellorModal
@@ -172,6 +179,7 @@
       :cards="myHandCards"
       @submit="handleChancellorModalSubmit"
     />
+
     <GameEndModal
       v-if="!revealedCardData"
       :is-open="showGameEndModal"
@@ -245,7 +253,6 @@ const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
   Замість цього робимо тонкі computed-обгортки з optional-chaining;
   Pinia сама забезпечує реактивність на доступ до власних полів.
 */
-const myHandSlots = computed(() => gameStore.handSlots ?? []);
 const lastPlayedCardsByPlayer = computed(() => gameStore.lastPlayedCardsByPlayer ?? {});
 const discardSequence = computed(() => gameStore.discardSequence ?? []);
 const localSecondsLeft = computed(() => gameStore.secondsLeft ?? 0);
@@ -264,6 +271,7 @@ const effectiveMyID = computed(() => {
 const arrangedPlayers = computed(() => {
   const playersData = props.gameState?.players;
   if (!playersData) return [];
+
   const list = Array.isArray(playersData)
     ? props.gameState.players
         .filter(
@@ -315,6 +323,15 @@ const myHandCards = computed(() => {
   return Array.isArray(fallback) ? fallback : [];
 });
 
+// Створення стабільних слотів карт для усунення миготіння у v-for
+const localHandSlots = computed(() => {
+  return myHandCards.value.map((card, idx) => ({
+    uid: `hand-slot-${idx}-${card}`,
+    index: idx,
+    cardType: card,
+  }));
+});
+
 const isMyTurn = computed(() => {
   const me = effectiveMyID.value;
   if (!me) return false;
@@ -342,6 +359,7 @@ const isMyTurn = computed(() => {
 
 const handleCloseRevealModal = () => gameStore.clearRevealedData();
 const handleClearError = () => gameStore.clearError();
+
 const handleStartGame = () => {
   if (
     props.isStarting ||

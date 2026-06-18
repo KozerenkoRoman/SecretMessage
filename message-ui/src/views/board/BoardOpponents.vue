@@ -48,7 +48,7 @@
           >
             <div
               v-for="cIdx in getOpponentHandCount(player)"
-              :key="`${player.id}-back-${cIdx}`"
+              :key="`opp-card-${player.id}-${cIdx}`"
               class="card-secondary rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative"
             >
               <img

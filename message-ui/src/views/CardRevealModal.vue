@@ -89,10 +89,16 @@ const props = defineProps({
   players: { type: [Object, Array], default: () => ({}) },
 });
 
-const isBaron = computed(() => props.data?.eventType === "ROUND_COMPARED");
+const isBaron = computed(
+  () =>
+    props.data?.eventType === "ROUND_COMPARED" || props.data?.type === "ROUND_COMPARED"
+);
+
 const isValidReveal = computed(() => {
   if (!props.data) return false;
-  return isBaron.value || props.data.cardType !== undefined;
+  if (isBaron.value) return true;
+  // Перевіряємо обидва можливі ключі: card або cardType для зворотної сумісності
+  return props.data.card !== undefined || props.data.cardType !== undefined;
 });
 
 const getPlayerData = (id) => {
@@ -121,31 +127,43 @@ const getCardInfo = (id) => {
 const displayCards = computed(() => {
   if (!isValidReveal.value) return [];
   if (isBaron.value) {
-    const pData = getPlayerData(props.data.playerId);
-    const tData = getPlayerData(props.data.targetId);
+    const pData = getPlayerData(props.data.playerId || props.data.player_id);
+    const tData = getPlayerData(props.data.targetId || props.data.target_id);
+    const pCard =
+      props.data.playerCard !== undefined
+        ? props.data.playerCard
+        : props.data.player_card;
+    const tCard =
+      props.data.targetCard !== undefined
+        ? props.data.targetCard
+        : props.data.target_card;
+
     return [
       {
-        id: props.data.playerCard,
+        id: pCard,
         label: pData?.username || t("common.opponent"),
         playerData: pData,
-        info: getCardInfo(props.data.playerCard),
+        info: getCardInfo(pCard),
       },
       {
-        id: props.data.targetCard,
+        id: tCard,
         label: tData?.username || t("common.opponent"),
         playerData: tData,
-        info: getCardInfo(props.data.targetCard),
+        info: getCardInfo(tCard),
       },
     ];
   }
 
-  const tData = getPlayerData(props.data.targetId);
+  const targetId = props.data.targetId || props.data.target_id;
+  const cardId = props.data.card !== undefined ? props.data.card : props.data.cardType;
+  const tData = getPlayerData(targetId);
+
   return [
     {
-      id: props.data.cardType,
+      id: cardId,
       label: tData?.username || t("common.opponent"),
       playerData: tData,
-      info: getCardInfo(props.data.cardType),
+      info: getCardInfo(cardId),
     },
   ];
 });
@@ -168,5 +186,15 @@ const displayCards = computed(() => {
 .scale-enter-active .bg-brand-bg,
 .scale-leave-active .bg-brand-bg {
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+  border-radius: 2px;
 }
 </style>

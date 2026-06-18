@@ -226,7 +226,7 @@ const props = defineProps({
   roomID: { type: String, required: true },
   gameState: { type: Object, required: true },
   myID: { type: String, default: "" },
-  isStarting: { type: Boolean, default: false },
+  isStarting: { type: [Boolean, String], default: false },
 });
 
 const emit = defineEmits([

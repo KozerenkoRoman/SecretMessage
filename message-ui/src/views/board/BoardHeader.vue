@@ -113,7 +113,7 @@ defineProps({
   canStartGame: Boolean,
   playersCount: Number,
   isBotSubmitting: Boolean,
-  isStarting: String || Boolean,
+  isStarting: [String, Boolean],
   showChancellorPanel: Boolean,
   isMyTurn: Boolean,
   currentTurnPlayerName: String,

@@ -40,6 +40,8 @@
           :getCardColor="getCardColor"
           :getCardName="getCardName"
           :getCardImage="getCardImage"
+          :getCardValue="getCardValue"
+          :latestTurnAlert="latestTurnAlert"
         />
       </main>
 
@@ -179,7 +181,6 @@
       :cards="myHandCards"
       @submit="handleChancellorModalSubmit"
     />
-
     <GameEndModal
       v-if="!revealedCardData"
       :is-open="showGameEndModal"
@@ -205,7 +206,7 @@
 
 <script setup>
 import { getCardInfoHelper } from "../../constants/cards";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useGameStore } from "../../stores/gameStore";
 import { storeToRefs } from "pinia";
@@ -261,6 +262,8 @@ const showLeaveConfirm = ref(false);
 const showActionModal = ref(false);
 const isBotSubmitting = ref(false);
 const activePlay = ref({ cardType: "", handIndex: 0, targetID: "", guessCard: "" });
+const latestTurnAlert = ref(null);
+let alertTimeout = null;
 
 const effectiveMyID = computed(() => {
   const fromStore = storeMyID.value;
@@ -387,6 +390,31 @@ const getCardValue = (type) => {
 // колись знадобиться, без ремепу всього масиву на кожен render.
 const globalDiscardPile = computed(() => discardSequence.value);
 
+watch(
+  () => globalDiscardPile.value,
+  (newPile) => {
+    if (newPile && newPile.length > 0) {
+      const lastEntry = newPile[newPile.length - 1];
+      if (lastEntry && lastEntry.type !== undefined) {
+        const targetPlayerID = lastEntry.playerId || props.gameState?.current_player_id;
+        const foundPlayer = arrangedPlayers.value.find((p) => p.id === targetPlayerID);
+        const name = foundPlayer?.username || t("common.opponent");
+
+        if (alertTimeout) clearTimeout(alertTimeout);
+        latestTurnAlert.value = {
+          cardType: lastEntry.type,
+          playerName: name,
+        };
+
+        alertTimeout = setTimeout(() => {
+          latestTurnAlert.value = null;
+        }, 2500);
+      }
+    }
+  },
+  { deep: true }
+);
+
 const canStartGame = computed(() => {
   if (props.gameState?.is_started) return false;
   const playersData = props.gameState?.players;
@@ -512,5 +540,33 @@ const handleChancellorModalSubmit = ({ keepHandIndex, bottomOrder }) => {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(245, 158, 11, 0.3);
   border-radius: 2px;
+}
+
+/* Стилі та анімації для банера останнього ходу */
+.slide-banner-enter-from {
+  opacity: 0;
+  transform: translateY(-40px) scale(0.95);
+}
+.slide-banner-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.9);
+}
+.slide-banner-enter-active,
+.slide-banner-leave-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pulseSubtle {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+    shadow: 0 0 40px rgba(245, 158, 11, 0.6);
+  }
+}
+.animate-pulse-subtle {
+  animation: pulseSubtle 2s infinite ease-in-out;
 }
 </style>

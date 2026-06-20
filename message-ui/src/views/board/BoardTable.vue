@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex-1 min-h-0 flex items-center justify-center p-2 sm:p-3 bg-brand-bg-dark/40 rounded-2xl border border-slate-800/60 w-full overflow-hidden"
+    class="flex-1 min-h-0 flex items-center justify-center p-2 sm:p-3 bg-brand-bg-dark/40 rounded-2xl border border-slate-800/60 w-full overflow-hidden relative"
   >
     <div
       class="flex gap-3 sm:gap-4 lg:gap-6 items-center w-full mx-auto justify-between h-full"
@@ -64,6 +64,40 @@
         </div>
       </div>
     </div>
+
+    <Transition name="slide-banner">
+      <div
+        v-if="latestTurnAlert"
+        class="absolute inset-0 flex justify-center items-center z-30 pointer-events-none bg-brand-bg-dark/40 backdrop-blur-sm rounded-2xl"
+      >
+        <div
+          class="bg-brand-bg-dark border-2 border-amber-500 rounded-2xl shadow-[0_0_25px_rgba(245,158,11,0.5)] px-3 py-6 flex flex-col items-center gap-3 w-52 pointer-events-auto animate-pulse-subtle"
+        >
+          <div
+            class="text-center font-bold text-sm tracking-wide text-white truncate max-w-full"
+          >
+            {{ $t("common.player") || "Гравець" }}:
+            <span class="text-amber-400">{{ latestTurnAlert.playerName }}</span>
+          </div>
+
+          <div
+            class="game-card card-primary w-32 h-48 bg-cover bg-center flex flex-col justify-between overflow-hidden"
+            :class="getCardColor(latestTurnAlert.cardType)"
+            :style="
+              getCardImage(latestTurnAlert.cardType)
+                ? { backgroundImage: `url(${getCardImage(latestTurnAlert.cardType)})` }
+                : {}
+            "
+          >
+            <span
+              class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+            >
+              {{ getCardName(latestTurnAlert.cardType) }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -75,5 +109,35 @@ defineProps({
   getCardColor: Function,
   getCardName: Function,
   getCardImage: Function,
+  getCardValue: Function,
+  latestTurnAlert: Object,
 });
 </script>
+
+<style scoped>
+.slide-banner-enter-from {
+  opacity: 0;
+  transform: scale(0.85);
+}
+.slide-banner-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.slide-banner-enter-active,
+.slide-banner-leave-active {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pulseSubtle {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.01);
+  }
+}
+.animate-pulse-subtle {
+  animation: pulseSubtle 2s infinite ease-in-out;
+}
+</style>

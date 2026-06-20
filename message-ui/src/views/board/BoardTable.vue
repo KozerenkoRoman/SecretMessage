@@ -71,29 +71,104 @@
         class="absolute inset-0 flex justify-center items-center z-30 pointer-events-none bg-brand-bg-dark/40 backdrop-blur-sm rounded-2xl"
       >
         <div
-          class="bg-brand-bg-dark border-2 border-amber-500 rounded-2xl shadow-[0_0_25px_rgba(245,158,11,0.5)] px-3 py-6 flex flex-col items-center gap-3 w-52 pointer-events-auto animate-pulse-subtle"
+          class="bg-brand-bg-dark border-2 border-amber-500 rounded-2xl shadow-[0_0_25px_rgba(245,158,11,0.5)] px-4 py-4 flex flex-col items-center gap-3 max-w-sm pointer-events-auto animate-pulse-subtle"
         >
+          <!-- Заголовок гравця -->
           <div
             class="text-center font-bold text-sm tracking-wide text-white truncate max-w-full"
           >
-            {{ $t("common.player") || "Гравець" }}:
-            <span class="text-amber-400">{{ latestTurnAlert.playerName }}</span>
+            {{ $t("common.player") || "Гравець" }}:<span class="text-amber-400">{{
+              latestTurnAlert.playerName
+            }}</span>
+          </div>
+
+          <!-- Контейнер для карт -->
+          <div class="flex items-center justify-center gap-3 sm:gap-4">
+            <!-- Основна зіграна карта -->
+            <div
+              class="game-card card-primary bg-cover bg-center flex flex-col justify-between overflow-hidden"
+              :class="getCardColor(latestTurnAlert.cardType)"
+              :style="
+                getCardImage(latestTurnAlert.cardType)
+                  ? { backgroundImage: `url(${getCardImage(latestTurnAlert.cardType)})` }
+                  : {}
+              "
+            >
+              <span
+                class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+              >
+                {{ getCardName(latestTurnAlert.cardType) }}
+              </span>
+            </div>
+
+            <!-- Умова 1: Поряд показується карта вгадування для СТРАЖНИКА (1) -->
+            <div
+              v-if="Number(latestTurnAlert.cardType) === 1 && latestTurnAlert.guessCard"
+              class="game-card card-secondary border-2 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
+              :style="
+                getCardImage(latestTurnAlert.guessCard)
+                  ? { backgroundImage: `url(${getCardImage(latestTurnAlert.guessCard)})` }
+                  : { backgroundColor: '#1e293b' }
+              "
+            >
+              <span
+                class="absolute -top-2 -right-1 bg-brand-warning text-slate-950 font-black text-[8px] px-1 rounded shadow uppercase tracking-wider z-20"
+              >
+                {{ $t("board.guess") || "Вгадує" }}
+              </span>
+              <span
+                class="text-[10px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-0.5 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+              >
+                {{ getCardName(latestTurnAlert.guessCard) }}
+              </span>
+            </div>
+
+            <!-- Умова 2: Поряд показується скинута карта через ПРИНЦА (5) -->
+            <div
+              v-if="
+                Number(latestTurnAlert.cardType) === 5 && latestTurnAlert.discardedCard
+              "
+              class="game-card card-secondary border-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
+              :style="
+                getCardImage(latestTurnAlert.discardedCard)
+                  ? {
+                      backgroundImage: `url(${getCardImage(
+                        latestTurnAlert.discardedCard
+                      )})`,
+                    }
+                  : { backgroundColor: '#1e293b' }
+              "
+            >
+              <span
+                class="absolute -top-2 -right-1 bg-red-500 text-white font-black text-[8px] px-1 rounded shadow uppercase tracking-wider z-20"
+              >
+                {{ $t("board.discarded") || "Скидає" }}
+              </span>
+              <span
+                class="text-[10px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-0.5 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+              >
+                {{ getCardName(latestTurnAlert.discardedCard) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Нижні текстові підписи під картами -->
+          <div
+            v-if="Number(latestTurnAlert.cardType) === 1 && latestTurnAlert.guessCard"
+            class="text-center bg-brand-bg-dark/80 px-2 py-1 rounded border border-white/5 w-full text-[11px] font-medium text-slate-300 font-sans"
+          >
+            Вгадує карту:<span class="text-yellow-400 font-bold font-mono">
+              {{ getCardName(latestTurnAlert.guessCard) }}</span
+            >
           </div>
 
           <div
-            class="game-card card-primary w-32 h-48 bg-cover bg-center flex flex-col justify-between overflow-hidden"
-            :class="getCardColor(latestTurnAlert.cardType)"
-            :style="
-              getCardImage(latestTurnAlert.cardType)
-                ? { backgroundImage: `url(${getCardImage(latestTurnAlert.cardType)})` }
-                : {}
-            "
+            v-if="Number(latestTurnAlert.cardType) === 5 && latestTurnAlert.discardedCard"
+            class="text-center bg-brand-bg-dark/80 px-2 py-1 rounded border border-white/5 w-full text-[11px] font-medium text-slate-300 font-sans"
           >
-            <span
-              class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 uppercase tracking-wider mx-[-0.5rem] mb-[-0.5rem] rounded-b-xl border-t border-white/5"
+            Змушує скинути:<span class="text-red-400 font-bold font-mono">
+              {{ getCardName(latestTurnAlert.discardedCard) }}</span
             >
-              {{ getCardName(latestTurnAlert.cardType) }}
-            </span>
           </div>
         </div>
       </div>

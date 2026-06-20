@@ -153,6 +153,8 @@ export const uk = {
     waitingForCards: "Очікування карт...",
     discardTooltip: "{name}- Скинув {owner}",
     protectionTooltip: "{name}- Активний захист",
+    discarded: "Скидає",
+    guess: "Вгадує",
     leaveConfirm: {
       title: "Вихід з гри",
       message:

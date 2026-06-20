@@ -15,17 +15,30 @@
           {{ isBaron ? $t("reveal.duelBaron") : $t("reveal.priestEffect") }}
         </div>
 
-        <div class="flex justify-center gap-3 sm:gap-4 lg:gap-6 flex-wrap my-auto items-stretch">
+        <div
+          class="flex justify-center gap-3 sm:gap-4 lg:gap-6 flex-wrap my-auto items-stretch"
+        >
           <div
             v-for="(card, index) in displayCards"
             :key="index"
             class="flex flex-col gap-2 sm:gap-3 items-center flex-shrink-0"
           >
+            <!-- Плашка гравця: підсвічуємо золотим, якщо це ефект Барона і гравець переміг -->
             <div
-              class="flex items-center gap-2 bg-brand-surface/60 pl-1.5 pr-3 py-1 rounded-full border border-brand-border/50 w-full justify-center"
+              class="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border transition-all duration-300 w-full justify-center"
+              :class="[
+                isBaron && winnerId === card.playerData?.id
+                  ? 'bg-gradient-to-r from-amber-500/30 via-yellow-500/40 to-amber-500/30 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)] animate-winner-pulse'
+                  : 'bg-brand-surface/60 border-brand-border/50',
+              ]"
             >
               <div
-                class="w-16 h-16 rounded-full border border-slate-600 bg-brand-bg-dark/60 overflow-hidden flex-shrink-0"
+                class="w-16 h-16 rounded-full border bg-brand-bg-dark/60 overflow-hidden flex-shrink-0"
+                :class="
+                  isBaron && winnerId === card.playerData?.id
+                    ? 'border-yellow-400 scale-105'
+                    : 'border-slate-600'
+                "
               >
                 <img
                   :src="
@@ -40,7 +53,12 @@
                 />
               </div>
               <span
-                class="text-xs text-brand-text-subtle font-bold tracking-wide font-mono truncate max-w-[120px]"
+                class="text-xs font-bold tracking-wide font-mono truncate max-w-[120px]"
+                :class="
+                  isBaron && winnerId === card.playerData?.id
+                    ? 'text-yellow-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
+                    : 'text-brand-text-subtle'
+                "
               >
                 {{ card.label }}
               </span>
@@ -48,7 +66,13 @@
 
             <div
               class="card-primary rounded-xl border-2 shadow-2xl transition-all duration-300 select-none bg-cover bg-center relative overflow-hidden group hover:scale-105 flex flex-col justify-end"
-              :class="[card.info.color, card.info.border || 'border-white/10']"
+              :class="[
+                card.info.color,
+                card.info.border || 'border-white/10',
+                isBaron && winnerId === card.playerData?.id
+                  ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-brand-bg'
+                  : '',
+              ]"
               :style="
                 card.info.image ? { backgroundImage: `url(${card.info.image})` } : {}
               "
@@ -99,6 +123,25 @@ const isValidReveal = computed(() => {
   if (isBaron.value) return true;
   // Перевіряємо обидва можливі ключі: card або cardType для зворотної сумісності
   return props.data.card !== undefined || props.data.cardType !== undefined;
+});
+
+// Обчислюємо ID переможця на основі сили карток
+const winnerId = computed(() => {
+  if (!isBaron.value || !props.data) return null;
+
+  const pId = props.data.playerId || props.data.player_id;
+  const tId = props.data.targetId || props.data.target_id;
+
+  const pCard = Number(
+    props.data.playerCard !== undefined ? props.data.playerCard : props.data.player_card
+  );
+  const tCard = Number(
+    props.data.targetCard !== undefined ? props.data.targetCard : props.data.target_card
+  );
+
+  if (pCard > tCard) return pId;
+  if (tCard > pCard) return tId;
+  return null; // Нічия (однакові карти)
 });
 
 const getPlayerData = (id) => {
@@ -196,5 +239,19 @@ const displayCards = computed(() => {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(245, 158, 11, 0.3);
   border-radius: 2px;
+}
+
+/* М'яка золотиста пульсація для переможця */
+@keyframes winnerPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(234, 179, 8, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(234, 179, 8, 0.7);
+  }
+}
+.animate-winner-pulse {
+  animation: winnerPulse 2s infinite ease-in-out;
 }
 </style>

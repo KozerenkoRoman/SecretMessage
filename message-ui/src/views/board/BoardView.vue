@@ -41,7 +41,7 @@
           :getCardName="getCardName"
           :getCardImage="getCardImage"
           :getCardValue="getCardValue"
-          :latestTurnAlert="latestTurnAlert"
+          :latest-turn-alert="latestTurnAlert"
         />
       </main>
 
@@ -257,13 +257,12 @@ const { revealedCardData, myID: storeMyID } = storeToRefs(gameStore);
 const lastPlayedCardsByPlayer = computed(() => gameStore.lastPlayedCardsByPlayer ?? {});
 const discardSequence = computed(() => gameStore.discardSequence ?? []);
 const localSecondsLeft = computed(() => gameStore.secondsLeft ?? 0);
+const latestTurnAlert = computed(() => gameStore.latestTurnAlert);
 
 const showLeaveConfirm = ref(false);
 const showActionModal = ref(false);
 const isBotSubmitting = ref(false);
 const activePlay = ref({ cardType: "", handIndex: 0, targetID: "", guessCard: "" });
-const latestTurnAlert = ref(null);
-let alertTimeout = null;
 
 const effectiveMyID = computed(() => {
   const fromStore = storeMyID.value;
@@ -389,31 +388,6 @@ const getCardValue = (type) => {
 // owner резолвимо ліниво у тулі/дев-консолі через arrangedPlayers, якщо
 // колись знадобиться, без ремепу всього масиву на кожен render.
 const globalDiscardPile = computed(() => discardSequence.value);
-
-watch(
-  () => globalDiscardPile.value,
-  (newPile) => {
-    if (newPile && newPile.length > 0) {
-      const lastEntry = newPile[newPile.length - 1];
-      if (lastEntry && lastEntry.type !== undefined) {
-        const targetPlayerID = lastEntry.playerId || props.gameState?.current_player_id;
-        const foundPlayer = arrangedPlayers.value.find((p) => p.id === targetPlayerID);
-        const name = foundPlayer?.username || t("common.opponent");
-
-        if (alertTimeout) clearTimeout(alertTimeout);
-        latestTurnAlert.value = {
-          cardType: lastEntry.type,
-          playerName: name,
-        };
-
-        alertTimeout = setTimeout(() => {
-          latestTurnAlert.value = null;
-        }, 2500);
-      }
-    }
-  },
-  { deep: true }
-);
 
 const canStartGame = computed(() => {
   if (props.gameState?.is_started) return false;

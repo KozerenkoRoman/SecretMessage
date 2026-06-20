@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
 import { CARD_INFO_NUMBERS } from '../constants/cards';
+import { mergeState, mergeArray } from '../utils/merge';
 
 const EMPTY_GAME_STATE = Object.freeze({
   is_started: false,
@@ -23,98 +24,6 @@ function makeEmptyGameState() {
     seconds_left: 0,
     chancellor_options: [],
   };
-}
-
-/**
- * Поверхнево-рекурсивне in-place злиття серверного state у локальний.
- * - Примітиви: присвоюємо лише коли значення відрізняється.
- * - Масиви: якщо довжина і кожен елемент-примітив рівні — НЕ чіпаємо
- *   існуюче посилання (ключовий момент для стабільної reactivity та
- *   уникання небажаних DOM-перебудов / blink-ефектів). Інакше мутуємо
- *   через splice, зберігаючи саме посилання на масив.
- * - Об'єкти: рекурсивно зливаємо ключі; видаляємо ті, яких більше нема.
- *
- * Повертає той самий target (для зручності).
- */
-function mergeState(target, source) {
-  if (!target || typeof target !== 'object') return source;
-  if (!source || typeof source !== 'object') return target;
-
-  if (Array.isArray(source)) {
-    if (!Array.isArray(target)) return source;
-    return mergeArray(target, source);
-  }
-
-  // Видаляємо ключі, яких більше нема в новому стані
-  for (const k of Object.keys(target)) {
-    if (!(k in source)) delete target[k];
-  }
-
-  for (const k of Object.keys(source)) {
-    const sv = source[k];
-    const tv = target[k];
-
-    if (sv === null || typeof sv !== 'object') {
-      if (tv !== sv) target[k] = sv;
-      continue;
-    }
-
-    if (Array.isArray(sv)) {
-      if (Array.isArray(tv)) {
-        mergeArray(tv, sv);
-      } else {
-        target[k] = sv.slice();
-      }
-      continue;
-    }
-
-    if (tv && typeof tv === 'object' && !Array.isArray(tv)) {
-      mergeState(tv, sv);
-    } else {
-      target[k] = mergeState({}, sv);
-    }
-  }
-  return target;
-}
-
-function mergeArray(target, source) {
-  // Швидкий шлях: однакова довжина та однакові примітиви/ID-збіги -
-  // нічого не робимо, посилання зберігається.
-  if (target.length === source.length) {
-    let identical = true;
-    for (let i = 0; i < source.length; i++) {
-      const a = target[i];
-      const b = source[i];
-      if (a === b) continue;
-      if (a && b && typeof a === 'object' && typeof b === 'object') {
-        identical = false; // далі смержимо поелементно
-        break;
-      }
-      identical = false;
-      break;
-    }
-    if (identical) return target;
-  }
-
-  // Узгоджуємо довжину одним splice — це краще, ніж створювати новий масив.
-  if (target.length > source.length) {
-    target.splice(source.length, target.length - source.length);
-  }
-  for (let i = 0; i < source.length; i++) {
-    const sv = source[i];
-    const tv = target[i];
-    if (sv === null || typeof sv !== 'object') {
-      if (tv !== sv) target[i] = sv;
-    } else if (Array.isArray(sv)) {
-      if (Array.isArray(tv)) mergeArray(tv, sv);
-      else target[i] = sv.slice();
-    } else if (tv && typeof tv === 'object' && !Array.isArray(tv)) {
-      mergeState(tv, sv);
-    } else {
-      target[i] = mergeState({}, sv);
-    }
-  }
-  return target;
 }
 
 function extractUserIdFromToken(token) {
@@ -139,6 +48,9 @@ export const useGameStore = defineStore('gameStore', () => {
   const gameState = ref(makeEmptyGameState());
   const revealedCardData = ref(null);
   const authToken = ref(localStorage.getItem('token') || '');
+
+  const latestTurnAlert = ref(null);
+  let alertTimeout = null;
 
   /*
     Сигнальні ref'и для UI.
@@ -196,6 +108,7 @@ export const useGameStore = defineStore('gameStore', () => {
   function _resetBoardDerived() {
     discardSequence.value = [];
     lastPlayedCardsByPlayer.value = {};
+    latestTurnAlert.value = null;
     for (const k of Object.keys(_discardSeenLengths)) delete _discardSeenLengths[k];
     _discardSeqCounter = 0;
     handSlots.value = [];
@@ -571,6 +484,46 @@ export const useGameStore = defineStore('gameStore', () => {
 
           if (Array.isArray(packet.events)) {
             let lastDrawnPlayerId = null;
+
+            // Шукаємо подію CARD_PLAYED для банера всередині поточного пакета
+            const cardPlayedEvent = packet.events.find((e) => e && e.type === "CARD_PLAYED");
+            if (cardPlayedEvent && cardPlayedEvent.payload) {
+              const { card, player_id, } = cardPlayedEvent.payload;
+
+              let guessedCardId = null;
+              let princeDiscardedCardId = null;
+              if (CARD_INFO_NUMBERS[Number(card)]?.type === "GUARD") {
+                // Якщо зіграно стражника, шукаємо результат у цьому ж пакеті подій
+                const guardEvent = packet.events.find(
+                  (e) => e && (e.type === "GUARD_MISS" || e.type === "GUARD_HIT")
+                );
+                if (guardEvent && guardEvent.payload && guardEvent.payload.guess !== undefined) {
+                  guessedCardId = Number(guardEvent.payload.guess);
+                }
+              }
+
+              const hasDiscardedCard = cardPlayedEvent.payload.discarded_card !== undefined && cardPlayedEvent.payload.discarded_card !== null;
+              if (CARD_INFO_NUMBERS[Number(card)]?.type === "PRINCE" && hasDiscardedCard) {
+                princeDiscardedCardId = Number(cardPlayedEvent.payload.discarded_card);
+              }
+              if (alertTimeout) clearTimeout(alertTimeout);
+
+              // Записуємо дані. Оскільки під назву гравця потрібен username, беремо його ліниво:
+              const foundPlayerName = rawState.players?.[player_id]?.username ||
+                gameState.value.players?.[player_id]?.username || '...';
+
+              latestTurnAlert.value = {
+                cardType: Number(card),
+                playerName: foundPlayerName,
+                guessCard: guessedCardId,
+                discardedCard: princeDiscardedCardId,
+              };
+
+              alertTimeout = setTimeout(() => {
+                latestTurnAlert.value = null;
+              }, 3500);
+            }
+
             packet.events.forEach((ev) => {
               if (!ev || typeof ev !== 'object') return;
               const payload = ev.payload || {};
@@ -846,7 +799,7 @@ export const useGameStore = defineStore('gameStore', () => {
     myCards,
     hasReceivedState,
     stateVersion,
-    // Derived board state (раніше було у BoardView.vue)
+    latestTurnAlert,
     discardSequence,
     lastPlayedCardsByPlayer,
     handSlots,

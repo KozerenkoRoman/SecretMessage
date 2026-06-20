@@ -153,6 +153,8 @@ export const en = {
     waitingForCards: "Waiting for cards...",
     discardTooltip: "{name} - Discarded by {owner}",
     protectionTooltip: "{name} - Protection active",
+    discarded: "Discarded",
+    guess: "Guess",
     leaveConfirm: {
       title: "Leave Game",
       message:

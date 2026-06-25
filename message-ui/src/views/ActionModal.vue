@@ -5,7 +5,12 @@
       class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
     >
       <div
-        class="action-modal-shell bg-brand-surface border border-brand-border w-full h-screen max-h-[100dvh] flex flex-col justify-between overflow-hidden p-3 sm:rounded-2xl sm:h-auto sm:max-h-[95dvh] sm:max-w-3xl shadow-2xl"
+        class="action-modal-shell bg-brand-surface border border-brand-border w-full flex flex-col overflow-hidden p-3 sm:rounded-2xl sm:h-auto sm:max-h-[95dvh] sm:max-w-3xl shadow-2xl"
+        :class="
+          isGuardGuessRequired && availableTargets.length > 0
+            ? 'h-screen max-h-[100dvh] justify-between'
+            : 'h-auto max-h-[85vh] justify-center gap-2'
+        "
       >
         <h3
           class="text-sm sm:text-lg font-bold text-amber-400 pb-2 flex-shrink-0 landscape:text-xs landscape:pb-1"

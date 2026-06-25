@@ -28,7 +28,7 @@
               class="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border transition-all duration-300 w-full justify-center"
               :class="[
                 isBaron && winnerId === card.playerData?.id
-                  ? 'bg-gradient-to-r from-amber-500/30 via-yellow-500/40 to-amber-500/30 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.4)] animate-winner-pulse'
+                  ? 'bg-gradient-to-r from-amber-500/30 via-yellow-500/40 to-amber-500/30 border-yellow-400 shadow-[0_0_15px_color-mix(in_srgb,var(--color-brand-warning)_40%,transparent)] animate-winner-pulse'
                   : 'bg-brand-surface/60 border-brand-border/50',
               ]"
             >

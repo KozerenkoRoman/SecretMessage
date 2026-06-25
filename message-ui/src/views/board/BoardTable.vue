@@ -71,7 +71,7 @@
         class="absolute inset-0 flex justify-center items-center z-30 pointer-events-none bg-brand-bg-dark/40 backdrop-blur-sm rounded-2xl"
       >
         <div
-          class="bg-brand-bg-dark border-2 border-amber-500 rounded-2xl shadow-[0_0_25px_rgba(245,158,11,0.5)] px-4 py-4 flex flex-col items-center gap-3 max-w-sm pointer-events-auto animate-pulse-subtle"
+          class="bg-brand-bg-dark border-2 border-amber-500 rounded-2xl shadow-[0_0_25px_color-mix(in_srgb,var(--color-brand-accent)_50%,transparent)] px-4 py-4 flex flex-col items-center gap-3 max-w-sm pointer-events-auto animate-pulse-subtle"
         >
           <!-- Заголовок гравця -->
           <div
@@ -104,7 +104,7 @@
             <!-- Умова 1: Поряд показується карта вгадування для СТРАЖНИКА (1) -->
             <div
               v-if="Number(latestTurnAlert.cardType) === 1 && latestTurnAlert.guessCard"
-              class="game-card card-secondary border-2 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
+              class="game-card card-secondary border-2 border-yellow-400 shadow-[0_0_10px_color-mix(in_srgb,var(--color-brand-warning)_50%,transparent)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
               :style="
                 getCardImage(latestTurnAlert.guessCard)
                   ? { backgroundImage: `url(${getCardImage(latestTurnAlert.guessCard)})` }
@@ -128,7 +128,7 @@
               v-if="
                 Number(latestTurnAlert.cardType) === 5 && latestTurnAlert.discardedCard
               "
-              class="game-card card-secondary border-2 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
+              class="game-card card-secondary border-2 border-red-500 shadow-[0_0_10px_color-mix(in_srgb,var(--color-brand-danger)_50%,transparent)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
               :style="
                 getCardImage(latestTurnAlert.discardedCard)
                   ? {

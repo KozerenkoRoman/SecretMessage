@@ -109,7 +109,7 @@ const error = ref(null);
 
 const getRankClass = (index) => {
   if (index === 0)
-    return "text-amber-400 drop-shadow-[0_0_4px_rgba(245,158,11,0.5)] text-sm font-extrabold";
+    return "text-amber-400 drop-shadow-[0_0_4px_var(--color-brand-accent)] text-sm font-extrabold";
   if (index === 1) return "text-slate-300 text-sm";
   if (index === 2) return "text-amber-700 text-sm";
   return "text-slate-500";
@@ -145,19 +145,3 @@ onMounted(() => {
   fetchLeaderboard();
 });
 </script>
-
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 2px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #334155;
-}
-</style>

@@ -132,7 +132,7 @@
 
             <div
               v-if="myPlayer?.is_protected"
-              class="game-card card-secondary border-2 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.5)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
+              class="game-card card-secondary border-2 border-yellow-400 shadow-[0_0_10px_color-mix(in_srgb,var(--color-brand-warning)_50%,transparent)] bg-cover bg-center animate-fade-in self-center relative flex flex-col justify-between overflow-hidden"
               :style="
                 getCardImage(4)
                   ? { backgroundImage: `url(${getCardImage(4)})` }

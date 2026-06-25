@@ -49,7 +49,7 @@
             <div
               v-for="cIdx in getOpponentHandCount(player)"
               :key="`opp-card-${player.id}-${cIdx}`"
-              class="card-secondary rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative"
+              class="card-secondary rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_color-mix(in_srgb,var(--color-brand-accent)_40%,transparent)] overflow-hidden relative"
             >
               <img
                 :src="deckBackImage"
@@ -63,7 +63,7 @@
               class="flex flex-col items-center justify-center flex-shrink-0 z-20 ml-2"
             >
               <div
-                class="card-secondary rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_rgba(245,158,11,0.4)] overflow-hidden relative transition-transform duration-300"
+                class="card-secondary rounded-lg border border-amber-500 bg-brand-bg-dark p-[1px] shadow-[0_0_6px_color-mix(in_srgb,var(--color-brand-accent)_40%,transparent)] overflow-hidden relative transition-transform duration-300"
                 :class="getCardColor(lastPlayedCardsByPlayer[player.id])"
                 :data-tooltip="getCardName(lastPlayedCardsByPlayer[player.id])"
               >

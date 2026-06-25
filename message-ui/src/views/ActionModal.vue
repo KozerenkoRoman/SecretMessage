@@ -2,14 +2,14 @@
   <Transition name="fade">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 h-app"
+      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 z-50 h-app"
     >
       <!-- Guard guess grid отримує локальний --card-primary-h на низьких
            landscape-екранах (див. <style>), щоб уся модалка вміщалась
            у viewport без скролу. На планшеті/десктопі картки лишаються
            глобального розміру (інваріант "однаковий розмір" збережено). -->
       <div
-        class="action-modal-shell bg-brand-surface border border-brand-border rounded-2xl w-full shadow-2xl max-h-[95dvh] flex flex-col transition-all duration-300"
+        class="action-modal-shell bg-brand-surface border border-brand-border rounded-none sm:rounded-2xl w-full shadow-2xl h-[100dvh] sm:h-auto sm:max-h-[95dvh] flex flex-col transition-all duration-300"
         :class="[
           isGuardGuessRequired && availableTargets.length > 0
             ? 'max-w-3xl tall:max-w-5xl xtall:max-w-6xl'
@@ -17,13 +17,13 @@
         ]"
       >
         <h3
-          class="text-base sm:text-lg font-bold text-amber-400 px-3 sm:px-5 lg:px-6 pt-3 sm:pt-5 lg:pt-6 pb-2 flex-shrink-0"
+          class="text-sm sm:text-lg font-bold text-amber-400 px-2 sm:px-5 lg:px-6 pt-2 sm:pt-5 lg:pt-6 pb-1 sm:pb-2 flex-shrink-0"
         >
           {{ $t("action.title") }} {{ cardInfo?.name || cardType }}
         </h3>
 
         <div
-          class="flex-1 min-h-0 overflow-hidden px-3 sm:px-5 lg:px-6 flex flex-col"
+          class="flex-1 min-h-0 overflow-hidden px-1.5 sm:px-5 lg:px-6 flex flex-col"
         >
           <div v-if="requiresTargetSelection" class="mb-3 sm:mb-4">
             <div v-if="availableTargets.length > 0">
@@ -93,7 +93,7 @@
             </label>
 
             <div
-              class="action-modal-grid grid grid-cols-4 short:grid-cols-8 sm:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-3 lg:gap-4 bg-brand-bg/60 p-2 sm:p-4 lg:p-6 rounded-xl border border-brand-border/50 justify-items-stretch flex-1 min-h-0 content-center"
+              class="action-modal-grid grid grid-cols-3 short:grid-cols-8 sm:grid-cols-4 lg:grid-cols-5 gap-1 sm:gap-3 lg:gap-4 bg-brand-bg/60 p-1 sm:p-4 lg:p-6 rounded-xl border border-brand-border/50 justify-items-stretch flex-1 min-h-0 content-center"
             >
               <div
                 v-for="card in allCards"
@@ -126,7 +126,7 @@
         </div>
 
         <div
-          class="flex gap-2 sm:gap-3 justify-end border-t border-brand-border/40 px-3 sm:px-5 lg:px-6 py-3 sm:py-4 flex-shrink-0 bg-brand-surface rounded-b-2xl"
+          class="flex gap-2 sm:gap-3 justify-end border-t border-brand-border/40 px-2 sm:px-5 lg:px-6 py-2 sm:py-4 flex-shrink-0 bg-brand-surface rounded-b-none sm:rounded-b-2xl"
         >
           <button
             @click="handleCancel"
@@ -296,30 +296,29 @@ const handleSubmit = () => {
   background: rgba(148, 164, 184, 0.8);
 }
 
-/* Картки Guard-guess сітки в модалці використовують ВЛАСНУ систему
-   розмірів, незалежну від глобального --card-primary-h. Ширина
-   диктується колонкою grid'а (w-full), висота — aspect-ratio 5/7.
-   Це гарантує що картки ніколи не виходять за межі сітки і не
-   перекривають одна одну. На мобільних viewports додатково
-   обмежуємо ширину кожної картки, щоб 8 cols в landscape і 4 cols
-   в portrait зберігали зручні пропорції. На планшеті/десктопі
-   обмеження не діє - картки масштабуються природньо. */
+/* Картки Guard-guess сітки в модалці мають ВЛАСНУ систему розмірів,
+   незалежну від глобального --card-primary-h. Ширина диктується
+   колонкою grid'а (w-full), висота - aspect-ratio 5/7.
+
+   Стратегія сітки:
+   - Mobile portrait (max-aspect-ratio: 1/1, max-width: 640px):
+     3 cols × 3 rows (8 карт + 1 порожня клітинка). Картки великі,
+     обмежуються лише висотою grid'а через max-height.
+   - Mobile landscape (max-height: 720px, min-aspect-ratio: 1/1):
+     8 cols × 1 row. Висота - найдефіцитніший ресурс, обмежуємо її.
+   - sm: і вище - природнє масштабування grid'а, обмежень не треба. */
 .action-modal-card {
   max-height: 100%;
 }
-/* Mobile portrait: 4 cols × 2 rows. Cap card width so висота сітки
-   лишається у виділеному виборі простору. */
-@media (max-width: 640px) and (min-aspect-ratio: 1/1) {
-  .action-modal-card {
-    max-width: clamp(3rem, 9vh, 5rem);
-  }
-}
-@media (max-width: 640px) and (max-aspect-ratio: 1/1) {
-  .action-modal-card {
-    max-width: clamp(3.5rem, 18vw, 5.5rem);
-  }
-}
-/* Mobile landscape: 8 cols × 1 row. Тут пріоритет — висота. */
+/* Mobile portrait: НЕ обмежуємо висоту картки штучним cap'ом - дозволяємо
+   grid-row висоті заповнити весь доступний flex-1 простір. Ширина все
+   одно обмежена колонкою grid'а (виходить ~30vw на 360px viewport),
+   висота - 5/7 від цього через aspect-ratio. 3 ряди вмістяться, бо
+   grid має content-center і flex-1 min-h-0 - якщо стане затісно,
+   браузер пропорційно скоротить ВСІ ряди разом, а не лише одну
+   картку. Старий 28dvh cap робив картки штучно маленькими. */
+/* Mobile landscape: 8 cols × 1 row. Висота обмежена жорстко;
+   ширина наслідується через aspect-ratio 5/7. */
 @media (max-height: 720px) and (min-aspect-ratio: 1/1) {
   .action-modal-card {
     max-height: clamp(3.5rem, 36dvh, 7rem);

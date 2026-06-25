@@ -9,7 +9,7 @@
            у руці гравця. Якщо картки не вміщаються - модалка скролиться
            через max-h-[90dvh] + overflow-y-auto. -->
       <div
-        class="bg-brand-surface border border-brand-border rounded-2xl p-4 sm:p-5 lg:p-6 w-full shadow-2xl overflow-y-auto max-h-[90dvh] custom-scrollbar transition-all duration-300"
+        class="bg-brand-surface border border-brand-border rounded-2xl p-3 sm:p-5 lg:p-6 w-full shadow-2xl overflow-y-auto max-h-[90dvh] custom-scrollbar transition-all duration-300"
         :class="[
           isGuardGuessRequired && availableTargets.length > 0
             ? 'max-w-3xl tall:max-w-5xl xtall:max-w-6xl'
@@ -85,7 +85,7 @@
           </label>
 
           <div
-            class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 bg-brand-bg/60 p-3 sm:p-4 lg:p-6 rounded-xl border border-brand-border/50 justify-items-center"
+            class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 bg-brand-bg/60 p-2 sm:p-4 lg:p-6 rounded-xl border border-brand-border/50 justify-items-center"
           >
             <div
               v-for="card in allCards"

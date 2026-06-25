@@ -93,13 +93,13 @@
             </label>
 
             <div
-              class="action-modal-grid grid grid-cols-4 short:grid-cols-8 sm:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-3 lg:gap-4 bg-brand-bg/60 p-2 sm:p-4 lg:p-6 rounded-xl border border-brand-border/50 justify-items-center flex-1 min-h-0 content-center"
+              class="action-modal-grid grid grid-cols-4 short:grid-cols-8 sm:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-3 lg:gap-4 bg-brand-bg/60 p-2 sm:p-4 lg:p-6 rounded-xl border border-brand-border/50 justify-items-stretch flex-1 min-h-0 content-center"
             >
               <div
                 v-for="card in allCards"
                 :key="card.type"
                 @click="guessCard = card.type"
-                class="card-primary rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
+                class="action-modal-card w-full aspect-[5/7] rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
                 :class="[
                   getCardColor(card.type),
                   guessCard === card.type
@@ -116,7 +116,7 @@
                 }`"
               >
                 <span
-                  class="text-[10px] sm:text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
+                  class="hidden short:hidden sm:block text-[10px] sm:text-[12px] font-bold font-mono text-center bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
                 >
                   {{ guessCard === card.type ? $t("action.chosen") : card.info.name }}
                 </span>
@@ -296,23 +296,33 @@ const handleSubmit = () => {
   background: rgba(148, 164, 184, 0.8);
 }
 
-/* Локальне зменшення висоти карти у Guard-guess сітці на мобільних
-   viewports, щоб уся модалка вміщалась без скролу. Не зачіпає
-   глобальний --card-primary-h поза цією модалкою, тож інваріант
-   "однаковий розмір карток" на планшеті/десктопі зберігається.
-
-   - Mobile portrait (<=640px width): обмеження по висоті — 2 ряди по 4
-     карти повинні поміститись у ~50dvh.
-   - Mobile landscape (<=720px height): 1 ряд із 8 карт — висота
-     обмежується дуже жорстко, ширина наслідується через 5:7 aspect. */
-@media (max-width: 640px) {
-  .action-modal-grid {
-    --card-primary-h: clamp(4.5rem, 22dvh, 7rem);
+/* Картки Guard-guess сітки в модалці використовують ВЛАСНУ систему
+   розмірів, незалежну від глобального --card-primary-h. Ширина
+   диктується колонкою grid'а (w-full), висота — aspect-ratio 5/7.
+   Це гарантує що картки ніколи не виходять за межі сітки і не
+   перекривають одна одну. На мобільних viewports додатково
+   обмежуємо ширину кожної картки, щоб 8 cols в landscape і 4 cols
+   в portrait зберігали зручні пропорції. На планшеті/десктопі
+   обмеження не діє - картки масштабуються природньо. */
+.action-modal-card {
+  max-height: 100%;
+}
+/* Mobile portrait: 4 cols × 2 rows. Cap card width so висота сітки
+   лишається у виділеному виборі простору. */
+@media (max-width: 640px) and (min-aspect-ratio: 1/1) {
+  .action-modal-card {
+    max-width: clamp(3rem, 9vh, 5rem);
   }
 }
-@media (max-height: 720px) {
-  .action-modal-grid {
-    --card-primary-h: clamp(3.5rem, 14dvh, 6rem);
+@media (max-width: 640px) and (max-aspect-ratio: 1/1) {
+  .action-modal-card {
+    max-width: clamp(3.5rem, 18vw, 5.5rem);
+  }
+}
+/* Mobile landscape: 8 cols × 1 row. Тут пріоритет — висота. */
+@media (max-height: 720px) and (min-aspect-ratio: 1/1) {
+  .action-modal-card {
+    max-height: clamp(3.5rem, 36dvh, 7rem);
   }
 }
 </style>

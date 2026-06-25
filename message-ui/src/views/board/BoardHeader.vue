@@ -1,6 +1,6 @@
 <template>
   <header
-    class="w-full flex justify-between items-center bg-brand-surface/80 backdrop-blur px-3 py-2 rounded-xl border border-brand-border flex-shrink-0 gap-2 sm:gap-4 z-10 min-h-[44px] short:min-h-[40px] tall:min-h-[56px]"
+    class="w-full flex flex-wrap sm:flex-nowrap justify-between items-center bg-brand-surface/80 backdrop-blur px-2 py-2 sm:px-3 rounded-xl border border-brand-border flex-shrink-0 gap-2 sm:gap-4 z-10 min-h-[44px] short:min-h-[40px] tall:min-h-[56px]"
   >
     <div class="flex items-center gap-4">
       <button @click="$emit('leave')" type="button" class="btn-danger">
@@ -41,15 +41,15 @@
       </div>
     </div>
 
-    <div class="flex items-center gap-4">
-      <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-4 w-full sm:w-auto">
+      <div class="flex flex-wrap items-center justify-end gap-2">
         <template
           v-if="
             !gameState?.is_started &&
             (!gameState?.turn_order || gameState.turn_order.length === 0)
           "
         >
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center justify-end gap-2">
             <button
               v-if="canStartGame || playersCount < 4"
               @click="$emit('add-bot')"
@@ -63,7 +63,7 @@
               v-if="canStartGame"
               @click="$emit('start-game')"
               type="button"
-              class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
               :disabled="isStarting"
             >
               {{ $t("board.start") }}

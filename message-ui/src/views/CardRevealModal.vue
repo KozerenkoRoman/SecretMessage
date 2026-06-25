@@ -16,7 +16,7 @@
         </div>
 
         <div
-          class="flex justify-center gap-3 sm:gap-4 lg:gap-6 flex-wrap my-auto items-stretch"
+          class="flex justify-center gap-2 sm:gap-4 lg:gap-6 flex-wrap my-auto items-stretch"
         >
           <div
             v-for="(card, index) in displayCards"
@@ -33,7 +33,7 @@
               ]"
             >
               <div
-                class="w-16 h-16 rounded-full border bg-brand-bg-dark/60 overflow-hidden flex-shrink-0"
+                class="w-10 h-10 sm:w-16 sm:h-16 rounded-full border bg-brand-bg-dark/60 overflow-hidden flex-shrink-0"
                 :class="
                   isBaron && winnerId === card.playerData?.id
                     ? 'border-yellow-400 scale-105'
@@ -53,7 +53,7 @@
                 />
               </div>
               <span
-                class="text-xs font-bold tracking-wide font-mono truncate max-w-[120px]"
+                class="text-xs font-bold tracking-wide font-mono truncate max-w-[72px] sm:max-w-[120px]"
                 :class="
                   isBaron && winnerId === card.playerData?.id
                     ? 'text-yellow-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'

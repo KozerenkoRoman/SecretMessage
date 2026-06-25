@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen bg-brand-bg-dark text-white p-6">
+  <div class="min-h-screen bg-brand-bg-dark text-white p-3 sm:p-6">
     <div class="max-w-6xl mx-auto">
       <div
-        class="lobby-header flex items-center justify-between bg-brand-bg border border-slate-800 p-4 rounded-xl mb-6"
+        class="lobby-header flex flex-wrap items-center justify-between gap-3 bg-brand-bg border border-slate-800 p-3 sm:p-4 rounded-xl mb-6"
       >
         <div class="flex items-center gap-3">
           <div
@@ -36,7 +36,7 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3 w-full sm:w-auto">
           <button
             @click="showRulesModal = true"
             class="btn-ghost flex items-center gap-1.5 text-slate-300 hover:text-amber-400 transition-colors"

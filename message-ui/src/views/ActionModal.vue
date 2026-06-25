@@ -2,47 +2,36 @@
   <Transition name="fade">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 z-50 h-app"
+      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
     >
-      <!-- Guard guess grid отримує локальний --card-primary-h на низьких
-           landscape-екранах (див. <style>), щоб уся модалка вміщалась
-           у viewport без скролу. На планшеті/десктопі картки лишаються
-           глобального розміру (інваріант "однаковий розмір" збережено). -->
       <div
-        class="action-modal-shell bg-brand-surface border border-brand-border rounded-none sm:rounded-2xl w-full shadow-2xl h-[100dvh] sm:h-auto sm:max-h-[95dvh] flex flex-col transition-all duration-300"
-        :class="[
-          isGuardGuessRequired && availableTargets.length > 0
-            ? 'max-w-3xl tall:max-w-5xl xtall:max-w-6xl'
-            : 'max-w-xl',
-        ]"
+        class="action-modal-shell bg-brand-surface border border-brand-border w-full h-screen max-h-[100dvh] flex flex-col justify-between overflow-hidden p-3 sm:rounded-2xl sm:h-auto sm:max-h-[95dvh] sm:max-w-3xl shadow-2xl"
       >
         <h3
-          class="text-sm sm:text-lg font-bold text-amber-400 px-2 sm:px-5 lg:px-6 pt-2 sm:pt-5 lg:pt-6 pb-1 sm:pb-2 flex-shrink-0"
+          class="text-sm sm:text-lg font-bold text-amber-400 pb-2 flex-shrink-0 landscape:text-xs landscape:pb-1"
         >
           {{ $t("action.title") }} {{ cardInfo?.name || cardType }}
         </h3>
 
-        <div
-          class="flex-1 min-h-0 overflow-hidden px-1.5 sm:px-5 lg:px-6 flex flex-col"
-        >
-          <div v-if="requiresTargetSelection" class="mb-3 sm:mb-4">
+        <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div v-if="requiresTargetSelection" class="mb-2 flex-shrink-0">
             <div v-if="availableTargets.length > 0">
               <div
-                class="flex flex-wrap justify-center gap-2 sm:gap-4 lg:gap-6 bg-brand-bg/40 p-2 sm:p-4 rounded-xl border border-brand-border/30"
+                class="flex flex-wrap justify-center gap-2 landscape:gap-1 bg-brand-bg/40 p-2 landscape:p-1 rounded-xl border border-brand-border/30"
               >
                 <button
                   v-for="p in availableTargets"
                   :key="p.id"
                   @click="targetID = p.id"
                   type="button"
-                  class="flex flex-col items-center gap-1 sm:gap-2 group focus:outline-none cursor-pointer"
+                  class="flex flex-col items-center gap-1 group focus:outline-none cursor-pointer"
                 >
                   <div
-                    class="w-12 h-12 sm:w-16 sm:h-16 short:w-10 short:h-10 rounded-full border-2 p-1 overflow-hidden transition-all duration-200"
+                    class="w-12 h-12 sm:w-16 sm:h-16 landscape:w-9 landscape:h-9 rounded-full border-2 p-1 overflow-hidden transition-all duration-200"
                     :class="[
                       targetID === p.id
                         ? 'border-amber-400 bg-amber-950/40 scale-105 shadow-lg shadow-amber-500/20'
-                        : 'border-slate-600 bg-brand-bg-dark/60 group-hover:border-slate-400 group-hover:scale-102',
+                        : 'border-slate-600 bg-brand-bg-dark/60 group-hover:border-slate-400',
                     ]"
                   >
                     <img
@@ -52,7 +41,7 @@
                     />
                   </div>
                   <span
-                    class="text-[11px] sm:text-xs font-semibold font-mono tracking-wide max-w-[80px] sm:max-w-[100px] truncate text-center transition-colors"
+                    class="text-[11px] sm:text-xs font-semibold font-mono tracking-wide max-w-[80px] truncate text-center transition-colors landscape:hidden"
                     :class="[
                       targetID === p.id
                         ? 'text-amber-400 font-bold'
@@ -69,42 +58,40 @@
               class="text-sm text-amber-400 bg-brand-accent/10 border border-amber-500/30 p-3 rounded-lg flex flex-col gap-1"
             >
               <span class="font-bold">{{ $t("action.noTargets") }}</span>
-              <span>
-                {{ $t("action.noTargetsHint") }}
-              </span>
+              <span>{{ $t("action.noTargetsHint") }}</span>
             </div>
           </div>
 
           <div
             v-if="!requiresTargetSelection"
-            class="mb-3 sm:mb-4 text-sm text-amber-400 bg-brand-accent/5 p-3 rounded-lg border border-amber-500/20"
+            class="mb-2 text-sm text-amber-400 bg-brand-accent/5 p-3 rounded-lg border border-amber-500/20 flex-shrink-0"
           >
             {{ $t("action.autoApply") }}
           </div>
 
           <div
             v-if="isGuardGuessRequired && availableTargets.length > 0"
-            class="mb-3 sm:mb-5 mt-2 sm:mt-4 flex-1 min-h-0 flex flex-col"
+            class="flex-1 min-h-0 flex flex-col"
           >
             <label
-              class="block text-[11px] sm:text-xs uppercase text-slate-400 font-bold mb-1 sm:mb-2 tracking-wider font-mono flex-shrink-0"
+              class="block text-[11px] sm:text-xs uppercase text-slate-400 font-bold mb-1 tracking-wider font-mono flex-shrink-0 landscape:hidden"
             >
               {{ $t("action.guardGuess") }}
             </label>
 
             <div
-              class="action-modal-grid grid grid-cols-3 short:grid-cols-8 sm:grid-cols-4 lg:grid-cols-5 gap-1 sm:gap-3 lg:gap-4 bg-brand-bg/60 p-1 sm:p-4 lg:p-6 rounded-xl border border-brand-border/50 justify-items-stretch flex-1 min-h-0 content-center"
+              class="grid grid-cols-3 gap-2 justify-items-center items-center bg-brand-bg/60 p-2 rounded-xl border border-brand-border/50 flex-1 min-h-0 content-center landscape:flex landscape:flex-row landscape:flex-wrap landscape:justify-center landscape:items-center landscape:gap-1 landscape:p-1"
             >
               <div
                 v-for="card in allCards"
                 :key="card.type"
                 @click="guessCard = card.type"
-                class="action-modal-card w-full aspect-[5/7] rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
+                class="w-full aspect-[5/7] landscape:h-[22vh] landscape:w-auto landscape:aspect-[5/7] rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
                 :class="[
                   getCardColor(card.type),
                   guessCard === card.type
                     ? 'ring-4 ring-amber-400 scale-105 z-10 shadow-lg shadow-amber-500/30 border-transparent'
-                    : 'opacity-70 hover:opacity-100 hover:scale-102 border border-white/5',
+                    : 'opacity-70 hover:opacity-100 border border-white/5',
                 ]"
                 :style="
                   getCardImage(card.type)
@@ -116,7 +103,7 @@
                 }`"
               >
                 <span
-                  class="hidden short:hidden sm:block text-[10px] sm:text-[12px] font-bold font-mono text-center bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
+                  class="text-[10px] sm:text-[12px] font-bold font-mono text-center bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider landscape:hidden"
                 >
                   {{ guessCard === card.type ? $t("action.chosen") : card.info.name }}
                 </span>
@@ -126,7 +113,7 @@
         </div>
 
         <div
-          class="flex gap-2 sm:gap-3 justify-end border-t border-brand-border/40 px-2 sm:px-5 lg:px-6 py-2 sm:py-4 flex-shrink-0 bg-brand-surface rounded-b-none sm:rounded-b-2xl"
+          class="flex gap-2 sm:gap-3 justify-end border-t border-brand-border/40 pt-2 mt-2 flex-shrink-0 bg-brand-surface"
         >
           <button
             @click="handleCancel"

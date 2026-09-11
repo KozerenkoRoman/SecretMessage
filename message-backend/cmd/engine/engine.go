@@ -141,6 +141,16 @@ func AdvanceTurn(state GameState, clock Clock) (GameState, []DomainEvent) {
 
 func ResolveRoundEnd(state GameState, clock Clock) ApplyResult {
 	events := []DomainEvent{}
+
+	// Ідемпотентність: раунд можна резолвити РІВНО один раз. Якщо стан уже
+	// перебуває у фазі завершення раунду/гри, повторний виклик НЕ має
+	// повторно нараховувати ані бонус Шпигуна, ані бал переможця (інакше
+	// отримаємо подвійне нарахування при повторних викликах з різних шляхів:
+	// Apply-авторезолв + ручний виклик у room.go).
+	if state.Phase == PhaseRoundEnd || state.Phase == PhaseFinished {
+		return ApplyResult{NewState: state, DomainEvents: events}
+	}
+
 	state = ResolveSpyBonus(state)
 	for id, p := range state.Players {
 		if p.SpyPointsAwarded {

@@ -148,9 +148,130 @@ func TestSpyBonus_CanceledWhenMultipleOwners(t *testing.T) {
 	// Завершення раунду
 	final := engine.ResolveRoundEnd(result3.NewState, clock).NewState
 
-	// ПЕРЕВІРКА: Оскільки Шпигунів на столі двоє (у p1 та p3), ніхто не отримує бонусних балів
+	// ПЕРЕВІРКА: Оскільки Шпигунів на столі двоє (у p1 та p3), бонус Шпигуна
+	// НЕ нараховується жодному з них.
+	assert.False(t, final.Players["p1"].SpyPointsAwarded, "Бонус Шпигуна анульовано для p1")
+	assert.False(t, final.Players["p3"].SpyPointsAwarded, "Бонус Шпигуна анульовано для p3")
+
+	// Важливо відокремити бонус Шпигуна від бала за перемогу в раунді.
+	// Після скидання Шпигунів у руках лишились: p1 = [Princess(9)], p3 = [Guard(1)].
+	// Колода порожня -> порівняння карт: p1 перемагає й отримує 1 бал ЗА ПЕРЕМОГУ
+	// (а не за Шпигуна). p3 програє й лишається з 0.
+	assert.Equal(t, "p1", final.WinnerID, "Переможцем раунду за старшою картою має бути p1")
+	assert.Equal(t, 1, final.Players["p1"].Score, "p1 отримує лише бал за перемогу, без бонусу Шпигуна")
+	assert.Equal(t, 0, final.Players["p3"].Score, "p3 не отримує жодних балів (Шпигун анульовано, раунд програно)")
+}
+
+// TestSpyBonus_SinglePlayerPlayedTwice: один гравець розіграв ДВОХ Шпигунів
+// за раунд. Він усе одно єдиний власник Шпигуна й отримує рівно 1 бонусний бал
+// (рахуємо гравців, а не карти).
+func TestSpyBonus_SinglePlayerPlayedTwice(t *testing.T) {
+	state := engine.GameState{
+		Phase:     engine.PhaseMainAction,
+		TurnOrder: []string{"p1", "p2"},
+		Players: map[string]engine.Player{
+			// p1 скинув двох Шпигунів і ще тримає Гвардійця (сила 1).
+			"p1": {ID: "p1", Hand: []engine.CardType{engine.CardGuard},
+				DiscardPile: []engine.CardType{engine.CardSpy, engine.CardSpy}, IsOut: false, Score: 0},
+			// p2 без Шпигунів, у руці Барон (сила 3) -> p2 виграє раунд за картою.
+			"p2": {ID: "p2", Hand: []engine.CardType{engine.CardBaron},
+				DiscardPile: []engine.CardType{}, IsOut: false, Score: 0},
+		},
+	}
+	clock := &mockClock{fixedTime: time.Now()}
+
+	final := engine.ResolveRoundEnd(state, clock).NewState
+
+	// p1 — єдиний власник Шпигуна -> рівно 1 бонусний бал, попри дві карти.
+	assert.True(t, final.Players["p1"].SpyPointsAwarded, "p1 має отримати бонус Шпигуна")
+	assert.Equal(t, 1, final.Players["p1"].Score, "Два зіграні Шпигуни дають РІВНО 1 бонусний бал")
+	// p2 виграє раунд за старшою картою -> 1 бал за перемогу, без Шпигуна.
+	assert.Equal(t, "p2", final.WinnerID)
+	assert.False(t, final.Players["p2"].SpyPointsAwarded)
+	assert.Equal(t, 1, final.Players["p2"].Score, "p2 отримує лише бал за перемогу")
+}
+
+// TestSpyBonus_EliminatedPlayerWinsSpyWhileOtherWinsRound: класичний edge-case
+// з вимог — вибулий/відключений гравець отримує бонус Шпигуна, тоді як раунд
+// виграє ЗОВСІМ ІНШИЙ (живий) гравець.
+func TestSpyBonus_EliminatedPlayerWinsSpyWhileOtherWinsRound(t *testing.T) {
+	state := engine.GameState{
+		Phase:     engine.PhaseMainAction,
+		TurnOrder: []string{"p1", "p2", "p3"},
+		Players: map[string]engine.Player{
+			// p1 вибув, але встиг скинути Шпигуна цього раунду (рука перенесена у DiscardPile).
+			"p1": {ID: "p1", Hand: nil,
+				DiscardPile: []engine.CardType{engine.CardSpy, engine.CardPrincess}, IsOut: true, Score: 3},
+			// p2 живий, найстарша карта (King=8) -> виграє раунд.
+			"p2": {ID: "p2", Hand: []engine.CardType{engine.CardKing},
+				DiscardPile: []engine.CardType{}, IsOut: false, Score: 2},
+			// p3 живий, слабша карта (Priest=2).
+			"p3": {ID: "p3", Hand: []engine.CardType{engine.CardPriest},
+				DiscardPile: []engine.CardType{}, IsOut: false, Score: 2},
+		},
+	}
+	clock := &mockClock{fixedTime: time.Now()}
+
+	final := engine.ResolveRoundEnd(state, clock).NewState
+
+	// КРИТИЧНО: вибулий p1 — єдиний власник Шпигуна -> отримує бонус, попри IsOut.
+	assert.True(t, final.Players["p1"].SpyPointsAwarded, "Вибулий p1 має отримати бонус Шпигуна")
+	assert.Equal(t, 4, final.Players["p1"].Score, "p1: 3 + 1 бонус Шпигуна = 4")
+
+	// Раунд виграє інший (живий) гравець p2 за старшою картою.
+	assert.Equal(t, "p2", final.WinnerID)
+	assert.False(t, final.Players["p2"].SpyPointsAwarded)
+	assert.Equal(t, 3, final.Players["p2"].Score, "p2: 2 + 1 за перемогу = 3")
+	assert.Equal(t, 2, final.Players["p3"].Score, "p3 без змін")
+}
+
+// TestSpyBonus_NobodyPlayedSpy: якщо ніхто не грав Шпигуна, бонус не видається.
+func TestSpyBonus_NobodyPlayedSpy(t *testing.T) {
+	state := engine.GameState{
+		Phase:     engine.PhaseMainAction,
+		TurnOrder: []string{"p1", "p2"},
+		Players: map[string]engine.Player{
+			"p1": {ID: "p1", Hand: []engine.CardType{engine.CardKing},
+				DiscardPile: []engine.CardType{engine.CardGuard}, Score: 0},
+			"p2": {ID: "p2", Hand: []engine.CardType{engine.CardPriest},
+				DiscardPile: []engine.CardType{engine.CardBaron}, Score: 0},
+		},
+	}
+	clock := &mockClock{fixedTime: time.Now()}
+
+	final := engine.ResolveRoundEnd(state, clock).NewState
+
 	assert.False(t, final.Players["p1"].SpyPointsAwarded)
-	assert.False(t, final.Players["p3"].SpyPointsAwarded)
-	assert.Equal(t, 0, final.Players["p1"].Score, "Бонус Шпигуна анульовано для p1")
-	assert.Equal(t, 0, final.Players["p3"].Score, "Бонус Шпигуна анульовано для p3")
+	assert.False(t, final.Players["p2"].SpyPointsAwarded)
+	// Лише переможець раунду (p1 з King=8) отримує бал.
+	assert.Equal(t, "p1", final.WinnerID)
+	assert.Equal(t, 1, final.Players["p1"].Score)
+	assert.Equal(t, 0, final.Players["p2"].Score)
+}
+
+// TestResolveRoundEnd_Idempotent: повторний виклик ResolveRoundEnd на вже
+// завершеному раунді НЕ дублює ані бонус Шпигуна, ані бал переможця.
+func TestResolveRoundEnd_Idempotent(t *testing.T) {
+	state := engine.GameState{
+		Phase:     engine.PhaseMainAction,
+		TurnOrder: []string{"p1", "p2"},
+		Players: map[string]engine.Player{
+			"p1": {ID: "p1", Hand: []engine.CardType{engine.CardPrincess},
+				DiscardPile: []engine.CardType{engine.CardSpy}, Score: 0},
+			"p2": {ID: "p2", Hand: []engine.CardType{engine.CardGuard},
+				DiscardPile: []engine.CardType{}, Score: 0},
+		},
+	}
+	clock := &mockClock{fixedTime: time.Now()}
+
+	first := engine.ResolveRoundEnd(state, clock)
+	afterFirst := first.NewState
+	// p1: 1 (перемога) + 1 (Шпигун) = 2.
+	assert.Equal(t, 2, afterFirst.Players["p1"].Score)
+	assert.Equal(t, engine.PhaseRoundEnd, afterFirst.Phase)
+
+	// Повторний виклик — жодних змін і жодних нових подій.
+	second := engine.ResolveRoundEnd(afterFirst, clock)
+	assert.Equal(t, 2, second.NewState.Players["p1"].Score, "Повторний резолв НЕ має подвоювати бали")
+	assert.Empty(t, second.DomainEvents, "Повторний резолв НЕ має генерувати нові події")
 }

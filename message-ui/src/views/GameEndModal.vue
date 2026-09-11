@@ -95,9 +95,24 @@
                     >({{ $t("common.you") }})</span
                   >
                 </span>
+
+                <!-- Значок бонусу Шпигуна: показуємо навіть для вибулих гравців -->
+                <span
+                  v-if="p.spy_points_awarded"
+                  class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full font-mono bg-sky-500/15 text-sky-300 border border-sky-500/30 whitespace-nowrap flex-shrink-0"
+                  :title="$t('gameEnd.spyBonusTooltip')"
+                >
+                  {{ $t("gameEnd.spyBonus") }}
+                </span>
               </div>
 
               <div class="flex items-center gap-1 font-mono text-sm font-bold">
+                <span
+                  v-if="p.spy_points_awarded"
+                  class="text-sky-400 text-[11px] font-mono"
+                  :title="$t('gameEnd.spyBonusTooltip')"
+                  >+1</span
+                >
                 <span class="text-amber-400">★</span>
                 <span
                   :class="

@@ -240,6 +240,8 @@ export const en = {
     winnerLabel: "Winner:",
     scoreboardTitle: "Current Room Standings:",
     scoreOutOf: "/ 7",
+    spyBonus: "Spy +1",
+    spyBonusTooltip: "Spy bonus: the only player who played a Spy this round",
     waitingForPlayers: "Waiting for players...",
     waitingForHost: "Waiting for the host to start the next game...",
     nextRound: "Next Round",

@@ -240,6 +240,8 @@ export const uk = {
     winnerLabel: "Переможець:",
     scoreboardTitle: "Поточний рахунок у кімнаті:",
     scoreOutOf: "/ 7",
+    spyBonus: "Шпигун +1",
+    spyBonusTooltip: "Бонус Шпигуна: єдиний гравець, який розіграв Шпигуна цього раунду",
     waitingForPlayers: "Очікування гравців...",
     waitingForHost: "Очікуємо,поки власник кімнати почне нову гру...",
     nextRound: "Наступний раунд",

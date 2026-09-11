@@ -21,6 +21,7 @@ type WSMessage struct {
 	ReconnectionToken string                          `json:"reconnection_token,omitempty"`
 	Action            *engine.Action                  `json:"action,omitempty"`
 	ChancellorAction  *engine.ChancellorResolveAction `json:"chancellor_action,omitempty"`
+	Settings          *engine.RoomSettings            `json:"settings,omitempty"`
 }
 
 type wsAckResponse struct {
@@ -236,6 +237,16 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 		case MsgNextRound:
 			if err := room.NextRound(); err != nil {
 				s.sendError(client, "failed_to_next_round", err.Error())
+			}
+
+		case MsgUpdateSettings:
+			if msg.Settings == nil {
+				s.sendError(client, "missing_payload", "Поле settings відсутнє")
+				continue
+			}
+			if err := room.UpdateSettings(currentPlayerID, *msg.Settings); err != nil {
+				s.sendEngineError(client, msg.RequestID, "update_settings_rejected", err)
+				continue
 			}
 
 		case MsgAction:

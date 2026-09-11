@@ -63,6 +63,9 @@ export const EngineErrorCodes = {
   // --- Chancellor (резолв) ---------------------------------------------------
   ChancellorInvalidBottomOrder: "ERR_CHANCELLOR_INVALID_BOTTOM_ORDER",
   ChancellorWrongPhase: "ERR_CHANCELLOR_WRONG_PHASE",
+
+  // --- Room settings / права доступу -----------------------------------------
+  NotHost: "ERR_NOT_HOST",
 } as const;
 
 // EngineErrorCode - string-літеральний union усіх валідних кодів.

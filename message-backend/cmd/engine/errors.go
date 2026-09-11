@@ -85,6 +85,9 @@ const (
 	// --- Chancellor (резолв) -------------------------------------------------
 	ErrChancellorInvalidBottomOrder ErrorCode = "ERR_CHANCELLOR_INVALID_BOTTOM_ORDER" // BottomOrder не відповідає набору карт у руці.
 	ErrChancellorWrongPhase         ErrorCode = "ERR_CHANCELLOR_WRONG_PHASE"          // ResolveChancellor викликано не у фазі RESOLVE_CHANCELLOR.
+
+	// --- Room settings / права доступу ---------------------------------------
+	ErrNotHost ErrorCode = "ERR_NOT_HOST" // Дію дозволено виконати лише власнику (host) кімнати.
 )
 
 // =============================================================================

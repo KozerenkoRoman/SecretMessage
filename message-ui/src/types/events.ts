@@ -333,3 +333,14 @@ export interface ReconnectTokenPacket {
   reconnection_token: string;
   room_id: string;
 }
+
+// =============================================================================
+// ROOM SETTINGS
+// -----------------------------------------------------------------------------
+// Дзеркало engine.RoomSettings (message-backend/cmd/engine/types.go).
+// Живе всередині GameState.settings; мутується ВИКЛЮЧНО власником кімнати
+// (GameState.host_id) через WS-повідомлення { type: "UPDATE_SETTINGS", settings }.
+// =============================================================================
+export interface RoomSettings {
+  winner_starts_next_round: boolean;
+}

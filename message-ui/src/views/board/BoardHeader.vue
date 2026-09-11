@@ -6,6 +6,16 @@
       <button @click="$emit('leave')" type="button" class="btn-danger">
         {{ $t("board.leave") }}
       </button>
+      <button
+        v-if="!gameState?.turn_order || gameState.turn_order.length === 0"
+        @click="$emit('open-settings')"
+        type="button"
+        :title="$t('roomSettings.title')"
+        aria-label="Room settings"
+        class="px-3 py-2 bg-slate-700 hover:bg-slate-600 active:bg-slate-800 text-amber-400 font-bold rounded-xl text-xs border border-brand-border transition-all flex items-center gap-1"
+      >
+        <span class="text-sm leading-none">⚙</span>
+      </button>
       <div class="h-6 w-[1px] bg-brand-surface-dim"></div>
 
       <div
@@ -119,5 +129,5 @@ defineProps({
   currentTurnPlayerName: String,
 });
 
-defineEmits(["leave", "add-bot", "start-game"]);
+defineEmits(["leave", "add-bot", "start-game", "open-settings"]);
 </script>

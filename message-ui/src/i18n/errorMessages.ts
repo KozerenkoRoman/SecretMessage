@@ -63,6 +63,7 @@ const uk: ErrorDictionary = {
   [EngineErrorCodes.TargetProtected]: "Цей гравець захищений Покоївкою - оберіть іншу ціль.",
   [EngineErrorCodes.TargetRequired]: "Оберіть гравця-ціль.",
   [EngineErrorCodes.ErrInvalidAction]: "Невідома дія.",
+  [EngineErrorCodes.NotHost]: "Змінювати налаштування кімнати може лише її власник.",
 };
 
 const en: ErrorDictionary = {
@@ -91,6 +92,7 @@ const en: ErrorDictionary = {
   [EngineErrorCodes.TargetProtected]: "This player is protected by the Handmaid - choose another target.",
   [EngineErrorCodes.TargetRequired]: "Please select a target player.",
   [EngineErrorCodes.ErrInvalidAction]: "Unknown action.",
+  [EngineErrorCodes.NotHost]: "Only the room owner can change room settings.",
 };
 
 // -----------------------------------------------------------------------------

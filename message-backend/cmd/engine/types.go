@@ -44,6 +44,20 @@ type GameState struct {
 	TransitionHash string        `json:"transition_hash,omitempty"`
 	BurnCard       *CardType     `json:"burn_card,omitempty"` // карта, вилучена з колоди на початку партії
 	SecondsLeft    int           `json:"seconds_left,omitempty"`
+
+	// HostID — ID гравця-власника кімнати. Лише він може змінювати Settings.
+	HostID string `json:"host_id,omitempty"`
+	// Settings — налаштування кімнати, які може змінювати виключно HostID.
+	Settings RoomSettings `json:"settings"`
+}
+
+// RoomSettings — конфігурація кімнати, керована власником (host).
+type RoomSettings struct {
+	// WinnerStartsNextRound — якщо true, гравець, що виграв попередній
+	// раунд, автоматично отримує перший хід у наступному раунді. Якщо
+	// переможець вже не в кімнаті (вийшов) або прапорець вимкнено —
+	// застосовується стандартний порядок ходів (з початку TurnOrder).
+	WinnerStartsNextRound bool `json:"winner_starts_next_round"`
 }
 
 type Player struct {
@@ -174,6 +188,8 @@ func (s GameState) Clone() GameState {
 			IsDisconnected:   player.IsDisconnected,
 		}
 	}
+
+	cloned.Settings = s.Settings
 
 	return cloned
 }

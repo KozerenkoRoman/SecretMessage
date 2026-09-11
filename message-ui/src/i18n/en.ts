@@ -136,6 +136,16 @@ export const en = {
     },
   },
 
+  // ==== Room settings modal ===========================================
+  roomSettings: {
+    title: "Room Settings",
+    winnerStartsNextRound: "Winner starts next round",
+    winnerStartsNextRoundHint:
+      "When enabled, the player who won the previous round takes the first turn of the next round.",
+    hostOnlyHint: "Only the room owner can change room settings.",
+    close: "Close",
+  },
+
   // ==== Auth =========================================================
   auth: {
     title: "Sign In",
@@ -312,6 +322,8 @@ export const en = {
     nextRound: "Next Round",
     leaveLobby: "Leave to Lobby",
     restart: "Play Again",
+    nextRoundStarter: "First move:",
+    winnerStartsBadge: "Round winner",
   },
 
   // ==== Game error modal ==============================================

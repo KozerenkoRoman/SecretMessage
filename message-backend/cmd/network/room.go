@@ -177,9 +177,16 @@ func NewRoom(ctx context.Context, id string, hostID string, store *storage.Stora
 			return nil, fmt.Errorf("failed to unmarshal game state: %w", err)
 		}
 		r.state = state
-		if len(state.TurnOrder) > 0 {
+		if state.HostID != "" {
+			// Стан уже містить справжнього власника кімнати (персистований
+			// раніше) — довіряємо йому, а не квіркові нижче.
+			r.hostID = state.HostID
+		} else if len(state.TurnOrder) > 0 {
+			// Стан застарілий (записаний до появи поля HostID) — застосовуємо
+			// попередню (застарілу) евристику, лише для сумісності.
 			r.hostID = state.TurnOrder[0]
 		}
+		r.state.HostID = r.hostID
 		log.WithField("seq", state.Sequence).Info("Успішно відновлено стан кімнати із бази даних")
 	} else {
 		log.Info("Кімнату не знайдено в БД, ініціалізуємо новий стан")
@@ -189,6 +196,7 @@ func NewRoom(ctx context.Context, id string, hostID string, store *storage.Stora
 			Phase:     engine.PhaseMainAction,
 			Players:   make(map[string]engine.Player),
 			TurnOrder: []string{},
+			HostID:    r.hostID,
 		}
 		if err := r.saveToDB(ctx); err != nil {
 			return nil, fmt.Errorf("failed to save initial room state: %w", err)
@@ -1167,6 +1175,40 @@ func (r *Room) AddPlayer(playerID string) error {
 }
 
 // =============================================================================
+// Room settings
+// =============================================================================
+
+// UpdateSettings змінює конфігурацію кімнати (наприклад, winner_starts_next_round).
+// Дозволено ВИКЛЮЧНО власнику кімнати (r.hostID). Будь-хто інший отримає
+// *engine.GameError з кодом ErrNotHost.
+func (r *Room) UpdateSettings(playerID string, settings engine.RoomSettings) error {
+	r.mu.Lock()
+
+	if playerID != r.hostID {
+		r.mu.Unlock()
+		return engine.NewError(engine.ErrNotHost, "player_id=%s is not the host of room %s", playerID, r.id)
+	}
+
+	r.state.Settings = settings
+
+	if err := r.saveToDB(context.Background()); err != nil {
+		r.mu.Unlock()
+		return fmt.Errorf("failed to save settings: %w", err)
+	}
+
+	r.log.WithFields(logrus.Fields{
+		"room_id":                  r.id,
+		"player_id":                playerID,
+		"winner_starts_next_round": settings.WinnerStartsNextRound,
+	}).Info("Налаштування кімнати оновлено власником")
+
+	r.mu.Unlock()
+
+	go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+	return nil
+}
+
+// =============================================================================
 // Game lifecycle: StartGame / NextRound
 // =============================================================================
 
@@ -1375,13 +1417,19 @@ func (r *Room) NextRound() error {
 		r.state.Players[id] = player
 	}
 
-	// Хто починає? Якщо є переможець попереднього раунду — він.
+	// Хто починає новий раунд?
+	//   - Якщо у налаштуваннях кімнати увімкнено winner_starts_next_round І
+	//     переможець попереднього раунду досі є в кімнаті — починає він.
+	//   - Інакше (опція вимкнена АБО переможця вже нема серед гравців) —
+	//     стандартний порядок ходів, з початку TurnOrder.
 	startingIdx := 0
-	if r.state.WinnerID != "" {
-		for idx, id := range r.state.TurnOrder {
-			if id == r.state.WinnerID {
-				startingIdx = idx
-				break
+	if r.state.Settings.WinnerStartsNextRound && r.state.WinnerID != "" {
+		if _, winnerStillHere := r.state.Players[r.state.WinnerID]; winnerStillHere {
+			for idx, id := range r.state.TurnOrder {
+				if id == r.state.WinnerID {
+					startingIdx = idx
+					break
+				}
 			}
 		}
 	}

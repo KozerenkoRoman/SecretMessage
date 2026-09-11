@@ -18,6 +18,7 @@
         @leave="handleLeaveGame"
         @add-bot="handleDelayAndAddBot"
         @start-game="handleStartGame"
+        @open-settings="showRoomSettings = true"
       />
 
       <main
@@ -300,6 +301,13 @@
       @leave-game="emit('leave-game')"
     />
     <GameErrorModal :message="gameStore.error" @close="handleClearError" />
+    <RoomSettingsModal
+      :is-open="showRoomSettings"
+      :settings="props.gameState?.settings"
+      :is-host="gameStore.isRoomHost"
+      @update-settings="handleUpdateRoomSettings"
+      @close="showRoomSettings = false"
+    />
     <ConfirmModal
       :is-open="showLeaveConfirm"
       :title="$t('board.leaveConfirm.title')"
@@ -328,6 +336,7 @@ import CardRevealModal from "../CardRevealModal.vue";
 import GameEndModal from "../GameEndModal.vue";
 import GameErrorModal from "../GameErrorModal.vue";
 import ConfirmModal from "../ConfirmModal.vue";
+import RoomSettingsModal from "../RoomSettingsModal.vue";
 import deckBackImage from "../../assets/deckBack.png";
 import chipImage from "../../assets/chip.png";
 
@@ -368,6 +377,7 @@ const localSecondsLeft = computed(() => gameStore.secondsLeft ?? 0);
 const latestTurnAlert = computed(() => gameStore.latestTurnAlert);
 
 const showLeaveConfirm = ref(false);
+const showRoomSettings = ref(false);
 const showActionModal = ref(false);
 const isBotSubmitting = ref(false);
 const activePlay = ref({ cardType: "", handIndex: 0, targetID: "", guessCard: "" });
@@ -590,6 +600,10 @@ const isOpponentLeft = computed(() => {
     : Object.values(playersData);
   return playersList.length < 2;
 });
+
+const handleUpdateRoomSettings = (settings) => {
+  gameStore.updateRoomSettings(settings);
+};
 
 const handleChancellorClick = (index) => {};
 const handleChancellorModalSubmit = ({ keepHandIndex, bottomOrder }) => {

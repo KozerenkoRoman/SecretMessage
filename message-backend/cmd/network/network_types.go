@@ -21,6 +21,9 @@ const (
 	// MsgReconnect — клієнт просить відновити активну ігрову сесію,
 	// передаючи збережений reconnection_token.
 	MsgReconnect = "RECONNECT"
+	// MsgUpdateSettings — власник кімнати (host) змінює RoomSettings
+	// (напр., winner_starts_next_round). Дозволено лише r.hostID.
+	MsgUpdateSettings = "UPDATE_SETTINGS"
 )
 
 const (

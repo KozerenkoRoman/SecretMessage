@@ -13,6 +13,8 @@ const EMPTY_GAME_STATE = Object.freeze({
   discard_pile: [],
   seconds_left: 0,
   chancellor_options: [],
+  host_id: '',
+  settings: { winner_starts_next_round: false },
 });
 
 function makeEmptyGameState() {
@@ -24,6 +26,8 @@ function makeEmptyGameState() {
     discard_pile: [],
     seconds_left: 0,
     chancellor_options: [],
+    host_id: '',
+    settings: { winner_starts_next_round: false },
   };
 }
 
@@ -149,6 +153,11 @@ export const useGameStore = defineStore('gameStore', () => {
   const gameLog = ref([]);
 
   const myID = computed(() => extractUserIdFromToken(authToken.value));
+
+  const isRoomHost = computed(() => {
+    const hostId = gameState.value?.host_id;
+    return !!hostId && hostId === myID.value;
+  });
 
   let timerInterval = null;
   let reconnectTimeout = null;
@@ -812,6 +821,24 @@ export const useGameStore = defineStore('gameStore', () => {
     socket.value.send(JSON.stringify(message));
   }
 
+  // updateRoomSettings — власник кімнати змінює RoomSettings (напр.,
+  // winner_starts_next_round). Окремо від sendWSMessage, бо повідомлення
+  // несе нестандартне поле settings, а не action/chancellor_action.
+  function updateRoomSettings(settings) {
+    if (!socket.value || socket.value.readyState !== WebSocket.OPEN) {
+      console.warn('[WS] Спроба відправки UPDATE_SETTINGS у закритий сокет.');
+      return;
+    }
+    const message = {
+      room_id: currentRoomID.value || '',
+      type: 'UPDATE_SETTINGS',
+      request_id: typeof crypto?.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2),
+      settings,
+    };
+    console.log('[WS] Відправка налаштувань кімнати на бекенд:', message);
+    socket.value.send(JSON.stringify(message));
+  }
+
   // _sendReconnect шле службове повідомлення RECONNECT з reconnection_token.
   // Окремо від sendWSMessage, бо має нестандартне поле reconnection_token.
   function _sendReconnect(rToken) {
@@ -963,6 +990,7 @@ export const useGameStore = defineStore('gameStore', () => {
     error,
     currentRoomID,
     myID,
+    isRoomHost,
     isGameStarted,
     activePlayers,
     myCards,
@@ -980,6 +1008,7 @@ export const useGameStore = defineStore('gameStore', () => {
     leaveCurrentRoom,
     connectToHub,
     sendWSMessage,
+    updateRoomSettings,
     disconnect,
     addBotToRoom,
   };

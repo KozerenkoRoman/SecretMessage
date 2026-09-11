@@ -131,6 +131,22 @@
           </div>
         </div>
 
+        <div
+          v-if="!gameState?.is_game_over && nextRoundStarterName"
+          class="mb-4 flex items-center justify-center gap-2 bg-brand-bg-dark/60 border border-slate-800 rounded-xl py-2 px-3"
+        >
+          <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 font-mono">
+            {{ $t("gameEnd.nextRoundStarter") }}
+          </span>
+          <span class="text-xs font-bold text-amber-400 truncate">{{ nextRoundStarterName }}</span>
+          <span
+            v-if="gameState?.settings?.winner_starts_next_round"
+            class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full font-mono bg-amber-500/15 text-amber-300 border border-amber-500/30 whitespace-nowrap"
+          >
+            {{ $t("gameEnd.winnerStartsBadge") }}
+          </span>
+        </div>
+
         <div class="mt-6 space-y-2">
           <button
             v-if="!gameState?.is_game_over"
@@ -235,6 +251,34 @@ const sortedPlayers = computed(() => {
   }
 
   return [...list].sort((a, b) => (b.score || 0) - (a.score || 0));
+});
+
+const nextRoundStarterName = computed(() => {
+  const playersData = props.gameState?.players;
+  const turnOrder = props.gameState?.turn_order;
+  if (!playersData || !Array.isArray(turnOrder) || turnOrder.length === 0) return "";
+
+  const getUsername = (id) => {
+    if (!id) return "";
+    if (Array.isArray(playersData)) {
+      const found = playersData.find((p) => p && p.id === id);
+      return found?.username || "";
+    }
+    return playersData[id]?.username || "";
+  };
+
+  const winnerID = props.gameState?.winner_id;
+  const winnerStarts = !!props.gameState?.settings?.winner_starts_next_round;
+  const winnerStillHere = winnerID
+    ? (Array.isArray(playersData)
+        ? playersData.some((p) => p && p.id === winnerID)
+        : Object.prototype.hasOwnProperty.call(playersData, winnerID))
+    : false;
+
+  if (winnerStarts && winnerID && winnerStillHere) {
+    return getUsername(winnerID);
+  }
+  return getUsername(turnOrder[0]);
 });
 
 const hasOpponentLeft = computed(() => {

@@ -10,12 +10,20 @@
           </h1>
           <p class="text-xs text-slate-400">{{ $t("admin.subtitle") }}</p>
         </div>
-        <router-link
-          to="/desktop"
-          class="px-4 py-2 bg-brand-surface hover:bg-brand-surface-dim text-amber-500 hover:text-amber-400 text-xs font-bold uppercase tracking-wider font-mono rounded-xl transition-all border border-brand-border shadow-md active:scale-95"
-        >
-          {{ $t("admin.backToDesktop") }}
-        </router-link>
+        <div class="flex items-center gap-2">
+          <router-link
+            to="/admin/simulations"
+            class="px-4 py-2 bg-brand-surface hover:bg-brand-surface-dim text-cyan-400 hover:text-cyan-300 text-xs font-bold uppercase tracking-wider font-mono rounded-xl transition-all border border-brand-border shadow-md active:scale-95"
+          >
+            {{ $t("admin.simulationsLink") }}
+          </router-link>
+          <router-link
+            to="/desktop"
+            class="px-4 py-2 bg-brand-surface hover:bg-brand-surface-dim text-amber-500 hover:text-amber-400 text-xs font-bold uppercase tracking-wider font-mono rounded-xl transition-all border border-brand-border shadow-md active:scale-95"
+          >
+            {{ $t("admin.backToDesktop") }}
+          </router-link>
+        </div>
       </div>
 
       <div

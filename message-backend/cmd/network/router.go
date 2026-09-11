@@ -23,5 +23,11 @@ func InitRoutes(mux *http.ServeMux, s *Server) {
 	s.ADMIN_POST(mux, "/api/admin/users/{id}/block", s.HandleAdminBlockUser)
 	s.ADMIN_POST(mux, "/api/admin/block", s.HandleBlockUser)
 
+	// Headless Bot-vs-Bot симуляції (аналітика/тюнінг стратегій).
+	s.ADMIN_POST(mux, "/api/admin/simulations", s.HandleStartSimulation)
+	s.ADMIN_GET(mux, "/api/admin/simulations", s.HandleListSimulations)
+	s.ADMIN_GET(mux, "/api/admin/simulations/{id}", s.HandleGetSimulation)
+	s.ADMIN_POST(mux, "/api/admin/simulations/{id}/cancel", s.HandleCancelSimulation)
+
 	mux.Handle("/ws", AuthMiddleware(http.HandlerFunc(s.HandleWS)))
 }

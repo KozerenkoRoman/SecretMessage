@@ -6,6 +6,7 @@ import (
 
 	"secret-message/cmd/auth"
 	"secret-message/cmd/engine"
+	"secret-message/cmd/simulation"
 	"secret-message/cmd/storage"
 
 	"github.com/google/uuid"
@@ -33,11 +34,12 @@ type wsPongResponse struct {
 }
 
 type Server struct {
-	hub      *Hub
-	gateway  *Gateway
-	log      *logrus.Logger
-	upgrader websocket.Upgrader
-	store    *storage.Storage
+	hub           *Hub
+	gateway       *Gateway
+	log           *logrus.Logger
+	upgrader      websocket.Upgrader
+	store         *storage.Storage
+	simController *simulation.Controller
 }
 
 func NewServer(hub *Hub, gateway *Gateway, logger *logrus.Logger, store *storage.Storage) *Server {
@@ -46,6 +48,8 @@ func NewServer(hub *Hub, gateway *Gateway, logger *logrus.Logger, store *storage
 		gateway: gateway,
 		log:     logger,
 		store:   store,
+		// Контролер симуляцій: персист телеметрії йде через адаптер сховища.
+		simController: simulation.NewController(newSimStoreAdapter(store), logger),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,

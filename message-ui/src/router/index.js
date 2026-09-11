@@ -42,6 +42,16 @@ const routes = [
     }
   },
   {
+    path: '/admin/simulations',
+    name: 'Simulations',
+    component: () => import('../views/SimulationView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      titleKey: 'titles.simulation'
+    }
+  },
+  {
     path: '/room/:id',
     name: 'Room',
     component: RoomManager,

@@ -99,8 +99,11 @@ func TestApply_BaronTieKeepsBothAlive(t *testing.T) {
 	assert.False(t, result.NewState.Players["player1"].IsOut, "player1 НЕ має вибути при нічиї")
 	assert.False(t, result.NewState.Players["player2"].IsOut, "player2 НЕ має вибути при нічиї")
 
-	// Перевірка доменних подій: при нічиї генеруються тільки 2 події
-	require.Len(t, result.DomainEvents, 2, "При нічиї має бути згенеровано рівно 2 події")
+	// При нічиї ніхто не вибуває, раунд триває -> хід переходить до player2,
+	// який добирає карту на початку свого ходу (AdvanceTurn). Тому окрім
+	// CARD_PLAYED і ROUND_COMPARED генерується ще й CARD_DRAWN.
+	require.Len(t, result.DomainEvents, 3, "При нічиї має бути 3 події (гра триває, наступний гравець добирає карту)")
 	assert.Equal(t, engine.EventCardPlayed, result.DomainEvents[0].Type)
 	assert.Equal(t, engine.EventRoundCompared, result.DomainEvents[1].Type)
+	assert.Equal(t, engine.EventCardDrawn, result.DomainEvents[2].Type)
 }

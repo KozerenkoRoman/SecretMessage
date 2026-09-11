@@ -44,12 +44,15 @@ func TestApply_KingSwapsHands(t *testing.T) {
 	// Перевірка обміну: p1 повинен отримати карту, яка була у p2 (Принцесу)
 	assert.Equal(t, []engine.CardType{engine.CardPrincess}, p1Hand, "p1 має отримати карту від p2")
 
-	// Перевірка обміну: p2 має отримати порожню руку від p1, оскільки Король вже зіграний.
-	// Використовуємо assert.Empty, який коректно працює як з порожнім масивом, так і з nil.
-	assert.Empty(t, p2Hand, "p2 має отримати порожню руку p1 (бо King зіграно)")
+	// Після обміну p2 отримав порожню руку p1. Далі хід переходить до p2
+	// (AdvanceTurn), і оскільки в p2 менше 2 карт, він добирає карту з колоди
+	// (Guard) — це початок ЙОГО ходу за правилами Love Letter.
+	assert.Equal(t, []engine.CardType{engine.CardGuard}, p2Hand,
+		"p2 добирає карту на початку свого ходу після обміну")
 
-	// Перевірка подій: переконуємося, що рушій створив правильні записи в логу гри
-	require.Len(t, result.DomainEvents, 2, "Має бути 2 події: CARD_PLAYED і HANDS_SWAPPED")
+	// Події: CARD_PLAYED (King), HANDS_SWAPPED (обмін), CARD_DRAWN (добір p2 на його ході).
+	require.Len(t, result.DomainEvents, 3, "Має бути 3 події: CARD_PLAYED, HANDS_SWAPPED, CARD_DRAWN")
 	assert.Equal(t, engine.EventCardPlayed, result.DomainEvents[0].Type)
 	assert.Equal(t, engine.EventHandsSwapped, result.DomainEvents[1].Type)
+	assert.Equal(t, engine.EventCardDrawn, result.DomainEvents[2].Type)
 }

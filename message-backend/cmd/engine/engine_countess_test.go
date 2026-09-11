@@ -40,7 +40,9 @@ func TestApply_CountessForcedPlay(t *testing.T) {
 	// Перевірка: King лишається в руці
 	assert.Equal(t, []engine.CardType{engine.CardKing}, result.NewState.Players["p1"].Hand, "King має лишитися в руці")
 
-	// Перевірка: подія CARD_PLAYED
-	require.Len(t, result.DomainEvents, 1, "Має бути одна подія")
+	// Події: CARD_PLAYED (Countess) + CARD_DRAWN (p2 добирає карту на початку
+	// свого ходу після AdvanceTurn — коректна поведінка Love Letter).
+	require.Len(t, result.DomainEvents, 2, "Має бути 2 події: CARD_PLAYED і CARD_DRAWN")
 	assert.Equal(t, engine.EventCardPlayed, result.DomainEvents[0].Type)
+	assert.Equal(t, engine.EventCardDrawn, result.DomainEvents[1].Type)
 }

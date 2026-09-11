@@ -300,3 +300,36 @@ export function isCardMasked(card: CardType | number): boolean {
   // окремий булівський прапорець на бекенді.
   return card === 0;
 }
+
+// =============================================================================
+// RECONNECTION PROTOCOL (envelope-level, поза packet.events)
+// -----------------------------------------------------------------------------
+// Це типи ВЕРХНЬОГО рівня WS-пакета (поле packet.type), а не доменні події.
+// Джерело правди: cmd/network/network_types.go та websocket.go.
+//
+//   • "GAME_STATE_SNAPSHOT" — повний знімок стану, надсилається одному гравцю
+//     одразу після успішного RECONNECT. Обробляється як ROOM_UPDATED.
+//   • "RECONNECT_TOKEN"     — сервер видав/оновив reconnection_token
+//     (поля: reconnection_token, room_id). Клієнт зберігає у localStorage.
+//
+// Вихідні (клієнт → сервер):
+//   • { type: "RECONNECT", room_id, request_id, reconnection_token }
+//
+// Примітка щодо стану гравця: engine.Player тепер має поле
+// `is_disconnected: boolean` — гравець тимчасово втратив зв'язок і перебуває
+// у grace-періоді (UI показує "перепідключається"), але ще НЕ вибув.
+// =============================================================================
+
+/** Тип поля packet.type для reconnection-протоколу та штатних оновлень стану. */
+export type ServerEnvelopeType =
+  | "ROOM_UPDATED"
+  | "LOBBY_LIST_UPDATED"
+  | "GAME_STATE_SNAPSHOT"
+  | "RECONNECT_TOKEN";
+
+/** Пакет RECONNECT_TOKEN: сервер → клієнт. */
+export interface ReconnectTokenPacket {
+  type: "RECONNECT_TOKEN";
+  reconnection_token: string;
+  room_id: string;
+}

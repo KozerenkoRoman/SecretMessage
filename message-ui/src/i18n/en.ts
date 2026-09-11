@@ -145,6 +145,7 @@ export const en = {
     yourTurn: "Your Turn!",
     currentTurn: "Current turn:",
     protection: "Protected",
+    reconnecting: "Reconnecting...",
     discardPile: "Discard:",
     table: "Discard Pile",
     deck: "Deck",

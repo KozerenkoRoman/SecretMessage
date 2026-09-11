@@ -145,6 +145,7 @@ export const uk = {
     yourTurn: "Ваш хід!",
     currentTurn: "Ходить:",
     protection: "Захист",
+    reconnecting: "Перепідключення...",
     discardPile: "Відбій:",
     table: "Стіл відбою",
     deck: "Колода",

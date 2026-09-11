@@ -32,6 +32,12 @@
                 >{{ $t("board.protection") }}</span
               >
             </template>
+            <template v-if="player.is_disconnected && !player.is_out">
+              <span
+                class="font-bold text-[11px] tall:text-xs truncate max-w-[150px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-black shadow animate-pulse"
+                >{{ $t("board.reconnecting") }}</span
+              >
+            </template>
             <template v-if="player.is_out"> ({{ $t("status.out") }})</template>
           </span>
           <span

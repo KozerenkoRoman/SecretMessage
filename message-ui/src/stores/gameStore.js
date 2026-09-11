@@ -38,6 +38,53 @@ function extractUserIdFromToken(token) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Reconnection token persistence.
+// Ключ у localStorage — стабільний, задокументований. Токен прив'язаний до
+// кімнати, тож зберігаємо мапу roomID -> token у одному JSON-записі.
+// -----------------------------------------------------------------------------
+const RECONNECT_STORE_KEY = 'reconnect_tokens';
+
+function _readReconnectMap() {
+  try {
+    const raw = localStorage.getItem(RECONNECT_STORE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function getReconnectToken(roomID) {
+  if (!roomID) return '';
+  const map = _readReconnectMap();
+  return typeof map[roomID] === 'string' ? map[roomID] : '';
+}
+
+function saveReconnectToken(roomID, token) {
+  if (!roomID || !token) return;
+  const map = _readReconnectMap();
+  map[roomID] = token;
+  try {
+    localStorage.setItem(RECONNECT_STORE_KEY, JSON.stringify(map));
+  } catch (e) {
+    console.warn('[gameStore] Не вдалося зберегти reconnection_token:', e);
+  }
+}
+
+function clearReconnectToken(roomID) {
+  if (!roomID) return;
+  const map = _readReconnectMap();
+  if (roomID in map) {
+    delete map[roomID];
+    try {
+      localStorage.setItem(RECONNECT_STORE_KEY, JSON.stringify(map));
+    } catch {
+      /* no-op */
+    }
+  }
+}
+
 export const useGameStore = defineStore('gameStore', () => {
   const socket = ref(null);
   const isConnected = ref(false);
@@ -104,6 +151,32 @@ export const useGameStore = defineStore('gameStore', () => {
 
   let timerInterval = null;
   let reconnectTimeout = null;
+
+  // Експоненційний backoff для авто-реконекту.
+  // Затримки: 1s, 2s, 4s, 8s, ... з м'яким максимумом 30s.
+  const RECONNECT_BASE_DELAY = 1000;
+  const RECONNECT_MAX_DELAY = 30000;
+  let reconnectAttempts = 0;
+
+  // Visibility listener зберігаємо, щоб коректно зняти в disconnect().
+  let visibilityHandler = null;
+
+  function _nextReconnectDelay() {
+    const delay = Math.min(
+      RECONNECT_MAX_DELAY,
+      RECONNECT_BASE_DELAY * 2 ** reconnectAttempts
+    );
+    reconnectAttempts++;
+    return delay;
+  }
+
+  function _resetReconnectBackoff() {
+    reconnectAttempts = 0;
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+      reconnectTimeout = null;
+    }
+  }
 
   function _resetBoardDerived() {
     discardSequence.value = [];
@@ -345,6 +418,8 @@ export const useGameStore = defineStore('gameStore', () => {
 
   function connectToHub(roomID = null) {
     const targetRoomID = roomID || '';
+    // Слухач видимості вкладки ставимо один раз на будь-яке підключення до гри.
+    _installVisibilityListener();
     if (socket.value && socket.value.readyState === WebSocket.OPEN) {
       console.log(`[WS] Сокет уже відкритий. Міняємо кімнату з "${currentRoomID.value}" на "${targetRoomID}"`);
 
@@ -397,11 +472,20 @@ export const useGameStore = defineStore('gameStore', () => {
       isConnected.value = true;
       error.value = null;
       console.log('[WS] Сокет успішно відкрито з бекендом.');
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-        reconnectTimeout = null;
-      }
+      _resetReconnectBackoff();
+
       if (currentRoomID.value) {
+        // Якщо є збережений reconnection_token для цієї кімнати — намагаємось
+        // ВІДНОВИТИ активну сесію (сервер поверне GAME_STATE_SNAPSHOT і скасує
+        // grace-таймер). Інакше — звичайний JOIN.
+        const rToken = getReconnectToken(currentRoomID.value);
+        if (rToken) {
+          console.log('[WS] Спроба відновлення сесії за reconnection_token...');
+          _sendReconnect(rToken);
+        }
+        // JOIN завжди безпечний: якщо RECONNECT не вдасться (протух токен),
+        // сервер обробить JOIN штатно; якщо вдасться — JOIN буде no-op для
+        // активної партії.
         sendWSMessage('JOIN', currentRoomID.value, null, null);
       }
     };
@@ -416,12 +500,37 @@ export const useGameStore = defineStore('gameStore', () => {
           return;
         }
 
+        // Сервер видав/оновив reconnection_token для активної партії.
+        // Зберігаємо його прив'язаним до кімнати для майбутнього відновлення.
+        if (packet.type === 'RECONNECT_TOKEN') {
+          const rid = packet.room_id || currentRoomID.value;
+          if (rid && packet.reconnection_token) {
+            saveReconnectToken(rid, packet.reconnection_token);
+            console.log('[WS] Отримано reconnection_token для кімнати', rid);
+          }
+          return;
+        }
+
         if (packet.type === 'LOBBY_LIST_UPDATED' || packet.type === 'LOBBY_UPDATED') {
           lobbyRooms.value = Array.isArray(packet.data) ? packet.data : (packet.payload || []);
           return;
         }
 
-        if (packet.type === 'ROOM_UPDATED' || packet.type === 'STATE_UPDATE' || packet.state) {
+        // GAME_STATE_SNAPSHOT — повний знімок після успішного reconnect.
+        // Обробляємо тим самим шляхом, що й ROOM_UPDATED, але спершу скидаємо
+        // похідні поля дошки, щоб коректно реконсилити локальний UI зі станом
+        // сервера (ми могли пропустити довільну кількість подій).
+        if (packet.type === 'GAME_STATE_SNAPSHOT') {
+          console.log('[WS] Отримано GAME_STATE_SNAPSHOT — реконсиляція стану.');
+          _resetBoardDerived();
+        }
+
+        if (
+          packet.type === 'ROOM_UPDATED' ||
+          packet.type === 'STATE_UPDATE' ||
+          packet.type === 'GAME_STATE_SNAPSHOT' ||
+          packet.state
+        ) {
           let rawState = packet.state || packet.payload;
           if (!rawState || typeof rawState !== 'object') return;
 
@@ -636,9 +745,14 @@ export const useGameStore = defineStore('gameStore', () => {
       if (timerInterval) clearInterval(timerInterval);
       console.log('[WS] Сокет закрився.', event);
       if (!isIntentionallyClosed.value) {
+        // Експоненційний backoff. Не плодимо паралельні таймери.
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        const delay = _nextReconnectDelay();
+        console.log(`[WS] Автопереконект через ${delay}ms (спроба #${reconnectAttempts}).`);
         reconnectTimeout = setTimeout(() => {
+          reconnectTimeout = null;
           connectToHub(currentRoomID.value);
-        }, 3000);
+        }, delay);
       }
     };
 
@@ -697,6 +811,55 @@ export const useGameStore = defineStore('gameStore', () => {
     socket.value.send(JSON.stringify(message));
   }
 
+  // _sendReconnect шле службове повідомлення RECONNECT з reconnection_token.
+  // Окремо від sendWSMessage, бо має нестандартне поле reconnection_token.
+  function _sendReconnect(rToken) {
+    if (!socket.value || socket.value.readyState !== WebSocket.OPEN) return;
+    const message = {
+      type: 'RECONNECT',
+      room_id: currentRoomID.value || '',
+      request_id:
+        typeof crypto?.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : Math.random().toString(36).substring(2),
+      reconnection_token: rToken,
+    };
+    socket.value.send(JSON.stringify(message));
+  }
+
+  // handleVisibilityChange — коли користувач повертає застосунок з фону,
+  // ОС могла призупинити WebSocket. Якщо сокет закритий/закривається —
+  // ініціюємо негайний авто-реконект (backoff скидається, бо це явний
+  // сигнал користувача, а не сліпий ретрай).
+  function handleVisibilityChange() {
+    if (typeof document === 'undefined') return;
+    if (document.visibilityState !== 'visible') return;
+    if (isIntentionallyClosed.value) return;
+    if (!currentRoomID.value) return;
+
+    const st = socket.value?.readyState;
+    const needsReconnect =
+      !socket.value || st === WebSocket.CLOSED || st === WebSocket.CLOSING;
+
+    if (needsReconnect) {
+      console.log('[WS] Повернення у foreground — сокет мертвий, реконект.');
+      _resetReconnectBackoff();
+      connectToHub(currentRoomID.value);
+    }
+  }
+
+  function _installVisibilityListener() {
+    if (typeof document === 'undefined' || visibilityHandler) return;
+    visibilityHandler = handleVisibilityChange;
+    document.addEventListener('visibilitychange', visibilityHandler);
+  }
+
+  function _removeVisibilityListener() {
+    if (typeof document === 'undefined' || !visibilityHandler) return;
+    document.removeEventListener('visibilitychange', visibilityHandler);
+    visibilityHandler = null;
+  }
+
   function clearRevealedData() {
     revealedCardData.value = null;
   }
@@ -707,6 +870,8 @@ export const useGameStore = defineStore('gameStore', () => {
     clearLog();
     if (currentRoomID.value) {
       sendWSMessage('LEAVE', currentRoomID.value, null, null);
+      // Свідомий вихід — сесія більше не підлягає відновленню.
+      clearReconnectToken(currentRoomID.value);
       currentRoomID.value = '';
       revealedCardData.value = null;
       gameState.value = makeEmptyGameState();
@@ -721,13 +886,15 @@ export const useGameStore = defineStore('gameStore', () => {
     if (currentRoomID.value && socket.value && socket.value.readyState === WebSocket.OPEN) {
       sendWSMessage('LEAVE', currentRoomID.value, null, null);
     }
+    // Свідомий дисконект — прибираємо токен відновлення для цієї кімнати.
+    if (currentRoomID.value) {
+      clearReconnectToken(currentRoomID.value);
+    }
     isIntentionallyClosed.value = true;
     revealedCardData.value = null;
     clearLog();
-    if (reconnectTimeout) {
-      clearTimeout(reconnectTimeout);
-      reconnectTimeout = null;
-    }
+    _resetReconnectBackoff();
+    _removeVisibilityListener();
     if (socket.value) {
       socket.value.close();
       socket.value = null;

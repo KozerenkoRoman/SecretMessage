@@ -57,6 +57,10 @@ type Player struct {
 	Score            int        `json:"score"`
 	SpyPointsAwarded bool       `json:"spy_points_awarded"`
 	AvatarSeed       string     `json:"avatar_seed"`
+	// IsDisconnected — гравець тимчасово втратив WS-з'єднання (напр., мобільний
+	// застосунок пішов у фон). Під час grace-періоду гравець НЕ вибуває з гри;
+	// UI показує його як "перепідключається". Скидається у false при reconnect.
+	IsDisconnected bool `json:"is_disconnected"`
 }
 
 // Очікуваний екшен (для Chancellor)
@@ -167,6 +171,7 @@ func (s GameState) Clone() GameState {
 			Score:            player.Score,
 			SpyPointsAwarded: player.SpyPointsAwarded,
 			AvatarSeed:       player.AvatarSeed,
+			IsDisconnected:   player.IsDisconnected,
 		}
 	}
 

@@ -120,6 +120,11 @@ type Room struct {
 	conns map[string]*GlobalClient
 	log   *logrus.Logger
 
+	// graceTimers: playerID → таймер відкладеного виключення.
+	// Заводиться, коли гравець втратив сокет під час активної партії.
+	// Скасовується при reconnect. Захищено r.mu.
+	graceTimers map[string]*time.Timer
+
 	state         engine.GameState
 	turnStartedAt time.Time
 	botManager    *bot.BotManager
@@ -156,6 +161,7 @@ func NewRoom(ctx context.Context, id string, hostID string, store *storage.Stora
 		clock:          realClock{},
 		log:            logger,
 		conns:          make(map[string]*GlobalClient),
+		graceTimers:    make(map[string]*time.Timer),
 		turnStartedAt:  time.Now(),
 	}
 
@@ -243,18 +249,26 @@ func (r *Room) RegisterClient(playerID string, client *GlobalClient) {
 	// ПРИБРАНО: go r.BroadcastState(UpdateTypeRoomUpdated, nil)
 }
 
-// UnregisterClient — обробка повного дисконекту.
+// UnregisterClient — примусове/остаточне вилучення клієнта з кімнати.
+//
+// Використовується для НЕ-graceful сценаріїв: свідомий LEAVE, зміна кімнати,
+// глобальний дисконект (бан). Для звичайного обриву транспорту (мобільний
+// застосунок пішов у фон) використовуйте HandleTransportDisconnect — він дає
+// grace-період і НЕ виключає гравця одразу.
 //
 // Поведінка:
 //   - Завжди прибирає сокет із r.conns.
 //   - Завжди прибирає історію request_id у r.recentRequests (запобігає memory leak).
+//   - Якщо гра стартувала — гравець вибуває негайно (eliminatePlayer).
 //   - Якщо гра ще не стартувала — гравець вилучається з лобі.
-//   - Якщо лобі спорожніло — кімната видаляється з БД та з Hub.
+//   - Якщо кімната спорожніла — вона видаляється з БД та з Hub.
 func (r *Room) UnregisterClient(playerID string) {
 	r.mu.Lock()
 	// Видаляємо сокет
 	delete(r.conns, playerID)
 	delete(r.recentRequests, playerID)
+	// Скасовуємо будь-який відкладений grace-таймер — це остаточний вихід.
+	r.cancelGraceTimerLocked(playerID)
 
 	isGameStarted := len(r.state.TurnOrder) > 0
 
@@ -276,6 +290,11 @@ func (r *Room) UnregisterClient(playerID string) {
 	roomIsEmpty := len(r.state.Players) == 0
 	r.mu.Unlock()
 
+	// Токен перепідключення більше не потрібен.
+	if r.hub != nil && r.hub.reconnect != nil {
+		r.hub.reconnect.RevokeForRoomUser(playerID, r.id)
+	}
+
 	if roomIsEmpty {
 		go func(store *storage.Storage, id string) {
 			_ = store.DeleteRoomByID(context.Background(), id)
@@ -286,6 +305,242 @@ func (r *Room) UnregisterClient(playerID string) {
 	} else {
 		// Оновлюємо стан для інших гравців
 		go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+	}
+}
+
+// HandleTransportDisconnect — обробка ОБРИВУ ТРАНСПОРТУ (сокет впав, але
+// гравець не тиснув "Вийти"). Це типовий кейс для мобільних браузерів.
+//
+// Поведінка:
+//   - Завжди прибирає сокет із r.conns (він все одно мертвий).
+//   - Якщо гра НЕ стартувала — поводимось як звичайний вихід з лобі
+//     (немає сенсу тримати "порожнє" місце в лобі).
+//   - Якщо гра стартувала і гравець ще в грі — позначаємо його
+//     IsDisconnected=true і заводимо grace-таймер. Якщо він не повернеться
+//     за disconnectGracePeriod — його буде виключено.
+func (r *Room) HandleTransportDisconnect(playerID string) {
+	r.mu.Lock()
+
+	// Сокет однаково мертвий — прибираємо.
+	delete(r.conns, playerID)
+
+	gameStarted := len(r.state.TurnOrder) > 0
+	player, exists := r.state.Players[playerID]
+
+	// Гра не почалась або гравця вже нема / він вже вибув → звичайне вилучення.
+	if !gameStarted {
+		delete(r.state.Players, playerID)
+		delete(r.recentRequests, playerID)
+		roomIsEmpty := len(r.state.Players) == 0
+		r.mu.Unlock()
+
+		if r.hub != nil && r.hub.reconnect != nil {
+			r.hub.reconnect.RevokeForRoomUser(playerID, r.id)
+		}
+		if roomIsEmpty {
+			go func(store *storage.Storage, id string) {
+				_ = store.DeleteRoomByID(context.Background(), id)
+			}(r.store, r.id)
+			if r.hub != nil {
+				r.hub.CloseRoom(r.id)
+			}
+		} else {
+			go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+			if r.hub != nil {
+				go r.hub.NotifyLobbyUpdate()
+			}
+		}
+		return
+	}
+
+	if !exists || player.IsOut {
+		// Уже вибув — нічого не тримаємо.
+		r.mu.Unlock()
+		return
+	}
+
+	// --- Активна партія: даємо grace-період замість негайного виключення ---
+	player.IsDisconnected = true
+	r.state.Players[playerID] = player
+
+	// Перезаводимо таймер (на випадок повторних flapping-дисконектів).
+	r.cancelGraceTimerLocked(playerID)
+	r.graceTimers[playerID] = time.AfterFunc(disconnectGracePeriod, func() {
+		r.expireGrace(playerID)
+	})
+
+	r.log.WithFields(logrus.Fields{
+		"room_id":   r.id,
+		"player_id": playerID,
+		"grace_sec": int(disconnectGracePeriod.Seconds()),
+	}).Info("Гравець втратив зв'язок — запущено grace-період перед виключенням")
+
+	r.mu.Unlock()
+
+	// Повідомляємо решту гравців, що учасник тимчасово відключився.
+	go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+}
+
+// cancelGraceTimerLocked зупиняє й прибирає grace-таймер гравця.
+// Викликач ПОВИНЕН тримати r.mu.
+func (r *Room) cancelGraceTimerLocked(playerID string) {
+	if t, ok := r.graceTimers[playerID]; ok {
+		t.Stop()
+		delete(r.graceTimers, playerID)
+	}
+}
+
+// expireGrace викликається таймером, коли гравець не повернувся вчасно.
+// Виключає його з партії остаточно.
+func (r *Room) expireGrace(playerID string) {
+	r.mu.Lock()
+
+	// Таймер міг бути скасований гонкою (reconnect) — перевіряємо.
+	if _, ok := r.graceTimers[playerID]; !ok {
+		r.mu.Unlock()
+		return
+	}
+	delete(r.graceTimers, playerID)
+
+	player, exists := r.state.Players[playerID]
+	if !exists || player.IsOut {
+		r.mu.Unlock()
+		return
+	}
+	// Якщо гравець встиг перепідключитись — скасовуємо виключення.
+	if !player.IsDisconnected {
+		r.mu.Unlock()
+		return
+	}
+
+	r.log.WithFields(logrus.Fields{"room_id": r.id, "player_id": playerID}).
+		Info("Grace-період вичерпано — виключаємо гравця з партії")
+
+	if err := r.eliminatePlayer(playerID); err != nil {
+		r.log.Errorf("Помилка виключення гравця після grace-періоду: %v", err)
+	}
+	r.saveToDB(context.Background())
+
+	roomIsEmpty := len(r.state.Players) == 0
+	r.mu.Unlock()
+
+	if r.hub != nil && r.hub.reconnect != nil {
+		r.hub.reconnect.RevokeForRoomUser(playerID, r.id)
+	}
+	if roomIsEmpty {
+		go func(store *storage.Storage, id string) {
+			_ = store.DeleteRoomByID(context.Background(), id)
+		}(r.store, r.id)
+		if r.hub != nil {
+			r.hub.CloseRoom(r.id)
+		}
+	} else {
+		go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+	}
+}
+
+// HandleReconnect відновлює гравця у активній партії:
+//   - скасовує grace-таймер,
+//   - знімає прапорець IsDisconnected,
+//   - реєструє свіжий сокет,
+//   - надсилає повний GAME_STATE_SNAPSHOT саме цьому гравцю.
+//
+// Повертає true, якщо гравця було успішно відновлено в наявній партії.
+func (r *Room) HandleReconnect(playerID string, client *GlobalClient) bool {
+	r.mu.Lock()
+
+	r.cancelGraceTimerLocked(playerID)
+
+	player, exists := r.state.Players[playerID]
+	if !exists {
+		r.mu.Unlock()
+		return false
+	}
+
+	if player.IsDisconnected {
+		player.IsDisconnected = false
+		r.state.Players[playerID] = player
+	}
+
+	// Прив'язуємо свіжий сокет.
+	r.conns[playerID] = client
+	r.log.WithFields(logrus.Fields{"room_id": r.id, "player_id": playerID}).
+		Info("Гравець успішно перепідключився — стан відновлено")
+	r.mu.Unlock()
+
+	// Наздоганяємо саме цього гравця повним знімком стану.
+	r.SendSnapshotToPlayer(playerID)
+
+	// Оновлюємо/продовжуємо reconnection_token, щоб наступні обриви теж
+	// оброблялись коректно, і повторно доставляємо його клієнту.
+	if r.hub != nil && r.hub.reconnect != nil {
+		token := r.hub.reconnect.Issue(playerID, r.id)
+		if payload, err := json.Marshal(map[string]any{
+			"type":               "RECONNECT_TOKEN",
+			"reconnection_token": token,
+			"room_id":            r.id,
+		}); err == nil {
+			select {
+			case client.SendChan <- payload:
+			default:
+			}
+		}
+	}
+
+	// Повідомляємо решту, що гравець знову онлайн.
+	go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+	return true
+}
+
+// SendSnapshotToPlayer надсилає повний, замаскований під конкретного гравця
+// стан у пакеті типу GAME_STATE_SNAPSHOT. Використовується при reconnect.
+func (r *Room) SendSnapshotToPlayer(playerID string) {
+	r.mu.RLock()
+	client, ok := r.conns[playerID]
+	if !ok {
+		r.mu.RUnlock()
+		return
+	}
+	baseState := r.state.Clone()
+
+	secondsLeft := int(engine.TurnDuration.Seconds())
+	if len(baseState.TurnOrder) > 0 && baseState.Phase != engine.PhaseFinished && baseState.Phase != engine.PhaseRoundEnd {
+		elapsed := time.Since(r.turnStartedAt)
+		if left := int((engine.TurnDuration - elapsed).Seconds()); left >= 0 {
+			secondsLeft = left
+		} else {
+			secondsLeft = 0
+		}
+	}
+	r.mu.RUnlock()
+
+	viewerPlayers := make(map[string]engine.Player, len(baseState.Players))
+	for id, p := range baseState.Players {
+		mp := p
+		if id != playerID && len(p.Hand) > 0 {
+			mp.Hand = make([]engine.CardType, len(p.Hand))
+		}
+		viewerPlayers[id] = mp
+	}
+	baseState.Players = viewerPlayers
+	baseState.SecondsLeft = secondsLeft
+
+	packet := outgoingPacket{
+		Status:    "success",
+		Type:      UpdateTypeGameStateSnapshot,
+		Timestamp: time.Now().Unix(),
+		State:     baseState,
+		Events:    nil,
+	}
+	data, err := json.Marshal(packet)
+	if err != nil {
+		r.log.WithField("error", err.Error()).Warn("Не вдалося серіалізувати GAME_STATE_SNAPSHOT")
+		return
+	}
+	select {
+	case client.SendChan <- data:
+	default:
+		r.log.WithField("player_id", playerID).Warn("Канал клієнта переповнений при відправці снапшоту")
 	}
 }
 
@@ -512,6 +767,7 @@ func (r *Room) BroadcastState(updateType string, events []engine.DomainEvent) {
 				IsOut:            p.IsOut,
 				IsProtected:      p.IsProtected,
 				SpyPointsAwarded: p.SpyPointsAwarded,
+				IsDisconnected:   p.IsDisconnected,
 			}
 
 			// Якщо це опонент і він має карти в руках — ховаємо їхній тип (замінюємо на 0 / невідомо)
@@ -1014,7 +1270,54 @@ func (r *Room) StartGame() error {
 
 	// 4. Вебсокет-розсилка оновленого стейту
 	go r.BroadcastState(UpdateTypeRoomUpdated, nil)
+
+	// 5. Видаємо кожному живому гравцю reconnection_token для відновлення
+	//    сесії після можливого обриву зв'язку (мобільні клієнти).
+	go r.issueReconnectTokens()
 	return nil
+}
+
+// issueReconnectTokens видає та надсилає кожному НЕ-бот гравцю персональний
+// reconnection_token. Токен — приватний, тому шлеться індивідуально, а не
+// через BroadcastState.
+func (r *Room) issueReconnectTokens() {
+	if r.hub == nil || r.hub.reconnect == nil {
+		return
+	}
+
+	r.mu.RLock()
+	type target struct {
+		pid    string
+		client *GlobalClient
+	}
+	targets := make([]target, 0, len(r.state.Players))
+	for pid, p := range r.state.Players {
+		if p.UserRole == "bot" {
+			continue
+		}
+		if cl, ok := r.conns[pid]; ok {
+			targets = append(targets, target{pid: pid, client: cl})
+		}
+	}
+	roomID := r.id
+	r.mu.RUnlock()
+
+	for _, t := range targets {
+		token := r.hub.reconnect.Issue(t.pid, roomID)
+		payload, err := json.Marshal(map[string]any{
+			"type":               "RECONNECT_TOKEN",
+			"reconnection_token": token,
+			"room_id":            roomID,
+		})
+		if err != nil {
+			continue
+		}
+		select {
+		case t.client.SendChan <- payload:
+		default:
+			r.log.WithField("player_id", t.pid).Warn("Не вдалося доставити reconnection_token: канал переповнений")
+		}
+	}
 }
 
 // NextRound скидає стан раунду, перегенерує колоду та запускає новий раунд.

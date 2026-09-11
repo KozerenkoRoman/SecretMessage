@@ -22,6 +22,10 @@ type Hub struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// reconnect — глобальний реєстр reconnection_token'ів для відновлення
+	// ігрових сесій після тимчасового обриву WebSocket.
+	reconnect *reconnectRegistry
+
 	// Посилання на шлюз подій (можна передати через інтерфейс або вказати напряму)
 	OnLobbyChanged func(lobbyRooms []RoomLobbyInfo)
 }
@@ -29,9 +33,10 @@ type Hub struct {
 // NewHub створює новий екземпляр диспетчера кімнат
 func NewHub(store *storage.Storage, logger *logrus.Logger) *Hub {
 	return &Hub{
-		store: store,
-		log:   logger,
-		rooms: make(map[string]*Room),
+		store:     store,
+		log:       logger,
+		rooms:     make(map[string]*Room),
+		reconnect: newReconnectRegistry(),
 	}
 }
 

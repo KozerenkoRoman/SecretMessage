@@ -1,6 +1,8 @@
 package engine
 
-func ApplySpy(state GameState, action Action, clock Clock, startEventID uint64) (ApplyResult, error) {
+import "slices"
+
+func ApplySpy(state GameState, action Action, clock Clock) (ApplyResult, error) {
 	player, ok := state.Players[action.PlayerID]
 	if !ok {
 		return ApplyResult{}, NewError(ErrPlayerNotFound, "player_id=%s", action.PlayerID)
@@ -10,38 +12,31 @@ func ApplySpy(state GameState, action Action, clock Clock, startEventID uint64) 
 	}
 
 	events := []DomainEvent{{
-		EventID:   startEventID,
 		Type:      EventCardPlayed,
 		Payload:   CardPlayedPayload{PlayerID: action.PlayerID, Card: CardSpy},
 		Timestamp: clock.Now(),
 	}}
 
-	return ApplyResult{
-		NewState:     state,
-		DomainEvents: events,
-	}, nil
+	return ApplyResult{NewState: state, DomainEvents: events}, nil
 }
 
 func ResolveSpyBonus(state GameState) GameState {
-	spyOwners := []string{}
-
+	activeSpyOwners := make([]string, 0)
 	for id, p := range state.Players {
-		for _, c := range p.DiscardPile {
-			if c == CardSpy {
-				spyOwners = append(spyOwners, id)
-				break
-			}
+		p.SpyPointsAwarded = false
+		state.Players[id] = p
+	}
+	for id, p := range state.Players {
+		if slices.Contains(p.DiscardPile, CardSpy) && !p.IsOut {
+			activeSpyOwners = append(activeSpyOwners, id)
 		}
 	}
-
-	// Бонус нараховується ЛІШЕ якщо Шпигун у відбої є рівно в ОДНОГО гравця
-	if len(spyOwners) == 1 {
-		winnerID := spyOwners[0]
+	if len(activeSpyOwners) == 1 {
+		winnerID := activeSpyOwners[0]
 		p := state.Players[winnerID]
 		p.SpyPointsAwarded = true
-		p.Score++ // Обов'язково додаємо очко в структуру даних сервера!
+		p.Score++
 		state.Players[winnerID] = p
 	}
-
 	return state
 }

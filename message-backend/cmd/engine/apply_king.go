@@ -1,19 +1,17 @@
 package engine
 
-func ApplyKing(state GameState, action Action, clock Clock, startEventID uint64) (ApplyResult, error) {
+func ApplyKing(state GameState, action Action, clock Clock) (ApplyResult, error) {
 	shouldApply, err := CanTargetPlayer(state, action.PlayerID, action.TargetID)
 	if err != nil {
 		return ApplyResult{}, err
 	}
 
 	events := []DomainEvent{{
-		EventID:   startEventID,
 		Type:      EventCardPlayed,
 		Payload:   CardPlayedPayload{PlayerID: action.PlayerID, Card: CardKing, TargetID: action.TargetID},
 		Timestamp: clock.Now(),
 	}}
 
-	// Якщо всі захищені — просто скидаємо карту
 	if !shouldApply {
 		return ApplyResult{NewState: state, DomainEvents: events}, nil
 	}
@@ -31,6 +29,8 @@ func ApplyKing(state GameState, action Action, clock Clock, startEventID uint64)
 	}
 
 	player := state.Players[action.PlayerID]
+
+	// Обмін картами рук
 	playerHand := player.Hand
 	targetHand := target.Hand
 
@@ -41,7 +41,6 @@ func ApplyKing(state GameState, action Action, clock Clock, startEventID uint64)
 	state.Players[action.TargetID] = target
 
 	events = append(events, DomainEvent{
-		EventID:   startEventID + 1,
 		Type:      EventHandsSwapped,
 		Payload:   HandsSwappedPayload{PlayerID: action.PlayerID, TargetID: action.TargetID},
 		Timestamp: clock.Now(),

@@ -42,16 +42,16 @@ func TestGameEndCondition(t *testing.T) {
 
 	// Хід 1: p1 грає Spy (індекс 0)
 	action1 := engine.Action{PlayerID: "p1", HandIndex: 0}
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Хід 2: p2 грає Princess (індекс 0) → вибуває
 	action2 := engine.Action{PlayerID: "p2", HandIndex: 0}
-	result2, err := engine.Apply(result1.NewState, action2, rng, clock, 200)
+	result2, err := engine.Apply(result1.NewState, action2, rng, clock)
 	require.NoError(t, err)
 
 	// Завершення раунду через ResolveRoundEnd
-	finalResult := engine.ResolveRoundEnd(result2.NewState, clock, 300)
+	finalResult := engine.ResolveRoundEnd(result2.NewState, clock)
 	final := finalResult.NewState
 
 	// Перевірка: 6 (старт) + 1 (перемога) + 1 (бонус Spy) = 8 очок

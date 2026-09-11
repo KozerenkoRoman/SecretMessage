@@ -36,17 +36,17 @@ func TestApply_SpyBonusAwarded(t *testing.T) {
 
 	// Хід 1: p1 грає Spy
 	action1 := engine.Action{PlayerID: "p1", HandIndex: 0}
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Хід 2: p2 грає Princess і вибуває
 	action2 := engine.Action{PlayerID: "p2", HandIndex: 0}
-	result2, err := engine.Apply(result1.NewState, action2, rng, clock, 200)
+	result2, err := engine.Apply(result1.NewState, action2, rng, clock)
 	require.NoError(t, err)
 
 	// Завершуємо раунд. Порівнюються залишки карт: p1 (Princess, 9) проти p3 (Baron, 3).
 	// Оскільки в цьому тесті ми примусово викликаємо ResolveRoundEnd без Ходу 3, рушій порівняє перші карти в руках.
-	final := engine.ResolveRoundEnd(result2.NewState, clock, 300).NewState
+	final := engine.ResolveRoundEnd(result2.NewState, clock).NewState
 
 	// Перевірки з урахуванням нової логіки бекенду
 	assert.True(t, final.Players["p1"].SpyPointsAwarded, "p1 має отримати бонус Spy")
@@ -62,23 +62,23 @@ func TestFullRoundWithSpyBonus(t *testing.T) {
 
 	// Хід 1: p1 грає Spy. В руці залишається [CardPrincess]
 	action1 := engine.Action{PlayerID: "p1", HandIndex: 0}
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Хід 2: p2 грає Princess і вибуває.
 	action2 := engine.Action{PlayerID: "p2", HandIndex: 0}
-	result2, err := engine.Apply(result1.NewState, action2, rng, clock, 200)
+	result2, err := engine.Apply(result1.NewState, action2, rng, clock)
 	require.NoError(t, err)
 
 	// Хід 3: p3 грає Baron (індекс 0) проти p1.
 	// В руці у p3 залишається [CardGuard] (сила 1). У p1 в руці [CardPrincess] (сила 9).
 	// Карта p3 слабша, тому p3 вибуває з гри.
 	action3 := engine.Action{PlayerID: "p3", HandIndex: 0, TargetID: "p1"}
-	result3, err := engine.Apply(result2.NewState, action3, rng, clock, 300)
+	result3, err := engine.Apply(result2.NewState, action3, rng, clock)
 	require.NoError(t, err)
 
 	// Завершення раунду
-	final := engine.ResolveRoundEnd(result3.NewState, clock, 400).NewState
+	final := engine.ResolveRoundEnd(result3.NewState, clock).NewState
 
 	// Перевірка: бонус має отримати лише гравець p1
 	assert.True(t, final.Players["p1"].SpyPointsAwarded, "p1 має отримати бонус за Spy")
@@ -94,7 +94,7 @@ func TestSpyBonus_WhenPlayerIsOut(t *testing.T) {
 
 	// Хід 1: p1 грає Spy. В руці залишається [CardPrincess]
 	action1 := engine.Action{PlayerID: "p1", HandIndex: 0}
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Хід 2: Навмисно вибиваємо p1 з гри (наприклад, p2 за допомогою Вартового вгадує Принцесу у p1).
@@ -106,14 +106,14 @@ func TestSpyBonus_WhenPlayerIsOut(t *testing.T) {
 
 	// p2 вгадує, що у p1 в руці Принцеса (9). p1 вибуває.
 	action2 := engine.Action{PlayerID: "p2", HandIndex: 0, TargetID: "p1", Guess: engine.CardPrincess}
-	result2, err := engine.Apply(modState, action2, rng, clock, 200)
+	result2, err := engine.Apply(modState, action2, rng, clock)
 	require.NoError(t, err)
 
 	// Переконуємось, що p1 дійсно вибув, але його відбій містить Шпигуна
 	assert.True(t, result2.NewState.Players["p1"].IsOut)
 
 	// Примусово завершуємо раунд. Тепер живі лише p2 та p3. Припустимо, виграє p2.
-	final := engine.ResolveRoundEnd(result2.NewState, clock, 300).NewState
+	final := engine.ResolveRoundEnd(result2.NewState, clock).NewState
 
 	// КРИТИЧНА ПЕРЕВІРКА: p1 вибув, але він єдиний, хто розіграв Шпигуна за раунд.
 	// Він ПОВИНЕН отримати бонусний бал в Score!
@@ -132,21 +132,21 @@ func TestSpyBonus_CanceledWhenMultipleOwners(t *testing.T) {
 
 	// Хід 1: p1 грає Spy
 	action1 := engine.Action{PlayerID: "p1", HandIndex: 0}
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Хід 2: p2 скидає Принцесу і вибуває
 	action2 := engine.Action{PlayerID: "p2", HandIndex: 0}
-	result2, err := engine.Apply(result1.NewState, action2, rng, clock, 200)
+	result2, err := engine.Apply(result1.NewState, action2, rng, clock)
 	require.NoError(t, err)
 
 	// Хід 3: p3 теж грає свого Spy з руки (індекс 0)
 	action3 := engine.Action{PlayerID: "p3", HandIndex: 0}
-	result3, err := engine.Apply(result2.NewState, action3, rng, clock, 300)
+	result3, err := engine.Apply(result2.NewState, action3, rng, clock)
 	require.NoError(t, err)
 
 	// Завершення раунду
-	final := engine.ResolveRoundEnd(result3.NewState, clock, 400).NewState
+	final := engine.ResolveRoundEnd(result3.NewState, clock).NewState
 
 	// ПЕРЕВІРКА: Оскільки Шпигунів на столі двоє (у p1 та p3), ніхто не отримує бонусних балів
 	assert.False(t, final.Players["p1"].SpyPointsAwarded)

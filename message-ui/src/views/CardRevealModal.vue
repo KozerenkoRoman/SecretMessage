@@ -15,17 +15,30 @@
           {{ isBaron ? $t("reveal.duelBaron") : $t("reveal.priestEffect") }}
         </div>
 
-        <div class="flex justify-center gap-3 sm:gap-4 lg:gap-6 flex-wrap my-auto items-stretch">
+        <div
+          class="flex justify-center gap-2 sm:gap-4 lg:gap-6 flex-wrap my-auto items-stretch"
+        >
           <div
             v-for="(card, index) in displayCards"
             :key="index"
             class="flex flex-col gap-2 sm:gap-3 items-center flex-shrink-0"
           >
+            <!-- Плашка гравця: підсвічуємо золотим, якщо це ефект Барона і гравець переміг -->
             <div
-              class="flex items-center gap-2 bg-brand-surface/60 pl-1.5 pr-3 py-1 rounded-full border border-brand-border/50 w-full justify-center"
+              class="flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full border transition-all duration-300 w-full justify-center"
+              :class="[
+                isBaron && winnerId === card.playerData?.id
+                  ? 'bg-gradient-to-r from-amber-500/30 via-yellow-500/40 to-amber-500/30 border-yellow-400 shadow-[0_0_15px_color-mix(in_srgb,var(--color-brand-warning)_40%,transparent)] animate-winner-pulse'
+                  : 'bg-brand-surface/60 border-brand-border/50',
+              ]"
             >
               <div
-                class="w-16 h-16 rounded-full border border-slate-600 bg-brand-bg-dark/60 overflow-hidden flex-shrink-0"
+                class="w-10 h-10 sm:w-16 sm:h-16 rounded-full border bg-brand-bg-dark/60 overflow-hidden flex-shrink-0"
+                :class="
+                  isBaron && winnerId === card.playerData?.id
+                    ? 'border-yellow-400 scale-105'
+                    : 'border-slate-600'
+                "
               >
                 <img
                   :src="
@@ -40,7 +53,12 @@
                 />
               </div>
               <span
-                class="text-xs text-brand-text-subtle font-bold tracking-wide font-mono truncate max-w-[120px]"
+                class="text-xs font-bold tracking-wide font-mono truncate max-w-[72px] sm:max-w-[120px]"
+                :class="
+                  isBaron && winnerId === card.playerData?.id
+                    ? 'text-yellow-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
+                    : 'text-brand-text-subtle'
+                "
               >
                 {{ card.label }}
               </span>
@@ -48,11 +66,17 @@
 
             <div
               class="card-primary rounded-xl border-2 shadow-2xl transition-all duration-300 select-none bg-cover bg-center relative overflow-hidden group hover:scale-105 flex flex-col justify-end"
-              :class="[card.info.color, card.info.border || 'border-white/10']"
+              :class="[
+                card.info.color,
+                card.info.border || 'border-white/10',
+                isBaron && winnerId === card.playerData?.id
+                  ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-brand-bg'
+                  : '',
+              ]"
               :style="
                 card.info.image ? { backgroundImage: `url(${card.info.image})` } : {}
               "
-              :data-tooltip="`${card.info.name} (${card.id}) — ${card.info.desc}`"
+              :data-tooltip="`${card.info.name} (${card.id}) - ${card.info.desc}`"
             >
               <span
                 class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 z-10 relative text-amber-300 uppercase tracking-wider rounded-b-xl border-t border-white/5 w-full"
@@ -89,10 +113,35 @@ const props = defineProps({
   players: { type: [Object, Array], default: () => ({}) },
 });
 
-const isBaron = computed(() => props.data?.eventType === "ROUND_COMPARED");
+const isBaron = computed(
+  () =>
+    props.data?.eventType === "ROUND_COMPARED" || props.data?.type === "ROUND_COMPARED"
+);
+
 const isValidReveal = computed(() => {
   if (!props.data) return false;
-  return isBaron.value || props.data.cardType !== undefined;
+  if (isBaron.value) return true;
+  // Перевіряємо обидва можливі ключі: card або cardType для зворотної сумісності
+  return props.data.card !== undefined || props.data.cardType !== undefined;
+});
+
+// Обчислюємо ID переможця на основі сили карток
+const winnerId = computed(() => {
+  if (!isBaron.value || !props.data) return null;
+
+  const pId = props.data.playerId || props.data.player_id;
+  const tId = props.data.targetId || props.data.target_id;
+
+  const pCard = Number(
+    props.data.playerCard !== undefined ? props.data.playerCard : props.data.player_card
+  );
+  const tCard = Number(
+    props.data.targetCard !== undefined ? props.data.targetCard : props.data.target_card
+  );
+
+  if (pCard > tCard) return pId;
+  if (tCard > pCard) return tId;
+  return null; // Нічия (однакові карти)
 });
 
 const getPlayerData = (id) => {
@@ -121,31 +170,43 @@ const getCardInfo = (id) => {
 const displayCards = computed(() => {
   if (!isValidReveal.value) return [];
   if (isBaron.value) {
-    const pData = getPlayerData(props.data.playerId);
-    const tData = getPlayerData(props.data.targetId);
+    const pData = getPlayerData(props.data.playerId || props.data.player_id);
+    const tData = getPlayerData(props.data.targetId || props.data.target_id);
+    const pCard =
+      props.data.playerCard !== undefined
+        ? props.data.playerCard
+        : props.data.player_card;
+    const tCard =
+      props.data.targetCard !== undefined
+        ? props.data.targetCard
+        : props.data.target_card;
+
     return [
       {
-        id: props.data.playerCard,
+        id: pCard,
         label: pData?.username || t("common.opponent"),
         playerData: pData,
-        info: getCardInfo(props.data.playerCard),
+        info: getCardInfo(pCard),
       },
       {
-        id: props.data.targetCard,
+        id: tCard,
         label: tData?.username || t("common.opponent"),
         playerData: tData,
-        info: getCardInfo(props.data.targetCard),
+        info: getCardInfo(tCard),
       },
     ];
   }
 
-  const tData = getPlayerData(props.data.targetId);
+  const targetId = props.data.targetId || props.data.target_id;
+  const cardId = props.data.card !== undefined ? props.data.card : props.data.cardType;
+  const tData = getPlayerData(targetId);
+
   return [
     {
-      id: props.data.cardType,
+      id: cardId,
       label: tData?.username || t("common.opponent"),
       playerData: tData,
-      info: getCardInfo(props.data.cardType),
+      info: getCardInfo(cardId),
     },
   ];
 });
@@ -168,5 +229,29 @@ const displayCards = computed(() => {
 .scale-enter-active .bg-brand-bg,
 .scale-leave-active .bg-brand-bg {
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+  border-radius: 2px;
+}
+
+/* М'яка золотиста пульсація для переможця */
+@keyframes winnerPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(234, 179, 8, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(234, 179, 8, 0.7);
+  }
+}
+.animate-winner-pulse {
+  animation: winnerPulse 2s infinite ease-in-out;
 }
 </style>

@@ -27,7 +27,7 @@ func TestApply_Success(t *testing.T) {
 
 	action := engine.Action{PlayerID: "player1", HandIndex: 0}
 
-	result, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()}, 100)
+	result, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()})
 	require.NoError(t, err)
 
 	// Перевірка: Sequence збільшився
@@ -53,7 +53,7 @@ func TestApply_OutOfTurnRejected(t *testing.T) {
 		HandIndex: 0,
 	}
 
-	_, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()}, 1)
+	_, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()})
 
 	// Assert: Запит має бути відхилений
 	if err == nil {
@@ -69,7 +69,7 @@ func TestApply_EmptyTurnOrderRejected(t *testing.T) {
 	}
 
 	action := engine.Action{PlayerID: "p1", HandIndex: 0}
-	_, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()}, 1)
+	_, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()})
 
 	require.Error(t, err)
 	require.Equal(t, engine.ErrEmptyTurnOrder, engine.CodeOf(err))
@@ -85,7 +85,7 @@ func TestApply_InvalidPhaseRejected(t *testing.T) {
 	}
 
 	action := engine.Action{PlayerID: "p1", HandIndex: 0}
-	_, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()}, 1)
+	_, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()})
 
 	require.Error(t, err)
 	// Перевіряємо стабільний код помилки, а не англійський текст —
@@ -101,7 +101,7 @@ func TestApply_NoPlayersRejected(t *testing.T) {
 	}
 
 	action := engine.Action{PlayerID: "p1", HandIndex: 0}
-	_, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()}, 1)
+	_, err := engine.Apply(state, action, &mockRNG{}, &mockClock{fixedTime: time.Now()})
 
 	require.Error(t, err)
 	require.Equal(t, engine.ErrNoPlayers, engine.CodeOf(err))

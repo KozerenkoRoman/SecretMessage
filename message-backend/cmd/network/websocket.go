@@ -14,11 +14,12 @@ import (
 )
 
 type WSMessage struct {
-	Type             string                          `json:"type"`
-	RoomID           string                          `json:"room_id"`
-	RequestID        string                          `json:"request_id"`
-	Action           *engine.Action                  `json:"action,omitempty"`
-	ChancellorAction *engine.ChancellorResolveAction `json:"chancellor_action,omitempty"`
+	Type              string                          `json:"type"`
+	RoomID            string                          `json:"room_id"`
+	RequestID         string                          `json:"request_id"`
+	ReconnectionToken string                          `json:"reconnection_token,omitempty"`
+	Action            *engine.Action                  `json:"action,omitempty"`
+	ChancellorAction  *engine.ChancellorResolveAction `json:"chancellor_action,omitempty"`
 }
 
 type wsAckResponse struct {
@@ -111,7 +112,10 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	var currentRoomID string
 
-	// Гарантоване очищення клієнта при виході з методу сокету
+	// Гарантоване очищення клієнта при виході з методу сокету.
+	// ВАЖЛИВО (мобільні клієнти): обрив транспорту НЕ означає вихід із гри.
+	// Використовуємо HandleTransportDisconnect — він дає grace-період і
+	// НЕ виключає гравця негайно, лишаючи шанс на reconnect.
 	defer func() {
 		//Видаляємо клієнта з глобального Gateway
 		s.gateway.RemoveClient(currentPlayerID)
@@ -119,8 +123,8 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 		if currentRoomID != "" {
 			if room, _ := s.hub.GetOrCreateRoom(currentRoomID); room != nil {
-				room.UnregisterClient(currentPlayerID)
-				s.log.Infof("Користувач %s відключився, сесію оброблено в кімнаті %s", currentPlayerID, currentRoomID)
+				room.HandleTransportDisconnect(currentPlayerID)
+				s.log.Infof("Користувач %s втратив зв'язок, кімната %s (grace-період активний)", currentPlayerID, currentRoomID)
 			}
 		}
 	}()
@@ -155,6 +159,32 @@ func (s *Server) HandleWS(w http.ResponseWriter, r *http.Request) {
 		// йому не обов'язково передавати room_id.
 		if msg.Type == "" {
 			s.sendError(client, "missing_fields", "Поле type є обов'язковим")
+			continue
+		}
+
+		// RECONNECT — відновлення активної ігрової сесії за reconnection_token.
+		// Токен сам несе прив'язку до кімнати, тож room_id тут не обов'язковий.
+		if msg.Type == MsgReconnect {
+			sess, ok := s.hub.reconnect.Validate(msg.ReconnectionToken, currentPlayerID)
+			if !ok {
+				s.sendError(client, "reconnect_failed", "Недійсний або протермінований reconnection_token")
+				continue
+			}
+			room, err := s.hub.GetOrCreateRoom(sess.RoomID)
+			if err != nil {
+				s.sendError(client, "reconnect_failed", err.Error())
+				continue
+			}
+			if !room.HandleReconnect(currentPlayerID, client) {
+				s.sendError(client, "reconnect_failed", "Активну сесію гравця не знайдено")
+				continue
+			}
+			currentRoomID = sess.RoomID
+			sendToClient(wsAckResponse{
+				Status:    "success",
+				RequestID: msg.RequestID,
+				Type:      MsgReconnect + "_ACK",
+			})
 			continue
 		}
 

@@ -81,6 +81,7 @@ import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../stores/auth";
 import { useRouter } from "vue-router";
+import { apiFetch } from "../utils/api";
 import LanguageSwitcher from "../components/LanguageSwitcher.vue";
 
 const { t } = useI18n();
@@ -103,15 +104,17 @@ const handleRegister = async () => {
       avatar_seed: `user_${Math.random().toString(36).substring(2, 11)}`,
     };
 
-    const response = await fetch("/api/register", {
+    // Публічний ендпоінт: без токена, без глобального редіректу на 401/403.
+    const response = await apiFetch("/api/register", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      auth: false,
+      skipAuthRedirect: true,
       body: JSON.stringify(bodyPayload),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || t("register.errors.registrationFailed"));
+      throw new Error(errorData.error || errorData.message || t("register.errors.registrationFailed"));
     }
 
     const data = await response.json();

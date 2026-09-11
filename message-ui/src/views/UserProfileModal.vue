@@ -131,6 +131,7 @@ import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../stores/auth";
 import { getAvatarUrl, generateRandomSeed } from "../utils/avatar";
+import { apiFetch } from "../utils/api";
 
 const { t } = useI18n();
 
@@ -172,14 +173,8 @@ const saveProfile = async () => {
 
   isSaving.value = true;
   try {
-    const token = authStore?.token || localStorage.getItem("token");
-
-    const response = await fetch(`${props.apiUrl}/api/user`, {
+    const response = await apiFetch(`${props.apiUrl}/api/user`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify({
         username: form.value.username,
         avatar_seed: form.value.avatar_seed,
@@ -187,6 +182,9 @@ const saveProfile = async () => {
         password_old: form.value.password_old || undefined,
       }),
     });
+
+    // 401/403 глобально обробляється apiFetch (редірект на /login).
+    if (response.status === 401 || response.status === 403) return;
 
     const data = await response.json();
 
@@ -201,7 +199,7 @@ const saveProfile = async () => {
       return;
     }
 
-    // Якщо статус "success" — фіксуємо оновлені дані у локальних сховищах
+    // Якщо статус "success" - фіксуємо оновлені дані у локальних сховищах
     localStorage.setItem("username", data.username || form.value.username);
     localStorage.setItem("avatar_seed", data.avatar_seed || form.value.avatar_seed);
 

@@ -42,7 +42,7 @@ func TestApply_ChancellorResolve(t *testing.T) {
 		PlayerID:  "player_1",
 		HandIndex: 0,
 	}
-	result, err := engine.Apply(state, action, rng, clock, 100)
+	result, err := engine.Apply(state, action, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка: тепер у руці справді 3 карти! (1 яка залишалась [CardPriest] + 2 нові з колоди)
@@ -58,7 +58,7 @@ func TestApply_ChancellorResolve(t *testing.T) {
 			result.NewState.Players["player_1"].Hand[2],
 		},
 	}
-	resolved, err := engine.ResolveChancellor(result.NewState, resolve, clock, 200)
+	resolved, err := engine.ResolveChancellor(result.NewState, resolve, clock)
 	require.NoError(t, err)
 
 	// Перевірка: у руці лишилася 1 карта

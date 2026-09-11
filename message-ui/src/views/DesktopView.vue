@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen bg-brand-bg-dark text-white p-6">
+  <div class="min-h-screen bg-brand-bg-dark text-white p-3 sm:p-6">
     <div class="max-w-6xl mx-auto">
       <div
-        class="lobby-header flex items-center justify-between bg-brand-bg border border-slate-800 p-4 rounded-xl mb-6"
+        class="lobby-header flex flex-wrap items-center justify-between gap-3 bg-brand-bg border border-slate-800 p-3 sm:p-4 rounded-xl mb-6"
       >
         <div class="flex items-center gap-3">
           <div
@@ -30,13 +30,19 @@
             <h1 class="text-xl font-bold text-amber-500 font-mono leading-tight">
               {{ $t("desktop.brand") }}
             </h1>
-            <p class="text-xs text-slate-400">
+            <p class="text-xm text-slate-400">
               {{ $t("desktop.welcome", { username: currentUsername }) }}
             </p>
           </div>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3 w-full sm:w-auto">
+          <button
+            @click="showRulesModal = true"
+            class="btn-ghost flex items-center gap-1.5 text-slate-300 hover:text-amber-400 transition-colors"
+          >
+            {{ $t("desktop.rulesButton") }}
+          </button>
           <router-link v-if="authStore.isAdmin" to="/admin" class="btn-admin">
             {{ $t("desktop.adminLink") }}
           </router-link>
@@ -145,6 +151,8 @@
       @close="showAvatarModal = false"
       @updated="handleProfileUpdated"
     />
+
+    <GameRulesModal v-if="showRulesModal" @close="showRulesModal = false" />
   </div>
 </template>
 
@@ -155,8 +163,10 @@ import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../stores/auth";
 import { useGameStore } from "../stores/gameStore";
 import { getAvatarUrl } from "../utils/avatar";
+import { apiFetch } from "../utils/api";
 import UserProfileModal from "./UserProfileModal.vue";
 import LeaderboardPanel from "../components/LeaderboardPanel.vue";
+import GameRulesModal from "./GameRulesModal.vue";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -168,6 +178,7 @@ const currentUsername = ref(
   localStorage.getItem("username") || authStore.user?.username || t("common.player")
 );
 const showAvatarModal = ref(false);
+const showRulesModal = ref(false);
 const userAvatarSeed = ref(
   localStorage.getItem("avatar_seed") || authStore.user?.avatar_seed || "default_seed"
 );
@@ -195,15 +206,9 @@ const handleProfileUpdated = (updatedData) => {
 const fetchRooms = async () => {
   try {
     apiError.value = null;
-    const token = authStore.token || localStorage.getItem("token");
-    const response = await fetch("/api/rooms", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.status === 401) throw new Error(t("desktop.errors.sessionExpired"));
+    const response = await apiFetch("/api/rooms", { method: "GET" });
+    // 401/403 глобально обробляється apiFetch (очищення сесії + редірект).
+    if (response.status === 401) return;
     if (!response.ok) throw new Error(t("desktop.errors.loadRoomsFailed"));
     const data = await response.json();
     gameStore.lobbyRooms = Array.isArray(data) ? data : data.rooms || [];
@@ -220,15 +225,8 @@ const logout = () => {
 
 const createRoom = async () => {
   try {
-    const token = authStore.token || localStorage.getItem("token");
-    const response = await fetch("/api/rooms", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.status === 401) throw new Error(t("desktop.errors.noRightsToCreate"));
+    const response = await apiFetch("/api/rooms", { method: "POST" });
+    if (response.status === 401) return;
     if (!response.ok) throw new Error(t("desktop.errors.createFailed"));
     const newRoom = await response.json();
     const actualRoomId = newRoom.room_id || newRoom.RoomID || newRoom.id;

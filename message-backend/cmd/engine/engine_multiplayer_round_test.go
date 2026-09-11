@@ -41,7 +41,7 @@ func TestMultiplayerRoundSimulation(t *testing.T) {
 		HandIndex: 0,
 		TargetID:  "p2",
 	}
-	result1, err := engine.Apply(state, action1, rng, clock, 100)
+	result1, err := engine.Apply(state, action1, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка результату першого ходу:

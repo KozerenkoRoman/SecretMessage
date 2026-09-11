@@ -26,50 +26,57 @@
       <div
         v-for="(player, index) in leaders"
         :key="player.username"
-        class="flex items-center justify-between p-2 rounded-lg transition-all"
+        class="relative flex items-start justify-between p-3 pb-8 rounded-lg transition-all gap-4 min-w-0"
         :class="[
           player.username === currentUsername
             ? 'bg-amber-500/10 border border-amber-500/30'
             : 'bg-brand-bg-dark/40 border border-slate-800/40 hover:border-slate-700/60',
         ]"
       >
-        <div class="flex items-center gap-2.5 min-w-0">
+        <div class="flex items-start gap-3 min-w-0 flex-1">
           <span
-            class="w-5 text-center font-mono font-black text-xs"
+            class="w-5 text-center font-mono font-black text-xs flex-shrink-0 mt-[14px]"
             :class="getRankClass(index)"
           >
             {{ index + 1 }}
           </span>
 
           <div
-            class="w-16 h-16 rounded-full bg-brand-bg-dark border border-slate-700 overflow-hidden flex-shrink-0 shadow-inner"
+            class="w-12 h-12 rounded-full bg-brand-bg-dark border border-slate-700 overflow-hidden flex-shrink-0 shadow-inner"
           >
             <img
-              :src="
-                getAvatarUrl(player.avatar_seed || player.AvatarSeed || 'default_seed')
-              "
+              :src="getAvatarUrl(player.avatar_seed || 'default_seed')"
               :alt="$t('desktop.myAvatarAlt')"
               class="w-full h-full object-cover rounded-full"
             />
           </div>
 
-          <span
-            class="font-mono text-sm truncate font-medium"
-            :class="
-              player.username === currentUsername ? 'text-amber-400' : 'text-slate-200'
-            "
-          >
-            {{ player.username }}
-          </span>
+          <div class="min-w-0 flex-1 pt-0.5">
+            <span
+              class="font-mono text-xm font-medium text-left block truncate leading-none"
+              :class="
+                player.username === currentUsername ? 'text-amber-400' : 'text-slate-200'
+              "
+              :title="player.username"
+            >
+              {{ player.username }}
+            </span>
+          </div>
         </div>
 
-        <div class="text-right flex-shrink-0 pl-2">
-          <div class="font-mono text-xl font-bold text-amber-500">
-            {{ player.total_score }}
+        <div class="text-right flex-shrink-0 pt-0.5">
+          <div class="font-mono text-xl font-bold text-amber-500 leading-none">
+            {{ player.user_stat?.total_score ?? 0 }}
           </div>
-          <div class="text-xs text-brand-text-subtle font-mono">
-            Wan:{{ player.games_won }} / Spy:{{ player.games_played - player.games_won }}
-          </div>
+        </div>
+
+        <div
+          class="absolute bottom-2.5 right-3 text-xm text-brand-text-subtle font-mono whitespace-nowrap opacity-80"
+        >
+          Total:{{ player.user_stat?.games_played ?? 0 }} · Won:{{
+            player.user_stat?.games_won ?? 0
+          }}
+          · Spy:{{ player.user_stat?.spy_bonuses ?? 0 }}
         </div>
       </div>
 
@@ -85,24 +92,23 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { useAuthStore } from "../stores/auth";
 import { getAvatarUrl } from "../utils/avatar";
+import { apiFetch } from "../utils/api";
 
-const props = defineProps({
+defineProps({
   currentUsername: {
     type: String,
     required: true,
   },
 });
 
-const authStore = useAuthStore();
 const leaders = ref([]);
 const loading = ref(true);
 const error = ref(null);
 
 const getRankClass = (index) => {
   if (index === 0)
-    return "text-amber-400 drop-shadow-[0_0_4px_rgba(245,158,11,0.5)] text-sm font-extrabold";
+    return "text-amber-400 drop-shadow-[0_0_4px_var(--color-brand-accent)] text-sm font-extrabold";
   if (index === 1) return "text-slate-300 text-sm";
   if (index === 2) return "text-amber-700 text-sm";
   return "text-slate-500";
@@ -112,20 +118,13 @@ const fetchLeaderboard = async () => {
   try {
     loading.value = true;
     error.value = null;
-    const token = authStore.token || localStorage.getItem("token");
 
-    const response = await fetch("/api/leaderboard?limit=10", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
+    const response = await apiFetch("/api/leaderboard?limit=10", { method: "GET" });
+    if (response.status === 401 || response.status === 403) return;
     if (!response.ok) throw new Error("Failed to load global rating");
 
     const data = await response.json();
-    leaders.value = Array.isArray(data) ? data : data.leaderboard || [];
+    leaders.value = data && Array.isArray(data) ? data : data?.leaderboard || [];
   } catch (err) {
     error.value = err.message;
     console.error("Leaderboard error:", err);
@@ -138,19 +137,3 @@ onMounted(() => {
   fetchLeaderboard();
 });
 </script>
-
-<style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 2px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #334155;
-}
-</style>

@@ -38,7 +38,7 @@ func TestApply_PriestRevealsOpponentCard(t *testing.T) {
 		HandIndex: 0,
 		TargetID:  "p2",
 	}
-	result, err := engine.Apply(state, action, rng, clock, 100)
+	result, err := engine.Apply(state, action, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка кількості згенерованих подій

@@ -2,125 +2,128 @@
   <Transition name="fade">
     <div
       v-if="isOpen"
-      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 h-app"
+      class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
     >
-      <!-- Картки в Guard guess grid використовують глобальний --card-primary-h
-           (заданий в @theme). Це робить їх ВІЗУАЛЬНО ІДЕНТИЧНИМИ карткам
-           у руці гравця. Якщо картки не вміщаються — модалка скролиться
-           через max-h-[90dvh] + overflow-y-auto. -->
       <div
-        class="bg-brand-surface border border-brand-border rounded-2xl p-4 sm:p-5 lg:p-6 w-full shadow-2xl overflow-y-auto max-h-[90dvh] custom-scrollbar transition-all duration-300"
-        :class="[
+        class="action-modal-shell bg-brand-surface border border-brand-border w-full flex flex-col overflow-hidden p-3 sm:rounded-2xl sm:h-auto sm:max-h-[95dvh] sm:max-w-3xl shadow-2xl"
+        :class="
           isGuardGuessRequired && availableTargets.length > 0
-            ? 'max-w-3xl tall:max-w-5xl xtall:max-w-6xl'
-            : 'max-w-xl',
-        ]"
+            ? 'h-screen max-h-[100dvh] justify-between'
+            : 'h-auto max-h-[85vh] justify-center gap-2'
+        "
       >
-        <h3 class="text-lg font-bold text-amber-400 mb-2">
+        <h3
+          class="text-sm sm:text-lg font-bold text-amber-400 pb-2 flex-shrink-0 landscape:text-xs landscape:pb-1"
+        >
           {{ $t("action.title") }} {{ cardInfo?.name || cardType }}
         </h3>
 
-        <div v-if="requiresTargetSelection" class="mb-4">
-          <div v-if="availableTargets.length > 0">
-            <div
-              class="flex flex-wrap justify-center gap-3 sm:gap-4 lg:gap-6 bg-brand-bg/40 p-3 sm:p-4 rounded-xl border border-brand-border/30"
-            >
-              <button
-                v-for="p in availableTargets"
-                :key="p.id"
-                @click="targetID = p.id"
-                type="button"
-                class="flex flex-col items-center gap-2 group focus:outline-none cursor-pointer"
+        <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div v-if="requiresTargetSelection" class="mb-2 flex-shrink-0">
+            <div v-if="availableTargets.length > 0">
+              <div
+                class="flex flex-wrap justify-center gap-2 landscape:gap-1 bg-brand-bg/40 p-2 landscape:p-1 rounded-xl border border-brand-border/30"
               >
-                <div
-                  class="w-16 h-16 rounded-full border-2 p-1 overflow-hidden transition-all duration-200"
-                  :class="[
-                    targetID === p.id
-                      ? 'border-amber-400 bg-amber-950/40 scale-105 shadow-lg shadow-amber-500/20'
-                      : 'border-slate-600 bg-brand-bg-dark/60 group-hover:border-slate-400 group-hover:scale-102',
-                  ]"
+                <button
+                  v-for="p in availableTargets"
+                  :key="p.id"
+                  @click="targetID = p.id"
+                  type="button"
+                  class="flex flex-col items-center gap-1 group focus:outline-none cursor-pointer"
                 >
-                  <img
-                    :src="getAvatarUrl(p.avatar_seed || p.username || p.id)"
-                    :alt="$t('common.avatarAlt')"
-                    class="w-full h-full object-cover rounded-full"
-                  />
-                </div>
-                <span
-                  class="text-xs font-semibold font-mono tracking-wide max-w-[100px] truncate text-center transition-colors"
-                  :class="[
-                    targetID === p.id
-                      ? 'text-amber-400 font-bold'
-                      : 'text-brand-text-subtle group-hover:text-white',
-                  ]"
-                >
-                  {{ p.username }}{{ p.id === myID ? $t("action.youSuffix") : "" }}
-                </span>
-              </button>
+                  <div
+                    class="w-12 h-12 sm:w-16 sm:h-16 landscape:w-9 landscape:h-9 rounded-full border-2 p-1 overflow-hidden transition-all duration-200"
+                    :class="[
+                      targetID === p.id
+                        ? 'border-amber-400 bg-amber-950/40 scale-105 shadow-lg shadow-amber-500/20'
+                        : 'border-slate-600 bg-brand-bg-dark/60 group-hover:border-slate-400',
+                    ]"
+                  >
+                    <img
+                      :src="getAvatarUrl(p.avatar_seed || p.username || p.id)"
+                      :alt="$t('common.avatarAlt')"
+                      class="w-full h-full object-cover rounded-full"
+                    />
+                  </div>
+                  <span
+                    class="text-[11px] sm:text-xs font-semibold font-mono tracking-wide max-w-[80px] truncate text-center transition-colors landscape:hidden"
+                    :class="[
+                      targetID === p.id
+                        ? 'text-amber-400 font-bold'
+                        : 'text-brand-text-subtle group-hover:text-white',
+                    ]"
+                  >
+                    {{ p.username }}{{ p.id === myID ? $t("action.youSuffix") : "" }}
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div
+              v-else
+              class="text-sm text-amber-400 bg-brand-accent/10 border border-amber-500/30 p-3 rounded-lg flex flex-col gap-1"
+            >
+              <span class="font-bold">{{ $t("action.noTargets") }}</span>
+              <span>{{ $t("action.noTargetsHint") }}</span>
             </div>
           </div>
+
           <div
-            v-else
-            class="text-sm text-amber-400 bg-brand-accent/10 border border-amber-500/30 p-3 rounded-lg flex flex-col gap-1"
+            v-if="!requiresTargetSelection"
+            class="mb-2 text-sm text-amber-400 bg-brand-accent/5 p-3 rounded-lg border border-amber-500/20 flex-shrink-0"
           >
-            <span class="font-bold">{{ $t("action.noTargets") }}</span>
-            <span>
-              {{ $t("action.noTargetsHint") }}
-            </span>
+            {{ $t("action.autoApply") }}
+          </div>
+
+          <div
+            v-if="isGuardGuessRequired && availableTargets.length > 0"
+            class="flex-1 min-h-0 flex flex-col"
+          >
+            <label
+              class="block text-[11px] sm:text-xs uppercase text-slate-400 font-bold mb-1 tracking-wider font-mono flex-shrink-0 landscape:hidden"
+            >
+              {{ $t("action.guardGuess") }}
+            </label>
+
+            <div
+              class="grid grid-cols-3 gap-2 justify-items-center items-center bg-brand-bg/60 p-2 rounded-xl border border-brand-border/50 flex-1 min-h-0 content-center landscape:flex landscape:flex-row landscape:flex-wrap landscape:justify-center landscape:items-center landscape:gap-1 landscape:p-1"
+            >
+              <div
+                v-for="card in allCards"
+                :key="card.type"
+                @click="guessCard = card.type"
+                class="w-full aspect-[5/7] landscape:h-[22vh] landscape:w-auto landscape:aspect-[5/7] rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
+                :class="[
+                  getCardColor(card.type),
+                  guessCard === card.type
+                    ? 'ring-4 ring-amber-400 scale-105 z-10 shadow-lg shadow-amber-500/30 border-transparent'
+                    : 'opacity-70 hover:opacity-100 border border-white/5',
+                ]"
+                :style="
+                  getCardImage(card.type)
+                    ? { backgroundImage: `url(${getCardImage(card.type)})` }
+                    : {}
+                "
+                :data-tooltip="`${card.info.name}(${card.info.value}) - ${
+                  card.info.desc || $t('cards.noDescription')
+                }`"
+              >
+                <span
+                  class="text-[10px] sm:text-[12px] font-bold font-mono text-center bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider landscape:hidden"
+                >
+                  {{ guessCard === card.type ? $t("action.chosen") : card.info.name }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
         <div
-          v-if="!requiresTargetSelection"
-          class="mb-4 text-sm text-amber-400 bg-brand-accent/5 p-3 rounded-lg border border-amber-500/20"
+          class="flex gap-2 sm:gap-3 justify-end border-t border-brand-border/40 pt-2 mt-2 flex-shrink-0 bg-brand-surface"
         >
-          {{ $t("action.autoApply") }}
-        </div>
-
-        <div v-if="isGuardGuessRequired && availableTargets.length > 0" class="mb-5 mt-4">
-          <label
-            class="block text-xs uppercase text-slate-400 font-bold mb-2 tracking-wider font-mono"
-          >
-            {{ $t("action.guardGuess") }}
-          </label>
-
-          <div
-            class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 bg-brand-bg/60 p-3 sm:p-4 lg:p-6 rounded-xl border border-brand-border/50 justify-items-center"
-          >
-            <div
-              v-for="card in allCards"
-              :key="card.type"
-              @click="guessCard = card.type"
-              class="card-primary rounded-xl flex flex-col justify-between text-white shadow-md relative cursor-pointer transition-all duration-200 select-none bg-cover bg-center overflow-hidden"
-              :class="[
-                getCardColor(card.type),
-                guessCard === card.type
-                  ? 'ring-4 ring-amber-400 scale-105 z-10 shadow-lg shadow-amber-500/30 border-transparent'
-                  : 'opacity-70 hover:opacity-100 hover:scale-102 border border-white/5',
-              ]"
-              :style="
-                getCardImage(card.type)
-                  ? { backgroundImage: `url(${getCardImage(card.type)})` }
-                  : {}
-              "
-              :data-tooltip="`${card.info.name}(${card.info.value}) — ${
-                card.info.desc || $t('cards.noDescription')
-              }`"
-            >
-              <span
-                class="text-[12px] font-bold font-mono text-center block bg-brand-bg-dark/80 p-1 mt-auto z-10 relative text-amber-300 rounded-b uppercase tracking-wider"
-              >
-                {{ guessCard === card.type ? $t("action.chosen") : card.info.name }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex gap-3 justify-end mt-6 border-t border-brand-border/40 pt-4">
           <button
             @click="handleCancel"
             type="button"
-            class="px-5 py-2.5 bg-brand-surface hover:bg-brand-surface-dim text-amber-500 hover:text-amber-400 font-bold border border-brand-border rounded-xl shadow-md cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
+            class="px-3 sm:px-5 py-2 sm:py-2.5 bg-brand-surface hover:bg-brand-surface-dim text-amber-500 hover:text-amber-400 font-bold border border-brand-border rounded-xl shadow-md cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
           >
             {{ $t("action.cancel") }}
           </button>
@@ -128,7 +131,7 @@
             @click="handleSubmit"
             :disabled="!isValid"
             type="button"
-            class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black rounded-xl shadow-lg shadow-amber-950/20 cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
+            class="px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black rounded-xl shadow-lg shadow-amber-950/20 cursor-pointer transition-all active:scale-95 font-mono uppercase text-xs tracking-wider"
           >
             {{ $t("action.submit") }}
           </button>
@@ -283,5 +286,34 @@ const handleSubmit = () => {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 164, 184, 0.8);
+}
+
+/* Картки Guard-guess сітки в модалці мають ВЛАСНУ систему розмірів,
+   незалежну від глобального --card-primary-h. Ширина диктується
+   колонкою grid'а (w-full), висота - aspect-ratio 5/7.
+
+   Стратегія сітки:
+   - Mobile portrait (max-aspect-ratio: 1/1, max-width: 640px):
+     3 cols × 3 rows (8 карт + 1 порожня клітинка). Картки великі,
+     обмежуються лише висотою grid'а через max-height.
+   - Mobile landscape (max-height: 720px, min-aspect-ratio: 1/1):
+     8 cols × 1 row. Висота - найдефіцитніший ресурс, обмежуємо її.
+   - sm: і вище - природнє масштабування grid'а, обмежень не треба. */
+.action-modal-card {
+  max-height: 100%;
+}
+/* Mobile portrait: НЕ обмежуємо висоту картки штучним cap'ом - дозволяємо
+   grid-row висоті заповнити весь доступний flex-1 простір. Ширина все
+   одно обмежена колонкою grid'а (виходить ~30vw на 360px viewport),
+   висота - 5/7 від цього через aspect-ratio. 3 ряди вмістяться, бо
+   grid має content-center і flex-1 min-h-0 - якщо стане затісно,
+   браузер пропорційно скоротить ВСІ ряди разом, а не лише одну
+   картку. Старий 28dvh cap робив картки штучно маленькими. */
+/* Mobile landscape: 8 cols × 1 row. Висота обмежена жорстко;
+   ширина наслідується через aspect-ratio 5/7. */
+@media (max-height: 720px) and (min-aspect-ratio: 1/1) {
+  .action-modal-card {
+    max-height: clamp(3.5rem, 36dvh, 7rem);
+  }
 }
 </style>

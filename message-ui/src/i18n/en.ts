@@ -7,6 +7,15 @@ export const en = {
     en: "English",
   },
 
+  titles: {
+    auth: 'Authorization | Secret Message',
+    register: 'Registration | Secret Message',
+    desktop: 'Game Desktop | Secret Message',
+    admin: 'Admin Panel | Secret Message',
+    room: 'Room | Secret Message',
+    default: 'Secret Message'
+  },
+
   // ==== Common / shared ===============================================
   common: {
     you: "You",
@@ -73,6 +82,7 @@ export const en = {
     errors: {
       invalidCredentials: "Incorrect username or password",
       noToken: "Server did not return an access JWT token",
+      sessionExpired: "Your session has ended. Please sign in again.",
     },
   },
 
@@ -110,6 +120,7 @@ export const en = {
     playersCount: "Players: {count} / {max}",
     participants: "Participants: {names}",
     join: "Join",
+    rulesButton: "Game Rules",
     leaderboard: {
       title: "Players Rating",
       loading: "Syncing with server...",
@@ -125,6 +136,7 @@ export const en = {
 
   // ==== Board =========================================================
   board: {
+    addBot: "Add bot",
     leave: "Leave",
     room: "Room:",
     time: "Time:",
@@ -134,14 +146,17 @@ export const en = {
     yourTurn: "Your Turn!",
     currentTurn: "Current turn:",
     protection: "Protected",
+    reconnecting: "Reconnecting...",
     discardPile: "Discard:",
     table: "Discard Pile",
     deck: "Deck",
     chancellorBadge: "Chancellor's Choice!",
     chancellorPickOwn: "Keep card for yourself",
     waitingForCards: "Waiting for cards...",
-    discardTooltip: "{name} — Discarded by {owner}",
-    protectionTooltip: "{name} — Protection active",
+    discardTooltip: "{name} - Discarded by {owner}",
+    protectionTooltip: "{name} - Protection active",
+    discarded: "Discarded",
+    guess: "Guess",
     leaveConfirm: {
       title: "Leave Game",
       message:
@@ -216,7 +231,7 @@ export const en = {
 
   // ==== Game end modal ================================================
   gameEnd: {
-    final: "👑 GAME OVER — MATCH FINALS 👑",
+    final: "👑 GAME OVER - MATCH FINALS 👑",
     roundEnd: "⚔️ ROUND END ⚔️",
     winner: "You are the ultimate champion!",
     loser: "You won the round!",
@@ -279,25 +294,51 @@ export const en = {
 
   // Event log
   log: {
+    baron_result: "💀 Based on the comparison , {winner} wins, and {loser} is eliminated from the round with {loser_card} card!",
     card_drawn: "{player} draws a card from the deck.",
-    card_played: "{player} plays {card}.",
     card_played_targeted: "{player} plays {card} against {target}.",
-    guard_hit: "🎯 {player} plays a Guard against {target} and successfully guesses {guess}!",
-    guard_miss: "💨 {player} plays a Guard against {target} guessing {guess}, but misses.",
-    priest_effect: "👁️ {player} uses a Priest to secretly look at {target}'s hand.",
-    round_compared: "⚔️ {player} and {target} compare their hands.",
-    baron_result: "💀 Based on the comparison, {winner} wins and {loser} is eliminated from the round!",
-    player_eliminated: "❌ Player {player} is out of the round (Reason: {reason}).",
-    hands_swapped: "🔄 {player} plays a King and swaps hands with {target}.",
-    spy_bonus: "✨ {player} receives bonus points ({points}) for the Spy!",
-    round_end: "🏆 Round over! Winner: {winner} (Condition: {reason}).",
-    player_left: "🚪 Player {player} left the room.",
+    card_played: "{player} plays {card}.",
     chancellor_drawn: "{player} played a Chancellor and drew 2 cards from the deck.",
     chancellor_resolved: "{player} kept one card and returned the rest to the bottom of the deck.",
+    empty: "Players' moves will be displayed here...",
+    guard_hit: "🎯 {player} plays a Guard against {target} and successfully guesses the card {guess}!",
+    guard_miss: "💨 {player} plays a Guard against {target}, attempting to guess {guess}, but fails.",
+    hands_swapped: "🔄 {player} plays a King and swaps hands with {target}.",
     history: "Game History",
-    empty: "No game history yet...",
+    player_eliminated_with_card: "❌ Player {player} discards {card} and is eliminated from the round! (Reason: {reason}).",
+    player_eliminated: "❌ Player {player} is eliminated from the round (Reason: {reason}).",
+    player_left: "🚪 Player {player} has left the room.",
+    priest_effect: "👁️ {player} uses a Priest to secretly look at {target}'s hand.",
+    prince_effect: "👑 {player} forces {target} to discard {discarded_card} and draw a new card from the deck.",
+    round_compared: "⚔️ {player} and {target} compare their cards.",
+    round_end: "🏆 The round has ended! Winner: {winner} (Condition: {reason}).",
+    spy_bonus: "✨ {player} receives bonus points ({points} pts) for the Spy!",
   },
 
-  // ==== Text messages already in i18n (error dictionary) =====
-  // (moved to i18n/errorMessages.ts – leave untouched)
+  rules: {
+    modalTitle: "Rules of «Secret Message»",
+    generalHeader: "General Rules & Turn Order",
+    cardsHeader: "Card Reference & Effects",
+    nuancesHeader: "Important Nuances",
+    strategyHeader: "Strategy Tips",
+    strength: "Value",
+
+    turnStep1: "Round Goal: Be the last player standing, or hold the card with the highest value when the deck runs out.",
+    turnStep2: "Each card has a value (number) and a text effect (action on players).",
+    turnStep3: "At the start of your turn, draw 1 card from the deck (giving you 2 cards in hand).",
+    turnStep4: "Choose one of the two cards and play it face up in front of you.",
+    turnStep5: "Execute its text effect immediately.",
+
+    nuance1: "All played and discarded cards stay face up in front of players for the rest of the round.",
+    nuance2: "If the deck runs out and there is a tie for the highest card, compare the total value of all cards in their respective discard piles. If still tied, all tied players win.",
+    nuance3: "To win the match, you must collect a specific number of tokens of affection (depends on the player count).",
+
+    strategy1: "Guard (1) and Baron (3) excel at eliminating rivals",
+    strategy2: "Priest (2) provides essential intellect",
+    strategy3: "Handmaid (4) grants safety for a round",
+    strategy4: "Prince (5) is great for hunting the Princess",
+    strategy5: "Chancellor (6) offers elite deck control",
+    strategy6: "Spy (0) lets you snatch a bonus token without even winning the round."
+  },
+
 };

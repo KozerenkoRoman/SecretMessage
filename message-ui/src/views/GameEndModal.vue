@@ -37,8 +37,13 @@
           >
             {{ gameState?.is_game_over ? $t("gameEnd.winner") : $t("gameEnd.loser") }}
           </h2>
-          <h2 v-else class="text-2xl font-black tracking-wide text-brand-text-muted uppercase">
-            {{ gameState?.is_game_over ? $t("gameEnd.gameOver") : $t("gameEnd.roundOver") }}
+          <h2
+            v-else
+            class="text-2xl font-black tracking-wide text-brand-text-muted uppercase"
+          >
+            {{
+              gameState?.is_game_over ? $t("gameEnd.gameOver") : $t("gameEnd.roundOver")
+            }}
           </h2>
 
           <p class="text-xs text-slate-400 mt-2">
@@ -47,7 +52,9 @@
           </p>
         </div>
 
-        <div class="my-4 sm:my-5 short:my-3 text-5xl sm:text-6xl short:text-4xl drop-shadow-lg select-none">
+        <div
+          class="my-4 sm:my-5 short:my-3 text-5xl sm:text-6xl short:text-4xl drop-shadow-lg select-none"
+        >
           <span v-if="isAmIWinner">🏆</span>
           <span v-else-if="gameState?.is_game_over">🥈</span>
           <span v-else>💀</span>
@@ -77,7 +84,9 @@
                 <span v-else class="text-xs opacity-40">👤</span>
                 <span
                   class="text-sm font-medium truncate"
-                  :class="p.id === myID ? 'text-amber-400 font-bold' : 'text-brand-text-subtle'"
+                  :class="
+                    p.id === myID ? 'text-amber-400 font-bold' : 'text-brand-text-subtle'
+                  "
                 >
                   {{ p.username || $t("common.opponent") }}
                   <span
@@ -92,10 +101,15 @@
                 <span class="text-amber-400">★</span>
                 <span
                   :class="
-                    p.id === gameState?.winner_id ? 'text-amber-400' : 'text-brand-text-subtle'
+                    p.id === gameState?.winner_id
+                      ? 'text-amber-400'
+                      : 'text-brand-text-subtle'
                   "
                 >
-                  {{ p.score || 0 }} <span class="text-slate-600 text-xs">{{ $t("gameEnd.scoreOutOf") }}</span>
+                  {{ p.score || 0 }}
+                  <span class="text-slate-600 text-xs">{{
+                    $t("gameEnd.scoreOutOf")
+                  }}</span>
                 </span>
               </div>
             </div>
@@ -115,11 +129,13 @@
                 : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-slate-950 font-black shadow-amber-500/10 cursor-pointer active:scale-95'
             "
           >
-            {{ hasOpponentLeft ? $t("gameEnd.waitingForPlayers") : $t("gameEnd.nextRound") }}
+            {{
+              hasOpponentLeft ? $t("gameEnd.waitingForPlayers") : $t("gameEnd.nextRound")
+            }}
           </button>
 
           <button
-            v-if="hasOpponentLeft"
+            v-if="!gameState?.is_game_over && hasOpponentLeft"
             type="button"
             @click="$emit('leave-game')"
             class="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-500/10 transition-all cursor-pointer text-sm uppercase tracking-wider active:scale-95"
@@ -136,9 +152,21 @@
             >
               {{ $t("gameEnd.restart") }}
             </button>
-            <div v-else class="text-xs text-slate-400 animate-pulse py-3">
+
+            <div
+              v-else-if="!hasOpponentLeft"
+              class="text-xs text-slate-400 animate-pulse py-2"
+            >
               {{ $t("gameEnd.waitingForHost") }}
             </div>
+
+            <button
+              type="button"
+              @click="$emit('leave-game')"
+              class="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold rounded-xl shadow-lg transition-all cursor-pointer text-sm uppercase tracking-wider active:scale-95"
+            >
+              {{ $t("gameEnd.leaveLobby") }}
+            </button>
           </template>
         </div>
       </div>

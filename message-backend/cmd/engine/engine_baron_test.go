@@ -39,7 +39,7 @@ func TestApply_BaronEliminatesWeaker(t *testing.T) {
 	}
 
 	// Виклик головного рушія гри
-	result, err := engine.Apply(state, action, rng, clock, 100)
+	result, err := engine.Apply(state, action, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка змін у стані гравців
@@ -92,7 +92,7 @@ func TestApply_BaronTieKeepsBothAlive(t *testing.T) {
 	}
 
 	// Виклик рушія гри
-	result, err := engine.Apply(state, action, rng, clock, 100)
+	result, err := engine.Apply(state, action, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка стану: Обидва гравці повинні залишитися в грі!

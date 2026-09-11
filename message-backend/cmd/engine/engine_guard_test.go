@@ -35,7 +35,7 @@ func TestApply_GuardCorrectGuessEliminatesOpponent(t *testing.T) {
 		TargetID:  "p2",
 		Guess:     engine.CardPrincess,
 	}
-	result, err := engine.Apply(state, action, rng, clock, 100)
+	result, err := engine.Apply(state, action, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка: p2 має вибути
@@ -71,7 +71,7 @@ func TestApply_GuardWrongGuessKeepsOpponentAlive(t *testing.T) {
 		TargetID:  "p2",
 		Guess:     engine.CardBaron,
 	}
-	result, err := engine.Apply(state, action, rng, clock, 200)
+	result, err := engine.Apply(state, action, rng, clock)
 	require.NoError(t, err)
 
 	// Перевірка: p2 лишається в грі

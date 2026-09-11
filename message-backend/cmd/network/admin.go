@@ -33,31 +33,6 @@ func (s *Server) HandleAdminGetUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// HandleAdminGetGames обробляє GET /api/admin/games
-// Повертає історію всіх зіграних матчів із бази даних
-func (s *Server) HandleAdminGetGames(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	// Припускаємо, що у твоєму s.store (Storage) є метод для отримання завершених ігор.
-	// Наприклад, store.Queries.GetAllGameResults(ctx) або кастомний метод історії.
-	// Якщо його ще немає, для компіляції можна використати заглушку або прямий виклик sqlc:
-	games, err := s.store.GetAllGameResults(ctx)
-	if err != nil {
-		s.log.WithError(err).Error("Помилка отримання логів ігор для адмін-панелі")
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to retrieve game logs"})
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"status": "success",
-		"games":  games,
-	})
-}
-
 // HandleAdminBlockUser обробляє POST /api/admin/users/block
 // Стандартний http.ServeMux із Go 1.22+ дозволяє діставати параметри з URL за допомогою r.PathValue("id")
 func (s *Server) HandleAdminBlockUser(w http.ResponseWriter, r *http.Request) {

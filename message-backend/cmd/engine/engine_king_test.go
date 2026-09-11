@@ -34,7 +34,7 @@ func TestApply_KingSwapsHands(t *testing.T) {
 
 	// Дія: Гравець p1 розігрує Короля (індекс 0) проти гравця p2
 	action := engine.Action{PlayerID: "p1", HandIndex: 0, TargetID: "p2"}
-	result, err := engine.Apply(state, action, rng, clock, 100)
+	result, err := engine.Apply(state, action, rng, clock)
 	require.NoError(t, err)
 
 	// Отримуємо фінальний стан рук після виконання дії

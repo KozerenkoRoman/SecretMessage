@@ -15,6 +15,13 @@
 
       <form @submit.prevent="handleLogin" class="space-y-4">
         <div
+          v-if="showSessionExpired"
+          class="p-3 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs text-center font-medium"
+        >
+          {{ $t("auth.errors.sessionExpired") }}
+        </div>
+
+        <div
           v-if="loginError"
           class="p-3 rounded-lg bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs text-center font-medium"
         >
@@ -68,6 +75,7 @@ import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../stores/auth";
 import { useRouter } from "vue-router";
+import { apiFetch } from "../utils/api";
 import LanguageSwitcher from "../components/LanguageSwitcher.vue";
 
 const { t } = useI18n();
@@ -77,14 +85,22 @@ const router = useRouter();
 const username = ref("");
 const password = ref("");
 const loginError = ref(null);
+// Знімок прапорця протермінування (щоб показати банер саме на цьому вході).
+const showSessionExpired = ref(authStore.sessionExpired);
+if (authStore.sessionExpired) {
+  authStore.acknowledgeSessionExpired();
+}
 
 const handleLogin = async () => {
   try {
     loginError.value = null;
 
-    const response = await fetch("/api/auth", {
+    // auth=false: без токена. skipAuthRedirect=true: 401 тут означає
+    // "невірний логін/пароль", а не протерміновану сесію — не редіректимо.
+    const response = await apiFetch("/api/auth", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      auth: false,
+      skipAuthRedirect: true,
       body: JSON.stringify({
         username: username.value,
         password: password.value,
@@ -93,7 +109,7 @@ const handleLogin = async () => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || t("auth.errors.invalidCredentials"));
+      throw new Error(errorData.error || errorData.message || t("auth.errors.invalidCredentials"));
     }
 
     const data = await response.json();
@@ -110,11 +126,12 @@ const handleLogin = async () => {
       localStorage.setItem("user_id", data.user_id || "");
       localStorage.setItem("avatar_seed", data.avatar_seed || "");
 
-      if (authStore.isAdmin) {
-        router.push("/admin");
-      } else {
-        const redirectPath = router.currentRoute.value.query.redirect || "/desktop";
+      // Повертаємо користувача на збережений маршрут (?redirect=...), якщо він є.
+      const redirectPath = router.currentRoute.value.query.redirect;
+      if (redirectPath) {
         router.push(redirectPath);
+      } else {
+        router.push(authStore.isAdmin ? "/admin" : "/desktop");
       }
     } else {
       throw new Error(t("auth.errors.noToken"));

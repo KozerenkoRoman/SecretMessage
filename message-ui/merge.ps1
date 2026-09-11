@@ -37,8 +37,8 @@ $files | ForEach-Object {
     Add-Content -Path $OutputFile -Value ("`n/* ===== FILE: $relativePath ===== */")
 
     $content = Get-Content -Path $filePath -Raw
-
     $content = $content -replace "/\*[\s\S]*?\*/", ""
+    $content = $content -replace "<!--[\s\S]*?-->", ""
     $content = $content -replace "(?m)//.*$", ""
     $content = $content -replace "`t", " "
     $content = $content -replace "`r?`n", " "

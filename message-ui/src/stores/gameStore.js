@@ -2,8 +2,9 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
 import { CARD_INFO_NUMBERS } from '../constants/cards';
+import { mergeState, mergeArray } from '../utils/merge';
+import { apiFetch } from '../utils/api';
 
-const gameLog = ref([]);
 const EMPTY_GAME_STATE = Object.freeze({
   is_started: false,
   players: {},
@@ -38,6 +39,53 @@ function extractUserIdFromToken(token) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Reconnection token persistence.
+// Ключ у localStorage — стабільний, задокументований. Токен прив'язаний до
+// кімнати, тож зберігаємо мапу roomID -> token у одному JSON-записі.
+// -----------------------------------------------------------------------------
+const RECONNECT_STORE_KEY = 'reconnect_tokens';
+
+function _readReconnectMap() {
+  try {
+    const raw = localStorage.getItem(RECONNECT_STORE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function getReconnectToken(roomID) {
+  if (!roomID) return '';
+  const map = _readReconnectMap();
+  return typeof map[roomID] === 'string' ? map[roomID] : '';
+}
+
+function saveReconnectToken(roomID, token) {
+  if (!roomID || !token) return;
+  const map = _readReconnectMap();
+  map[roomID] = token;
+  try {
+    localStorage.setItem(RECONNECT_STORE_KEY, JSON.stringify(map));
+  } catch (e) {
+    console.warn('[gameStore] Не вдалося зберегти reconnection_token:', e);
+  }
+}
+
+function clearReconnectToken(roomID) {
+  if (!roomID) return;
+  const map = _readReconnectMap();
+  if (roomID in map) {
+    delete map[roomID];
+    try {
+      localStorage.setItem(RECONNECT_STORE_KEY, JSON.stringify(map));
+    } catch {
+      /* no-op */
+    }
+  }
+}
+
 export const useGameStore = defineStore('gameStore', () => {
   const socket = ref(null);
   const isConnected = ref(false);
@@ -48,10 +96,97 @@ export const useGameStore = defineStore('gameStore', () => {
   const gameState = ref(makeEmptyGameState());
   const revealedCardData = ref(null);
   const authToken = ref(localStorage.getItem('token') || '');
+
+  const latestTurnAlert = ref(null);
+  let alertTimeout = null;
+
+  /*
+    Сигнальні ref'и для UI.
+    Раніше підписники (RoomManager) визначали "ми отримали стан від сервера"
+    за фактом перепризначення gameState.value (через spread). Після того як
+    ми перейшли на in-place mergeState (для усунення мерехтіння карт),
+    кореневе посилання НЕ змінюється, тож shallow watch на gameState
+    більше не тригериться. Тому надаємо явні сигнали:
+      - hasReceivedState: ми хоча б раз отримали валідний ROOM_UPDATED
+      - stateVersion:     монотонний лічильник для watcher'ів, які хочуть
+                          реагувати на КОЖНЕ оновлення стану, а не лише
+                          на зміну посилання.
+  */
+  const hasReceivedState = ref(false);
+  const stateVersion = ref(0);
+
+  /*
+    Похідні (derived) поля стану дошки. Раніше ця логіка жила у
+    BoardView.vue усередині важкого watch({ deep: true }), що:
+      - перебудовував усе при кожному ROOM_UPDATED;
+      - блукав по ВСІХ гравцях .find()'ом і spread'ив об'єкти;
+      - писав у локальний стан компонента, який гасився при ремаунті.
+    Тут ми обчислюємо все ОДИН раз при отриманні WS-пакета й тримаємо
+    стабільні посилання, тож компонент лише читає плоскі ref'и.
+  */
+  // Глобальна послідовність відбою з монотонним seq.
+  const discardSequence = ref([]);
+  // pid -> остання зіграна карта (число або об'єкт {type:...}).
+  const lastPlayedCardsByPlayer = ref({});
+  // pid -> скільки карт у discard_pile ми вже зафіксували
+  // (внутрішній прапор, не експонується назовні).
+  const _discardSeenLengths = Object.create(null);
+  let _discardSeqCounter = 0;
+
+  // Стабільні UID для слотів руки поточного гравця.
+  // [{ uid, cardType, index }] — :key='slot.uid' у v-for НЕ змінюється,
+  // поки кількість карт стабільна, тому DOM-вузли не пересоздаються.
+  const handSlots = ref([]);
+  let _handSlotCounter = 0;
+  const _nextHandUid = () => `hand-${++_handSlotCounter}`;
+
+  // Локальний таймер: тримаємо ВІДОКРЕМЛЕНО від gameState.seconds_left,
+  // щоб тиканина не мутувала об'єкт, що мерджиться сервером (інакше
+  // отримаємо feedback-loop і повторні рендери щосекунди).
+  const secondsLeft = ref(0);
+
+  // Перенесено всередину стору для коректного скидання
+  const gameLog = ref([]);
+
   const myID = computed(() => extractUserIdFromToken(authToken.value));
 
   let timerInterval = null;
   let reconnectTimeout = null;
+
+  // Експоненційний backoff для авто-реконекту.
+  // Затримки: 1s, 2s, 4s, 8s, ... з м'яким максимумом 30s.
+  const RECONNECT_BASE_DELAY = 1000;
+  const RECONNECT_MAX_DELAY = 30000;
+  let reconnectAttempts = 0;
+
+  // Visibility listener зберігаємо, щоб коректно зняти в disconnect().
+  let visibilityHandler = null;
+
+  function _nextReconnectDelay() {
+    const delay = Math.min(
+      RECONNECT_MAX_DELAY,
+      RECONNECT_BASE_DELAY * 2 ** reconnectAttempts
+    );
+    reconnectAttempts++;
+    return delay;
+  }
+
+  function _resetReconnectBackoff() {
+    reconnectAttempts = 0;
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+      reconnectTimeout = null;
+    }
+  }
+
+  function _resetBoardDerived() {
+    discardSequence.value = [];
+    lastPlayedCardsByPlayer.value = {};
+    latestTurnAlert.value = null;
+    for (const k of Object.keys(_discardSeenLengths)) delete _discardSeenLengths[k];
+    _discardSeqCounter = 0;
+    handSlots.value = [];
+  }
 
   const isGameStarted = computed(() => {
     return (
@@ -94,6 +229,176 @@ export const useGameStore = defineStore('gameStore', () => {
     error.value = null;
   }
 
+  function clearLog() {
+    gameLog.value = [];
+  }
+
+  /**
+   * Робимо легкий snapshot ключових полів СТАРОГО стану ДО злиття,
+   * щоб після mergeState мати з чим порівнювати (mergeState мутує
+   * gameState.value in-place, тож після нього "старого" стану вже нема).
+   * Повертає лише те, що реально потрібне для дерев'яної логіки дошки.
+   */
+  function _snapshotForBoardDerivation(state) {
+    if (!state || typeof state !== 'object') return { discardLenByPid: {} };
+    const playersData = state.players;
+    const out = { discardLenByPid: Object.create(null) };
+    if (!playersData) return out;
+    if (Array.isArray(playersData)) {
+      for (const p of playersData) {
+        if (!p || typeof p !== 'object' || typeof p.id !== 'string') continue;
+        out.discardLenByPid[p.id] = Array.isArray(p.discard_pile) ? p.discard_pile.length : 0;
+      }
+    } else {
+      for (const id of Object.keys(playersData)) {
+        const p = playersData[id];
+        if (!p || typeof p !== 'object') continue;
+        out.discardLenByPid[id] = Array.isArray(p.discard_pile) ? p.discard_pile.length : 0;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Оновлює derived-поля для дошки після того, як newState уже злито в
+   * gameState.value. Все відбувається ОДИН раз на пакет ROOM_UPDATED.
+   * @param newState - власне gameState.value (in-place після merge)
+   * @param prevSnap - snapshot, зроблений ДО merge (через _snapshotForBoardDerivation)
+   */
+  function _updateBoardDerived(newState, prevSnap) {
+    if (!newState || typeof newState !== 'object') return;
+
+    const playersData = newState.players;
+    if (!playersData || typeof playersData !== 'object') return;
+
+    // Нормалізуємо до плоского масиву [{id, ...}], не мутуючи playersData.
+    let playersList;
+    if (Array.isArray(playersData)) {
+      playersList = playersData.filter(
+        (p) => p && typeof p === 'object' && typeof p.id === 'string' && p.id.length > 0
+      );
+    } else {
+      playersList = [];
+      for (const id of Object.keys(playersData)) {
+        const raw = playersData[id];
+        if (raw && typeof raw === 'object') playersList.push({ raw, id });
+      }
+    }
+
+    const turnOrder = Array.isArray(newState.turn_order) ? newState.turn_order : [];
+    const currentTurnIdx = typeof newState.current_turn === 'number' ? newState.current_turn : -1;
+    const currentActiveID = currentTurnIdx >= 0 && currentTurnIdx < turnOrder.length
+      ? turnOrder[currentTurnIdx]
+      : newState.current_player_id || '';
+
+    const localId = myID.value;
+
+    // ---- discard sequence + lastPlayedCardsByPlayer ----
+    // Йдемо у порядку turn_order (далі - усі інші id-ки), щоб події у відбої
+    // лягали детерміновано в одному порядку у всіх клієнтів.
+    const seenIds = new Set();
+    const ordered = [];
+    for (const id of turnOrder) {
+      const found = playersList.find((p) =>
+        Array.isArray(playersData) ? p.id === id : p.id === id
+      );
+      if (found) {
+        ordered.push(found);
+        seenIds.add(id);
+      }
+    }
+    for (const p of playersList) {
+      if (!seenIds.has(p.id)) ordered.push(p);
+    }
+
+    // lpc - реактивний proxy від ref, тому правки ключів (lpc[pid] = ...,
+    // delete lpc[pid]) автоматично трекаються Vue. Жодного ручного
+    // re-assign'у наприкінці не потрібно.
+    const lpc = lastPlayedCardsByPlayer.value;
+
+    for (const entry of ordered) {
+      const pid = entry.id;
+      const p = Array.isArray(playersData) ? entry : entry.raw;
+      const discard = Array.isArray(p.discard_pile) ? p.discard_pile : null;
+      const curLen = discard ? discard.length : 0;
+      const seenLen = _discardSeenLengths[pid] || 0;
+      const prevLen = prevSnap?.discardLenByPid?.[pid] ?? seenLen;
+
+      if (curLen > seenLen && discard) {
+        for (let i = seenLen; i < curLen; i++) {
+          const rawCard = discard[i];
+          const isObject = typeof rawCard === 'object' && rawCard !== null;
+          discardSequence.value.push({
+            seq: _discardSeqCounter++,
+            type: isObject ? rawCard.type : rawCard,
+            playerId: pid,
+          });
+        }
+        _discardSeenLengths[pid] = curLen;
+      } else if (curLen < seenLen) {
+        // Колоду / partію перетасували - синхронізуємо лічильник, але
+        // НЕ чіпаємо discardSequence: він глобальний по партії та чиститься
+        // явно (round-bump / leave / нова кімната).
+        _discardSeenLengths[pid] = curLen;
+      }
+
+      // lastPlayedCardsByPlayer - тільки для опонентів, на основі дельти
+      // ВІДНОСНО ПОПЕРЕДНЬОГО ПАКЕТА (а не до seenLen).
+      if (pid === localId) continue;
+      if (curLen > prevLen && discard) {
+        const lastCard = discard[curLen - 1];
+        if (lpc[pid] !== lastCard) lpc[pid] = lastCard;
+      } else if (pid === currentActiveID && lpc[pid] !== undefined) {
+        delete lpc[pid];
+      }
+      if (curLen === 0 && lpc[pid] !== undefined) {
+        delete lpc[pid];
+      }
+    }
+
+    // ---- handSlots для локального гравця ----
+    const myHand = (() => {
+      if (!localId) return [];
+      if (Array.isArray(playersData)) {
+        const me = playersData.find((p) => p && p.id === localId);
+        return me && Array.isArray(me.hand) ? me.hand : [];
+      }
+      const me = playersData[localId];
+      if (me && Array.isArray(me.hand)) return me.hand;
+      return Array.isArray(newState.my_hand) ? newState.my_hand : [];
+    })();
+
+    const slots = handSlots.value;
+    if (slots.length !== myHand.length) {
+      // Кількість карт реально змінилась - перевипускаємо UID-и.
+      // Реюзаємо UID-и для тих позицій, що збереглися (стабільний :key).
+      const fresh = [];
+      for (let i = 0; i < myHand.length; i++) {
+        const existing = slots[i];
+        fresh.push({
+          uid: existing ? existing.uid : _nextHandUid(),
+          cardType: myHand[i],
+          index: i,
+        });
+      }
+      handSlots.value = fresh;
+    } else {
+      // Та сама кількість - точково оновлюємо лише ті слоти, де
+      // cardType/index реально змінилися. UID не змінюється ніколи у
+      // цій гілці, тож DOM-вузли карт не пересоздаються.
+      for (let i = 0; i < myHand.length; i++) {
+        const slot = slots[i];
+        if (!slot) {
+          slots[i] = { uid: _nextHandUid(), cardType: myHand[i], index: i };
+        } else if (slot.cardType !== myHand[i] || slot.index !== i) {
+          // Створюємо новий об'єкт-обгортку (щоб тригернути реактивність
+          // у v-for, який ітерує по slots), але зберігаємо УЖЕ виданий uid.
+          slots[i] = { uid: slot.uid, cardType: myHand[i], index: i };
+        }
+      }
+    }
+  }
+
   function setErrorFromPacket(packet) {
     if (!packet || typeof packet !== 'object') {
       error.value = { code: 'ERR_INTERNAL', message: 'Unknown error', details: null };
@@ -114,8 +419,20 @@ export const useGameStore = defineStore('gameStore', () => {
 
   function connectToHub(roomID = null) {
     const targetRoomID = roomID || '';
+    // Слухач видимості вкладки ставимо один раз на будь-яке підключення до гри.
+    _installVisibilityListener();
     if (socket.value && socket.value.readyState === WebSocket.OPEN) {
       console.log(`[WS] Сокет уже відкритий. Міняємо кімнату з "${currentRoomID.value}" на "${targetRoomID}"`);
+
+      if (currentRoomID.value !== targetRoomID) {
+        clearLog();
+        // Нова кімната - старий state вже не релевантний; чекаємо на свіжий
+        // ROOM_UPDATED перш ніж вважати з'єднання "готовим".
+        hasReceivedState.value = false;
+        stateVersion.value = 0;
+        _resetBoardDerived();
+      }
+
       currentRoomID.value = targetRoomID;
       if (targetRoomID) {
         sendWSMessage('JOIN', targetRoomID, null, null);
@@ -128,8 +445,12 @@ export const useGameStore = defineStore('gameStore', () => {
       return;
     }
 
+    clearLog();
     currentRoomID.value = targetRoomID;
     isIntentionallyClosed.value = false;
+    hasReceivedState.value = false;
+    stateVersion.value = 0;
+    _resetBoardDerived();
     refreshAuthToken();
     const token = authToken.value;
     if (!token) {
@@ -152,11 +473,20 @@ export const useGameStore = defineStore('gameStore', () => {
       isConnected.value = true;
       error.value = null;
       console.log('[WS] Сокет успішно відкрито з бекендом.');
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-        reconnectTimeout = null;
-      }
+      _resetReconnectBackoff();
+
       if (currentRoomID.value) {
+        // Якщо є збережений reconnection_token для цієї кімнати — намагаємось
+        // ВІДНОВИТИ активну сесію (сервер поверне GAME_STATE_SNAPSHOT і скасує
+        // grace-таймер). Інакше — звичайний JOIN.
+        const rToken = getReconnectToken(currentRoomID.value);
+        if (rToken) {
+          console.log('[WS] Спроба відновлення сесії за reconnection_token...');
+          _sendReconnect(rToken);
+        }
+        // JOIN завжди безпечний: якщо RECONNECT не вдасться (протух токен),
+        // сервер обробить JOIN штатно; якщо вдасться — JOIN буде no-op для
+        // активної партії.
         sendWSMessage('JOIN', currentRoomID.value, null, null);
       }
     };
@@ -171,16 +501,74 @@ export const useGameStore = defineStore('gameStore', () => {
           return;
         }
 
+        // Сервер видав/оновив reconnection_token для активної партії.
+        // Зберігаємо його прив'язаним до кімнати для майбутнього відновлення.
+        if (packet.type === 'RECONNECT_TOKEN') {
+          const rid = packet.room_id || currentRoomID.value;
+          if (rid && packet.reconnection_token) {
+            saveReconnectToken(rid, packet.reconnection_token);
+            console.log('[WS] Отримано reconnection_token для кімнати', rid);
+          }
+          return;
+        }
+
         if (packet.type === 'LOBBY_LIST_UPDATED' || packet.type === 'LOBBY_UPDATED') {
           lobbyRooms.value = Array.isArray(packet.data) ? packet.data : (packet.payload || []);
           return;
         }
 
-        if (packet.type === 'ROOM_UPDATED' || packet.type === 'STATE_UPDATE' || packet.state) {
+        // GAME_STATE_SNAPSHOT — повний знімок після успішного reconnect.
+        // Обробляємо тим самим шляхом, що й ROOM_UPDATED, але спершу скидаємо
+        // похідні поля дошки, щоб коректно реконсилити локальний UI зі станом
+        // сервера (ми могли пропустити довільну кількість подій).
+        if (packet.type === 'GAME_STATE_SNAPSHOT') {
+          console.log('[WS] Отримано GAME_STATE_SNAPSHOT — реконсиляція стану.');
+          _resetBoardDerived();
+        }
+
+        if (
+          packet.type === 'ROOM_UPDATED' ||
+          packet.type === 'STATE_UPDATE' ||
+          packet.type === 'GAME_STATE_SNAPSHOT' ||
+          packet.state
+        ) {
           let rawState = packet.state || packet.payload;
           if (!rawState || typeof rawState !== 'object') return;
 
-          let updatedState = JSON.parse(JSON.stringify(rawState));
+          // Знімок попереднього стану (лише потрібні поля) ДО merge,
+          // бо mergeState мутує gameState.value in-place.
+          const prevSnap = _snapshotForBoardDerivation(gameState.value);
+          const prevRound = typeof gameState.value?.round_number === 'number'
+            ? gameState.value.round_number
+            : null;
+          const prevDeckLen = Array.isArray(gameState.value?.deck)
+            ? gameState.value.deck.length
+            : null;
+
+          // Структурне злиття: НЕ робимо JSON-клон, інакше всі масиви
+          // (зокрема hand[]) отримують нові посилання на кожному
+          // ROOM_UPDATED, що ламає reactivity-діффінг та може провокувати
+          // мерехтіння карт через будь-які transition-залежні стилі.
+          // Замість цього мутуємо існуючі поля коли їхня структура збіглася.
+          const updatedState = mergeState(gameState.value, rawState);
+
+          // Якщо почався новий раунд або колода свіжо перегенерована,
+          // глобальний відбій логічно скидається.
+          const newRound = typeof updatedState.round_number === 'number'
+            ? updatedState.round_number
+            : null;
+          const newDeckLen = Array.isArray(updatedState.deck)
+            ? updatedState.deck.length
+            : null;
+          const roundBumped = prevRound !== null && newRound !== null && newRound > prevRound;
+          const deckGrew = prevDeckLen !== null && newDeckLen !== null && newDeckLen > prevDeckLen;
+          if (roundBumped || deckGrew) {
+            discardSequence.value = [];
+            for (const k of Object.keys(_discardSeenLengths)) delete _discardSeenLengths[k];
+            _discardSeqCounter = 0;
+            lastPlayedCardsByPlayer.value = {};
+          }
+
           const getPlayerName = (id) => {
             if (!id) return '...';
             return updatedState.players?.[id]?.username || `Гравець (${id.substring(0, 4)})`;
@@ -193,10 +581,59 @@ export const useGameStore = defineStore('gameStore', () => {
 
           const currentUuid = myID.value;
           if (updatedState.players && updatedState.players[currentUuid]) {
-            updatedState.my_hand = [...updatedState.players[currentUuid].hand];
+            const srcHand = updatedState.players[currentUuid].hand;
+            if (Array.isArray(srcHand)) {
+              if (!Array.isArray(updatedState.my_hand)) {
+                updatedState.my_hand = [];
+              }
+              // Зливаємо у наявний масив, щоб не зламати посилання,
+              // вже узгоджене mergeState'ом вище.
+              mergeArray(updatedState.my_hand, srcHand);
+            }
           }
 
           if (Array.isArray(packet.events)) {
+            let lastDrawnPlayerId = null;
+
+            // Шукаємо подію CARD_PLAYED для банера всередині поточного пакета
+            const cardPlayedEvent = packet.events.find((e) => e && e.type === "CARD_PLAYED");
+            if (cardPlayedEvent && cardPlayedEvent.payload) {
+              const { card, player_id, } = cardPlayedEvent.payload;
+
+              let guessedCardId = null;
+              let princeDiscardedCardId = null;
+              if (CARD_INFO_NUMBERS[Number(card)]?.type === "GUARD") {
+                // Якщо зіграно стражника, шукаємо результат у цьому ж пакеті подій
+                const guardEvent = packet.events.find(
+                  (e) => e && (e.type === "GUARD_MISS" || e.type === "GUARD_HIT")
+                );
+                if (guardEvent && guardEvent.payload && guardEvent.payload.guess !== undefined) {
+                  guessedCardId = Number(guardEvent.payload.guess);
+                }
+              }
+
+              const hasDiscardedCard = cardPlayedEvent.payload.discarded_card !== undefined && cardPlayedEvent.payload.discarded_card !== null;
+              if (CARD_INFO_NUMBERS[Number(card)]?.type === "PRINCE" && hasDiscardedCard) {
+                princeDiscardedCardId = Number(cardPlayedEvent.payload.discarded_card);
+              }
+              if (alertTimeout) clearTimeout(alertTimeout);
+
+              // Записуємо дані. Оскільки під назву гравця потрібен username, беремо його ліниво:
+              const foundPlayerName = rawState.players?.[player_id]?.username ||
+                gameState.value.players?.[player_id]?.username || '...';
+
+              latestTurnAlert.value = {
+                cardType: Number(card),
+                playerName: foundPlayerName,
+                guessCard: guessedCardId,
+                discardedCard: princeDiscardedCardId,
+              };
+
+              alertTimeout = setTimeout(() => {
+                latestTurnAlert.value = null;
+              }, 3500);
+            }
+
             packet.events.forEach((ev) => {
               if (!ev || typeof ev !== 'object') return;
               const payload = ev.payload || {};
@@ -221,11 +658,20 @@ export const useGameStore = defineStore('gameStore', () => {
                   addToLog('log.priest_effect', { player: getPlayerName(payload.viewer_id), target: getPlayerName(payload.target_id) });
                   break;
                 case 'CARD_PLAYED':
-                  addToLog(payload.target_id ? 'log.card_played_targeted' : 'log.card_played', {
-                    player: getPlayerName(payload.player_id),
-                    card: getCardKey(payload.card),
-                    target: getPlayerName(payload.target_id)
-                  });
+                  const isPrince = Number(payload.card) === 5;
+                  if (isPrince && payload.discarded_card !== undefined && payload.discarded_card !== null) {
+                    addToLog('log.prince_effect', {
+                      player: getPlayerName(payload.player_id),
+                      target: getPlayerName(payload.target_id),
+                      discarded_card: getCardKey(payload.discarded_card)
+                    });
+                  } else {
+                    addToLog(payload.target_id ? 'log.card_played_targeted' : 'log.card_played', {
+                      player: getPlayerName(payload.player_id),
+                      card: getCardKey(payload.card),
+                      target: getPlayerName(payload.target_id)
+                    });
+                  }
                   break;
                 case 'GUARD_HIT':
                   addToLog('log.guard_hit', { player: getPlayerName(payload.player_id), target: getPlayerName(payload.target_id), guess: getCardKey(payload.guess) });
@@ -234,7 +680,7 @@ export const useGameStore = defineStore('gameStore', () => {
                   addToLog('log.guard_miss', { player: getPlayerName(payload.player_id), target: getPlayerName(payload.target_id), guess: getCardKey(payload.guess) });
                   break;
                 case 'BARON_RESULT':
-                  addToLog('log.baron_result', { winner: getPlayerName(payload.winner_id), loser: getPlayerName(payload.loser_id) });
+                  addToLog('log.baron_result', { winner: getPlayerName(payload.winner_id), loser: getPlayerName(payload.loser_id), loser_card: getCardKey(payload.loser_card) });
                   break;
                 case 'PLAYER_ELIMINATED':
                   addToLog('log.player_eliminated', { player: getPlayerName(payload.player_id), reason: `reasons.${payload.reason}` });
@@ -252,6 +698,11 @@ export const useGameStore = defineStore('gameStore', () => {
                   addToLog('log.player_left', { player: getPlayerName(payload.player_id) });
                   break;
                 case 'CARD_DRAWN':
+                  if (payload.player_id === lastDrawnPlayerId) {
+                    console.log(`[Log Skipper] Пропущено дублюючу подію CARD_DRAWN для гравця: ${payload.player_id}`);
+                    break;
+                  }
+                  lastDrawnPlayerId = payload.player_id;
                   addToLog('log.card_drawn', { player: getPlayerName(payload.player_id) });
                   break;
                 case 'CHANCELLOR_DRAWN':
@@ -264,16 +715,25 @@ export const useGameStore = defineStore('gameStore', () => {
             });
           }
 
-          gameState.value = {
-            ...gameState.value,
-            ...updatedState
-          };
+          // Перерахунок derived-полів дошки (discardSequence,
+          // lastPlayedCardsByPlayer, handSlots). Робиться РАЗ на пакет.
+          _updateBoardDerived(gameState.value, prevSnap);
+
+          // mergeState вже застосував зміни in-place до gameState.value,
+          // тому окремо перезаписувати об'єкт не потрібно.
           if (typeof updatedState.seconds_left === 'number') {
-            const currentLocalSeconds = gameState.value.seconds_left;
-            if (Math.abs(currentLocalSeconds - updatedState.seconds_left) > 1) {
-              startLocalTimer(updatedState.seconds_left);
-            }
-          };
+            // Дрейф > 1с -> рестартуємо локальний тікер під серверну
+            // істину. Тікер мутує ЛИШЕ secondsLeft, не gameState, тому
+            // не провокує feedback-loop у merge.
+            const drift = Math.abs(secondsLeft.value - updatedState.seconds_left);
+            if (drift > 1) startLocalTimer(updatedState.seconds_left);
+          }
+
+          // Сигналізуємо UI, що стан отримано/оновлено. Це КРИТИЧНО для
+          // RoomManager: він знімає loading-екран саме за цим прапором,
+          // а не за зміною посилання gameState (його більше немає).
+          hasReceivedState.value = true;
+          stateVersion.value++;
         }
       } catch (err) {
         console.error('[WS] Помилка десеріалізації:', err);
@@ -286,9 +746,14 @@ export const useGameStore = defineStore('gameStore', () => {
       if (timerInterval) clearInterval(timerInterval);
       console.log('[WS] Сокет закрився.', event);
       if (!isIntentionallyClosed.value) {
+        // Експоненційний backoff. Не плодимо паралельні таймери.
+        if (reconnectTimeout) clearTimeout(reconnectTimeout);
+        const delay = _nextReconnectDelay();
+        console.log(`[WS] Автопереконект через ${delay}ms (спроба #${reconnectAttempts}).`);
         reconnectTimeout = setTimeout(() => {
+          reconnectTimeout = null;
           connectToHub(currentRoomID.value);
-        }, 3000);
+        }, delay);
       }
     };
 
@@ -300,16 +765,24 @@ export const useGameStore = defineStore('gameStore', () => {
   function startLocalTimer(initialSeconds) {
     if (timerInterval) {
       clearInterval(timerInterval);
+      timerInterval = null;
     }
-    if (typeof initialSeconds !== 'number' || initialSeconds <= 0) return;
+    if (typeof initialSeconds !== 'number' || initialSeconds <= 0) {
+      secondsLeft.value = 0;
+      return;
+    }
 
-    gameState.value.seconds_left = initialSeconds;
+    // ВАЖЛИВО: тикаємо ВИКЛЮЧНО локальний secondsLeft. НЕ мутуємо
+    // gameState.seconds_left, інакше тікер інвалідуватиме всю реактивну
+    // піддерево щосекунди (re-render storm) і конфліктуватиме з merge.
+    secondsLeft.value = initialSeconds;
 
     timerInterval = setInterval(() => {
-      if (gameState.value && gameState.value.seconds_left > 0) {
-        gameState.value.seconds_left--;
+      if (secondsLeft.value > 0) {
+        secondsLeft.value--;
       } else {
         clearInterval(timerInterval);
+        timerInterval = null;
       }
     }, 1000);
   }
@@ -319,6 +792,7 @@ export const useGameStore = defineStore('gameStore', () => {
       clearInterval(timerInterval);
       timerInterval = null;
     }
+    secondsLeft.value = 0;
   }
 
   function sendWSMessage(type, overrideRoomID = null, actionPayload = null, chancellorPayload = null) {
@@ -338,17 +812,73 @@ export const useGameStore = defineStore('gameStore', () => {
     socket.value.send(JSON.stringify(message));
   }
 
+  // _sendReconnect шле службове повідомлення RECONNECT з reconnection_token.
+  // Окремо від sendWSMessage, бо має нестандартне поле reconnection_token.
+  function _sendReconnect(rToken) {
+    if (!socket.value || socket.value.readyState !== WebSocket.OPEN) return;
+    const message = {
+      type: 'RECONNECT',
+      room_id: currentRoomID.value || '',
+      request_id:
+        typeof crypto?.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : Math.random().toString(36).substring(2),
+      reconnection_token: rToken,
+    };
+    socket.value.send(JSON.stringify(message));
+  }
+
+  // handleVisibilityChange — коли користувач повертає застосунок з фону,
+  // ОС могла призупинити WebSocket. Якщо сокет закритий/закривається —
+  // ініціюємо негайний авто-реконект (backoff скидається, бо це явний
+  // сигнал користувача, а не сліпий ретрай).
+  function handleVisibilityChange() {
+    if (typeof document === 'undefined') return;
+    if (document.visibilityState !== 'visible') return;
+    if (isIntentionallyClosed.value) return;
+    if (!currentRoomID.value) return;
+
+    const st = socket.value?.readyState;
+    const needsReconnect =
+      !socket.value || st === WebSocket.CLOSED || st === WebSocket.CLOSING;
+
+    if (needsReconnect) {
+      console.log('[WS] Повернення у foreground — сокет мертвий, реконект.');
+      _resetReconnectBackoff();
+      connectToHub(currentRoomID.value);
+    }
+  }
+
+  function _installVisibilityListener() {
+    if (typeof document === 'undefined' || visibilityHandler) return;
+    visibilityHandler = handleVisibilityChange;
+    document.addEventListener('visibilitychange', visibilityHandler);
+  }
+
+  function _removeVisibilityListener() {
+    if (typeof document === 'undefined' || !visibilityHandler) return;
+    document.removeEventListener('visibilitychange', visibilityHandler);
+    visibilityHandler = null;
+  }
+
   function clearRevealedData() {
     revealedCardData.value = null;
   }
 
   function leaveCurrentRoom() {
     stopLocalTimer();
+    clearError();
+    clearLog();
     if (currentRoomID.value) {
       sendWSMessage('LEAVE', currentRoomID.value, null, null);
+      // Свідомий вихід — сесія більше не підлягає відновленню.
+      clearReconnectToken(currentRoomID.value);
       currentRoomID.value = '';
       revealedCardData.value = null;
       gameState.value = makeEmptyGameState();
+      hasReceivedState.value = false;
+      stateVersion.value = 0;
+      _resetBoardDerived();
     }
   }
 
@@ -357,18 +887,24 @@ export const useGameStore = defineStore('gameStore', () => {
     if (currentRoomID.value && socket.value && socket.value.readyState === WebSocket.OPEN) {
       sendWSMessage('LEAVE', currentRoomID.value, null, null);
     }
+    // Свідомий дисконект — прибираємо токен відновлення для цієї кімнати.
+    if (currentRoomID.value) {
+      clearReconnectToken(currentRoomID.value);
+    }
     isIntentionallyClosed.value = true;
     revealedCardData.value = null;
-    if (reconnectTimeout) {
-      clearTimeout(reconnectTimeout);
-      reconnectTimeout = null;
-    }
+    clearLog();
+    _resetReconnectBackoff();
+    _removeVisibilityListener();
     if (socket.value) {
       socket.value.close();
       socket.value = null;
     }
     isConnected.value = false;
     currentRoomID.value = '';
+    hasReceivedState.value = false;
+    stateVersion.value = 0;
+    _resetBoardDerived();
   }
 
   function addToLog(messageKey, namedArgs = {}) {
@@ -380,6 +916,42 @@ export const useGameStore = defineStore('gameStore', () => {
         namedArgs,
       });
     }, 0);
+  }
+
+  async function addBotToRoom(roomID) {
+    try {
+      refreshAuthToken();
+      const token = authToken.value;
+
+      if (!token) {
+        throw new Error("Користувач не авторизований для додавання бота");
+      }
+
+      const response = await apiFetch(`/api/rooms/${roomID}/bot`, {
+        method: 'POST',
+      });
+
+      // 401/403 глобально обробляється apiFetch (очищення сесії + редірект).
+      if (response.status === 401 || response.status === 403) {
+        return false;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Помилка сервера: ${response.status}`);
+      }
+
+      console.log(`[gameStore] Бота успішно додано в кімнату ${roomID}`);
+      return true;
+    } catch (err) {
+      console.error('[gameStore] Помилка при додаванні бота:', err);
+      // Прокидаємо помилку в реактивне поле, щоб GameErrorModal її вивів
+      error.value = {
+        code: 'ERR_ADD_BOT',
+        message: err.message || 'Не вдалося додати бота'
+      };
+      return false;
+    }
   }
 
   return {
@@ -394,12 +966,21 @@ export const useGameStore = defineStore('gameStore', () => {
     isGameStarted,
     activePlayers,
     myCards,
+    hasReceivedState,
+    stateVersion,
+    latestTurnAlert,
+    discardSequence,
+    lastPlayedCardsByPlayer,
+    handSlots,
+    secondsLeft,
     refreshAuthToken,
     clearError,
+    clearLog,
     clearRevealedData,
     leaveCurrentRoom,
     connectToHub,
     sendWSMessage,
     disconnect,
+    addBotToRoom,
   };
 });

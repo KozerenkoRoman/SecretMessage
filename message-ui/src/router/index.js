@@ -1,6 +1,7 @@
 import { i18n } from '../i18n';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { registerSessionExpiredHandler } from '../utils/api';
 import RoomManager from '../views/RoomManager.vue';
 import { watch } from 'vue';
 
@@ -11,6 +12,9 @@ const routes = [
   },
   {
     path: '/auth',
+    // /login — псевдонім для сумісності з глобальним обробником протермінування,
+    // який редіректить на /login. Обидва шляхи ведуть на екран автентифікації.
+    alias: '/login',
     name: 'Auth',
     component: () => import('../views/AuthView.vue'),
     meta: { guestOnly: true, titleKey: 'titles.auth' }
@@ -54,6 +58,27 @@ const router = createRouter({
   routes
 });
 
+/* ===== Глобальний обробник протермінованої сесії =====
+   Прив'язуємо fetch-перехоплювач (utils/api.js) до стору й роутера. Виклик
+   відбувається у runtime, коли pinia вже встановлено, тож useAuthStore()
+   безпечний. Уникаємо дублюючих редіректів, якщо ми вже на екрані логіну. */
+registerSessionExpiredHandler(({ redirect } = {}) => {
+  const authStore = useAuthStore();
+  authStore.handleSessionExpired();
+
+  const current = router.currentRoute.value;
+  // Вже на екрані входу/реєстрації — редірект не потрібен.
+  if (current.name === 'Auth' || current.name === 'register') {
+    return;
+  }
+
+  const target = redirect || current.fullPath;
+  router.replace({
+    path: '/auth',
+    query: target && target !== '/' ? { redirect: target } : {}
+  });
+});
+
 /* ===== Логіка гварда ===== */
 router.beforeEach((to, from) => {
   const authStore = useAuthStore();
@@ -61,6 +86,7 @@ router.beforeEach((to, from) => {
   console.log(`Гвард: Перехід на ${to.path}. Статус авторизації: ${authStore.isAuthenticated}`);
 
   // 1. Якщо сторінка вимагає авторизації, а користувач НЕ увійшов
+  //    (у т.ч. після протермінування сесії й прямої навігації на protected-маршрут).
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { path: '/auth', query: { redirect: to.fullPath } };
   }

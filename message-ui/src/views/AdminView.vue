@@ -130,11 +130,10 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
-import { useAuthStore } from "../stores/auth";
+import { apiFetch } from "../utils/api";
 import ConfirmModal from "./ConfirmModal.vue";
 
 const { t } = useI18n();
-const authStore = useAuthStore();
 const users = ref([]);
 const errorMessage = ref(null);
 const successMessage = ref(null);
@@ -144,17 +143,9 @@ const selectedUser = ref(null);
 const fetchUsers = async () => {
   try {
     errorMessage.value = null;
-    const token = authStore.token || localStorage.getItem("token");
-    const response = await fetch("/api/admin/users", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.status === 403 || response.status === 401) {
-      throw new Error(t("admin.errors.noAccess"));
-    }
+    const response = await apiFetch("/api/admin/users", { method: "GET" });
+    // 401/403 → глобальний обробник (очищення сесії + редірект на /login).
+    if (response.status === 401 || response.status === 403) return;
     if (!response.ok) throw new Error(t("admin.errors.loadFailed"));
     const data = await response.json();
     const rawUsers = Array.isArray(data) ? data : data.users || [];
@@ -187,16 +178,12 @@ const handleConfirmBlock = async () => {
   try {
     errorMessage.value = null;
     successMessage.value = null;
-    const token = authStore.token || localStorage.getItem("token");
     const url = `/api/admin/users/${userId}/block`;
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify({}),
     });
+    if (response.status === 401 || response.status === 403) return;
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(

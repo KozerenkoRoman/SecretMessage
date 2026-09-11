@@ -82,6 +82,7 @@ export const en = {
     errors: {
       invalidCredentials: "Incorrect username or password",
       noToken: "Server did not return an access JWT token",
+      sessionExpired: "Your session has ended. Please sign in again.",
     },
   },
 

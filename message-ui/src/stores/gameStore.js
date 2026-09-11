@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { jwtDecode } from 'jwt-decode';
 import { CARD_INFO_NUMBERS } from '../constants/cards';
 import { mergeState, mergeArray } from '../utils/merge';
+import { apiFetch } from '../utils/api';
 
 const EMPTY_GAME_STATE = Object.freeze({
   is_started: false,
@@ -926,13 +927,14 @@ export const useGameStore = defineStore('gameStore', () => {
         throw new Error("Користувач не авторизований для додавання бота");
       }
 
-      const response = await fetch(`/api/rooms/${roomID}/bot`, {
+      const response = await apiFetch(`/api/rooms/${roomID}/bot`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
       });
+
+      // 401/403 глобально обробляється apiFetch (очищення сесії + редірект).
+      if (response.status === 401 || response.status === 403) {
+        return false;
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

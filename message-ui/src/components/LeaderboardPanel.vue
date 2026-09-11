@@ -92,8 +92,8 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { useAuthStore } from "../stores/auth";
 import { getAvatarUrl } from "../utils/avatar";
+import { apiFetch } from "../utils/api";
 
 defineProps({
   currentUsername: {
@@ -102,7 +102,6 @@ defineProps({
   },
 });
 
-const authStore = useAuthStore();
 const leaders = ref([]);
 const loading = ref(true);
 const error = ref(null);
@@ -119,16 +118,9 @@ const fetchLeaderboard = async () => {
   try {
     loading.value = true;
     error.value = null;
-    const token = authStore.token || localStorage.getItem("token");
 
-    const response = await fetch("/api/leaderboard?limit=10", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
+    const response = await apiFetch("/api/leaderboard?limit=10", { method: "GET" });
+    if (response.status === 401 || response.status === 403) return;
     if (!response.ok) throw new Error("Failed to load global rating");
 
     const data = await response.json();

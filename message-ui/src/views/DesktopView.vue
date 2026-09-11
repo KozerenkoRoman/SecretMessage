@@ -163,6 +163,7 @@ import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../stores/auth";
 import { useGameStore } from "../stores/gameStore";
 import { getAvatarUrl } from "../utils/avatar";
+import { apiFetch } from "../utils/api";
 import UserProfileModal from "./UserProfileModal.vue";
 import LeaderboardPanel from "../components/LeaderboardPanel.vue";
 import GameRulesModal from "./GameRulesModal.vue";
@@ -205,15 +206,9 @@ const handleProfileUpdated = (updatedData) => {
 const fetchRooms = async () => {
   try {
     apiError.value = null;
-    const token = authStore.token || localStorage.getItem("token");
-    const response = await fetch("/api/rooms", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.status === 401) throw new Error(t("desktop.errors.sessionExpired"));
+    const response = await apiFetch("/api/rooms", { method: "GET" });
+    // 401/403 глобально обробляється apiFetch (очищення сесії + редірект).
+    if (response.status === 401) return;
     if (!response.ok) throw new Error(t("desktop.errors.loadRoomsFailed"));
     const data = await response.json();
     gameStore.lobbyRooms = Array.isArray(data) ? data : data.rooms || [];
@@ -230,15 +225,8 @@ const logout = () => {
 
 const createRoom = async () => {
   try {
-    const token = authStore.token || localStorage.getItem("token");
-    const response = await fetch("/api/rooms", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (response.status === 401) throw new Error(t("desktop.errors.noRightsToCreate"));
+    const response = await apiFetch("/api/rooms", { method: "POST" });
+    if (response.status === 401) return;
     if (!response.ok) throw new Error(t("desktop.errors.createFailed"));
     const newRoom = await response.json();
     const actualRoomId = newRoom.room_id || newRoom.RoomID || newRoom.id;

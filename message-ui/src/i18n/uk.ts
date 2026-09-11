@@ -82,6 +82,7 @@ export const uk = {
     errors: {
       invalidCredentials: "Неправильний логін або пароль",
       noToken: "Сервер не повернув JWT-токен доступу",
+      sessionExpired: "Сесію завершено. Будь ласка, увійдіть знову.",
     },
   },
 

@@ -11,19 +11,21 @@ import (
 var jwtKey = []byte("super_secret_key_change_me_in_production")
 
 type Claims struct {
-	UserID   string `json:"user_id"` // Змінено на string для передачі UUID
-	Username string `json:"username"`
-	UserRole string `json:"user_role"` // Змінено з Role на UserRole
+	UserID     string `json:"user_id"` // Змінено на string для передачі UUID
+	Username   string `json:"username"`
+	UserRole   string `json:"user_role"`   // Змінено з Role на UserRole
+	AvatarSeed string `json:"avatar_seed"` // Синхронізовано з фронтом (auth.js initUserFromToken)
 	jwt.RegisteredClaims
 }
 
 // GenerateToken тепер приймає uuid.UUID
-func GenerateToken(userID uuid.UUID, username, userRole string) (string, error) {
+func GenerateToken(userID uuid.UUID, username, userRole, avatarSeed string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
-		UserID:   userID.String(), // Конвертуємо UUID у string
-		Username: username,
-		UserRole: userRole,
+		UserID:     userID.String(), // Конвертуємо UUID у string
+		Username:   username,
+		UserRole:   userRole,
+		AvatarSeed: avatarSeed,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},

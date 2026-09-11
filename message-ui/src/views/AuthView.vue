@@ -93,7 +93,7 @@ const handleLogin = async () => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || t("auth.errors.invalidCredentials"));
+      throw new Error(errorData.error || errorData.message || t("auth.errors.invalidCredentials"));
     }
 
     const data = await response.json();

@@ -81,7 +81,7 @@ func (s *Server) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. ГЕНЕРАЦІЯ СЕСІЇ (JWT)
-	token, err := auth.GenerateToken(dbUser.ID, dbUser.Username, dbUser.UserRole)
+	token, err := auth.GenerateToken(dbUser.ID, dbUser.Username, dbUser.UserRole, dbUser.AvatarSeed)
 	if err != nil {
 		s.sendHTTPError(w, http.StatusInternalServerError, "Token generation failed")
 		return
@@ -146,7 +146,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	// Генеруємо токен доступу для миттєвої авторизації після успішної реєстрації
 	// Використовуємо функцію GenerateToken з вашого пакету auth
-	token, err := auth.GenerateToken(newUser.ID, newUser.Username, newUser.UserRole)
+	token, err := auth.GenerateToken(newUser.ID, newUser.Username, newUser.UserRole, newUser.AvatarSeed)
 	if err != nil {
 		s.log.Errorf("Помилка генерації JWT токена для %s: %v", newUser.Username, err)
 		s.sendHTTPError(w, http.StatusInternalServerError, "Користувача створено, але не вдалося згенерувати токен авторизації")

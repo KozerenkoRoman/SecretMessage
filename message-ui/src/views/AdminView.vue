@@ -157,7 +157,11 @@ const fetchUsers = async () => {
     }
     if (!response.ok) throw new Error(t("admin.errors.loadFailed"));
     const data = await response.json();
-    users.value = Array.isArray(data) ? data : data.users || [];
+    const rawUsers = Array.isArray(data) ? data : data.users || [];
+    users.value = rawUsers.map((u) => ({
+      ...u,
+      role: u.role ?? u.user_role,
+    }));
   } catch (err) {
     errorMessage.value = err.message;
     console.error("Помилка адмінки:", err);
@@ -196,7 +200,7 @@ const handleConfirmBlock = async () => {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(
-        errorData.message || t("admin.errors.blockFailed", { username })
+        errorData.error || errorData.message || t("admin.errors.blockFailed", { username })
       );
     }
     successMessage.value = t("admin.blockSuccess", { username });

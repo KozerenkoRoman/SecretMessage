@@ -111,7 +111,7 @@ const handleRegister = async () => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || t("register.errors.registrationFailed"));
+      throw new Error(errorData.error || errorData.message || t("register.errors.registrationFailed"));
     }
 
     const data = await response.json();

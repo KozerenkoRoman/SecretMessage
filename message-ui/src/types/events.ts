@@ -131,6 +131,7 @@ export interface GuardMissPayload {
 export interface PlayerEliminatedPayload {
   player_id: string;
   reason: EliminationReason | string;
+  card: CardType;
 }
 
 /**
@@ -175,6 +176,8 @@ export interface HandsSwappedPayload {
 export interface BaronResultPayload {
   winner_id: string;
   loser_id: string;
+  winner_card: CardType;
+  loser_card: CardType;
 }
 
 /**

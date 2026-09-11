@@ -17,11 +17,14 @@ func ApplyPrincess(state GameState, action Action, clock Clock) (ApplyResult, er
 	}}
 
 	player.IsOut = true
-	// Карта вже була додана до DiscardPile в engine.go, тому очищуємо руку
+	// Сама Принцеса вже потрапила у DiscardPile в engine.go. Тепер, при вибутті
+	// гравця, решта його руки ТЕЖ має піти у відбій — так само, як це роблять
+	// ApplyGuard/ApplyBaron/room.eliminatePlayer. Це критично для правила
+	// Шпигуна: історія розіграних/скинутих карт тримається у DiscardPile, тож
+	// якщо в руці лишався Шпигун, він має зберегтися для підрахунку бонусу
+	// навіть у вибулого гравця.
+	player.DiscardPile = append(player.DiscardPile, player.Hand...)
 	player.Hand = []CardType{}
-	state.Players[action.PlayerID] = player // Захист інтерфейсу дії чи прямий ID
-
-	// Альтернативно використовуємо action.PlayerID для надійності:
 	state.Players[action.PlayerID] = player
 
 	events = append(events, DomainEvent{

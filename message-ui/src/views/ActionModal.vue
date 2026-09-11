@@ -40,7 +40,7 @@
                     ]"
                   >
                     <img
-                      :src="getAvatarUrl(p.avatar_seed || p.username || p.id)"
+                      :src="getAvatarUrl(p)"
                       :alt="$t('common.avatarAlt')"
                       class="w-full h-full object-cover rounded-full"
                     />

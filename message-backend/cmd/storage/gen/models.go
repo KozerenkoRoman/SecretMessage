@@ -28,6 +28,50 @@ type Room struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type SimBatch struct {
+	ID          uuid.UUID      `json:"id"`
+	Status      string         `json:"status"`
+	TotalGames  int            `json:"total_games"`
+	PlayedGames int            `json:"played_games"`
+	Config      []byte         `json:"config"`
+	Summary     []byte         `json:"summary"`
+	Error       sql.NullString `json:"error"`
+	CreatedAt   time.Time      `json:"created_at"`
+	FinishedAt  sql.NullTime   `json:"finished_at"`
+}
+
+type SimGame struct {
+	ID           int64          `json:"id"`
+	BatchID      uuid.UUID      `json:"batch_id"`
+	GameIndex    int            `json:"game_index"`
+	Seed         int            `json:"seed"`
+	WinnerSlot   sql.NullInt32  `json:"winner_slot"`
+	WinnerBot    sql.NullString `json:"winner_bot"`
+	SpyWinnerBot sql.NullString `json:"spy_winner_bot"`
+	TotalTurns   int            `json:"total_turns"`
+	TotalRounds  int            `json:"total_rounds"`
+	FirstMoveBot sql.NullString `json:"first_move_bot"`
+	DurationMs   int            `json:"duration_ms"`
+	CreatedAt    time.Time      `json:"created_at"`
+}
+
+type SimMove struct {
+	ID               int64          `json:"id"`
+	GameID           int            `json:"game_id"`
+	TurnIndex        int            `json:"turn_index"`
+	RoundIndex       int            `json:"round_index"`
+	BotID            string         `json:"bot_id"`
+	BotStrategy      string         `json:"bot_strategy"`
+	PlayedCard       int            `json:"played_card"`
+	TargetID         sql.NullString `json:"target_id"`
+	GuessCard        sql.NullInt32  `json:"guess_card"`
+	DecisionMs       int            `json:"decision_ms"`
+	InvalidAttempt   bool           `json:"invalid_attempt"`
+	UsedFallback     bool           `json:"used_fallback"`
+	EliminatedReason sql.NullString `json:"eliminated_reason"`
+	CreatedAt        time.Time      `json:"created_at"`
+}
+
 type User struct {
 	ID           uuid.UUID      `json:"id"`
 	Username     string         `json:"username"`
@@ -40,6 +84,7 @@ type User struct {
 	AvatarSeed   string         `json:"avatar_seed"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
+	AvatarUrl    string         `json:"avatar_url"`
 }
 
 type UserStat struct {

@@ -71,6 +71,10 @@ type Player struct {
 	Score            int        `json:"score"`
 	SpyPointsAwarded bool       `json:"spy_points_awarded"`
 	AvatarSeed       string     `json:"avatar_seed"`
+	// AvatarUrl — шлях до завантаженого зображення аватара (напр.,
+	// "/api/avatars/<uuid>.png"). Якщо порожній — фронтенд використовує
+	// AvatarSeed для генерації аватара через DiceBear.
+	AvatarUrl string `json:"avatar_url,omitempty"`
 	// IsDisconnected — гравець тимчасово втратив WS-з'єднання (напр., мобільний
 	// застосунок пішов у фон). Під час grace-періоду гравець НЕ вибуває з гри;
 	// UI показує його як "перепідключається". Скидається у false при reconnect.
@@ -185,6 +189,7 @@ func (s GameState) Clone() GameState {
 			Score:            player.Score,
 			SpyPointsAwarded: player.SpyPointsAwarded,
 			AvatarSeed:       player.AvatarSeed,
+			AvatarUrl:        player.AvatarUrl,
 			IsDisconnected:   player.IsDisconnected,
 		}
 	}

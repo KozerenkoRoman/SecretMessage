@@ -40,6 +40,11 @@ services:
       - POSTGRES_POOL_MAX=${POSTGRES_POOL_MAX}
       - POSTGRES_POOL_MIN=${POSTGRES_POOL_MIN}
       - POSTGRES_LOGGING=${POSTGRES_LOGGING}
+      - AVATAR_UPLOAD_DIR=/data/avatars
+      - AVATAR_BASE_URL=/api/avatars
+      - MAX_AVATAR_SIZE_MB=${MAX_AVATAR_SIZE_MB:-5}
+    volumes:
+      - avatar_uploads:/data/avatars
     depends_on:
       postgres:
         condition: service_healthy 
@@ -65,4 +70,6 @@ networks:
 
 volumes:
   pgdata:
+    driver: local
+  avatar_uploads:
     driver: local

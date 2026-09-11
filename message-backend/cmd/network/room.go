@@ -141,6 +141,7 @@ type RoomLobbyInfo struct {
 	PlayerNames    []string `json:"player_names"`
 	CreatedAt      int64    `json:"created_at"`
 	HostAvatarSeed string   `json:"host_avatar_seed"`
+	HostAvatarUrl  string   `json:"host_avatar_url"`
 }
 
 // =============================================================================
@@ -232,6 +233,7 @@ func (r *Room) GetLobbyInfo() RoomLobbyInfo {
 		PlayerNames:    names,
 		CreatedAt:      r.createdAt.Unix(),
 		HostAvatarSeed: r.state.Players[r.hostID].AvatarSeed,
+		HostAvatarUrl:  r.state.Players[r.hostID].AvatarUrl,
 	}
 }
 
@@ -770,6 +772,7 @@ func (r *Room) BroadcastState(updateType string, events []engine.DomainEvent) {
 				ID:               p.ID,
 				Username:         p.Username,
 				AvatarSeed:       p.AvatarSeed,
+				AvatarUrl:        p.AvatarUrl,
 				DiscardPile:      p.DiscardPile,
 				Score:            p.Score,
 				IsOut:            p.IsOut,
@@ -1136,10 +1139,12 @@ func (r *Room) AddPlayer(playerID string) error {
 	} else {
 		var username string
 		var avatarSeed string
+		var avatarURL string
 
 		if user, dbErr := r.store.GetUserByID(context.Background(), playerUUID); dbErr == nil {
 			username = user.Username
 			avatarSeed = user.AvatarSeed
+			avatarURL = user.AvatarUrl
 			log.Debug("Користувача знайдено в БД, avatarSeed: ", avatarSeed, ", username: ", username)
 		} else {
 			log.WithField("error", dbErr.Error()).Debug("Не вдалося отримати дані гравця з БД (не критично)")
@@ -1152,6 +1157,7 @@ func (r *Room) AddPlayer(playerID string) error {
 			Username:    username,
 			UserRole:    "user",
 			AvatarSeed:  avatarSeed,
+			AvatarUrl:   avatarURL,
 			Hand:        []engine.CardType{},
 			DiscardPile: []engine.CardType{},
 			Score:       0,

@@ -17,6 +17,8 @@ func InitRoutes(mux *http.ServeMux, s *Server) {
 	s.POST(mux, "/api/rooms/{id}/bot", s.HandleAddBotToRoom)
 
 	s.POST(mux, "/api/user", s.HandleUpdateUser)
+	s.POST(mux, "/api/user/avatar", s.HandleUploadAvatar)
+	s.PUBLIC_GET(mux, "/api/avatars/{filename}", s.HandleGetAvatar)
 
 	s.ADMIN_GET(mux, "/api/admin/games", nil) // todo
 	s.ADMIN_GET(mux, "/api/admin/users", s.HandleAdminGetUsers)

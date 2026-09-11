@@ -11,7 +11,7 @@
             :title="$t('desktop.profileTitle')"
           >
             <img
-              :src="getAvatarUrl(userAvatarSeed)"
+              :src="getAvatarUrl({ avatar_url: userAvatarUrl, avatar_seed: userAvatarSeed })"
               :alt="$t('desktop.myAvatarAlt')"
               class="w-full h-full object-cover rounded-full"
             />
@@ -81,9 +81,11 @@
                 >
                   <img
                     :src="
-                      getAvatarUrl(
-                        room.host_avatar_seed || room.HostAvatarSeed || 'default_seed'
-                      )
+                      getAvatarUrl({
+                        avatar_url: room.host_avatar_url || room.HostAvatarUrl || '',
+                        avatar_seed:
+                          room.host_avatar_seed || room.HostAvatarSeed || 'default_seed',
+                      })
                     "
                     :alt="$t('desktop.hostAvatarAlt')"
                     class="w-full h-full object-cover rounded-full"
@@ -147,6 +149,7 @@
       v-if="showAvatarModal"
       :currentUsername="currentUsername"
       :currentSeed="userAvatarSeed"
+      :currentAvatarUrl="userAvatarUrl"
       :apiUrl="''"
       @close="showAvatarModal = false"
       @updated="handleProfileUpdated"
@@ -182,6 +185,9 @@ const showRulesModal = ref(false);
 const userAvatarSeed = ref(
   localStorage.getItem("avatar_seed") || authStore.user?.avatar_seed || "default_seed"
 );
+const userAvatarUrl = ref(
+  localStorage.getItem("avatar_url") || authStore.user?.avatar_url || ""
+);
 
 const generateRandomSeed = () => {
   return (
@@ -196,10 +202,12 @@ const openAvatarModal = () => {
 
 const handleProfileUpdated = (updatedData) => {
   userAvatarSeed.value = updatedData.avatar_seed;
+  userAvatarUrl.value = updatedData.avatar_url || "";
   currentUsername.value = updatedData.username;
   if (authStore.user) {
     authStore.user.username = updatedData.username;
     authStore.user.avatar_seed = updatedData.avatar_seed;
+    authStore.user.avatar_url = updatedData.avatar_url || "";
   }
 };
 

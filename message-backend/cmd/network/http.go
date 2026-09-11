@@ -4,11 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"secret-message/cmd/auth"
+	"secret-message/cmd/storage"
 	"secret-message/cmd/storage/gen"
 
 	"github.com/google/uuid"
@@ -93,6 +99,7 @@ func (s *Server) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		"user_role":   dbUser.UserRole,
 		"username":    dbUser.Username,
 		"avatar_seed": dbUser.AvatarSeed,
+		"avatar_url":  dbUser.AvatarUrl,
 	})
 }
 
@@ -162,6 +169,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		"user_id":     newUser.ID.String(),
 		"username":    newUser.Username,
 		"avatar_seed": newUser.AvatarSeed,
+		"avatar_url":  newUser.AvatarUrl,
 		"user_role":   newUser.UserRole,
 	})
 }
@@ -360,6 +368,24 @@ func (s *Server) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 			s.log.Infof("Користувач %s змінив нікнейм на %s (виконано реконнект)", dbUser.Username, targetUsername)
 		}
 
+		// Явний вибір нового процедурного seed (напр., кнопка "Випадковий
+		// аватар") означає відмову від раніше завантаженого фото - інакше
+		// воно "повернеться" при наступному логіні, бо avatar_url досі в БД.
+		if avatarChanged && dbUser.AvatarUrl != "" {
+			oldURL := dbUser.AvatarUrl
+			if _, err := s.hub.store.Queries.UpdateUserAvatarURL(ctx, gen.UpdateUserAvatarURLParams{
+				ID:        dbUser.ID,
+				AvatarUrl: "",
+			}); err != nil {
+				s.log.Errorf("Помилка очищення avatar_url для %s: %v", dbUser.Username, err)
+			} else {
+				dbUser.AvatarUrl = ""
+				if delErr := s.hub.store.DeleteAvatarFile(oldURL); delErr != nil {
+					s.log.WithError(delErr).Warnf("Не вдалося видалити файл попереднього аватара для %s", dbUser.Username)
+				}
+			}
+		}
+
 		dbUser.Username = targetUsername
 		dbUser.AvatarSeed = targetAvatarSeed
 		hasChanges = true
@@ -378,8 +404,160 @@ func (s *Server) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		"status":      "success",
 		"username":    dbUser.Username,
 		"avatar_seed": dbUser.AvatarSeed,
+		"avatar_url":  dbUser.AvatarUrl,
 		"user_role":   dbUser.UserRole,
 	})
+}
+
+// MaxAvatarUploadMultipartMemory - скільки байтів ParseMultipartForm тримає
+// в пам'яті перед спілловером на диск у тимчасові файли ОС. Тримаємо в
+// пам'яті повністю, оскільки реальний ліміт розміру файлу (кілька МБ)
+// перевіряється нижче через s.hub.store.cfg.MaxAvatarSizeMB.
+const maxAvatarUploadMultipartMemory = 10 << 20 // 10 MB
+
+// HandleUploadAvatar обробляє POST /api/user/avatar - завантаження
+// користувачем власного зображення аватара (multipart/form-data, поле "avatar").
+//
+// Валідація:
+//   - авторизований користувач (AuthMiddleware вже гарантує це на рівні маршруту),
+//   - розмір файлу <= cfg.MaxAvatarSizeMB (за замовчуванням 5 MB),
+//   - реальний тип файлу (за сигнатурою байтів) є одним з PNG/JPEG/WebP/SVG.
+//
+// Успішне завантаження:
+//  1. зберігає файл на диск під унікальним UUID-ім'ям (уникає колізій/кешування),
+//  2. видаляє попередній завантажений файл користувача (якщо був),
+//  3. оновлює users.avatar_url в БД,
+//  4. повертає новий avatar_url у відповіді.
+func (s *Server) HandleUploadAvatar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.sendHTTPError(w, http.StatusMethodNotAllowed, "Only POST allowed")
+		return
+	}
+
+	claims, ok := r.Context().Value(UserContextKey).(*auth.Claims)
+	if !ok || claims == nil {
+		s.sendHTTPError(w, http.StatusUnauthorized, "Неавторизований доступ")
+		return
+	}
+
+	currentUserUUID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		s.sendHTTPError(w, http.StatusBadRequest, "Некоректний ID користувача в токені")
+		return
+	}
+
+	maxBytes := int64(s.hub.store.MaxAvatarSizeBytes())
+
+	// Обмежуємо тіло запиту трохи вище дозволеного ліміту файлу (враховуючи
+	// накладні витрати multipart-кордонів), щоб не читати необмежені дані
+	// зі зловмисного запиту в пам'ять.
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes+1<<20)
+
+	if err := r.ParseMultipartForm(maxAvatarUploadMultipartMemory); err != nil {
+		s.sendHTTPError(w, http.StatusBadRequest, "Файл занадто великий або форма некоректна")
+		return
+	}
+
+	file, _, err := r.FormFile("avatar")
+	if err != nil {
+		s.sendHTTPError(w, http.StatusBadRequest, "Поле 'avatar' з файлом зображення є обов'язковим")
+		return
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, maxBytes+1))
+	if err != nil {
+		s.sendHTTPError(w, http.StatusBadRequest, "Не вдалося прочитати вміст файлу")
+		return
+	}
+
+	ctx := r.Context()
+
+	dbUser, err := s.hub.store.Queries.GetUserByID(ctx, currentUserUUID)
+	if err != nil {
+		s.sendHTTPError(w, http.StatusNotFound, "Користувача не знайдено в базі даних")
+		return
+	}
+
+	newAvatarURL, err := s.hub.store.SaveAvatarImage(currentUserUUID, data, maxBytes)
+	if err != nil {
+		var tooLarge *storage.ErrAvatarTooLarge
+		var invalidType *storage.ErrAvatarInvalidType
+		switch {
+		case errors.As(err, &tooLarge):
+			s.sendHTTPError(w, http.StatusRequestEntityTooLarge,
+				fmt.Sprintf("Файл перевищує максимальний дозволений розмір (%d MB)", s.hub.store.MaxAvatarSizeMB()))
+		case errors.As(err, &invalidType):
+			s.sendHTTPError(w, http.StatusUnsupportedMediaType, "Дозволені лише файли PNG, JPEG, WebP або SVG")
+		default:
+			s.log.Errorf("Помилка збереження файлу аватара для %s: %v", dbUser.Username, err)
+			s.sendHTTPError(w, http.StatusInternalServerError, "Не вдалося зберегти файл аватара")
+		}
+		return
+	}
+
+	oldAvatarURL := dbUser.AvatarUrl
+
+	updated, err := s.hub.store.Queries.UpdateUserAvatarURL(ctx, gen.UpdateUserAvatarURLParams{
+		ID:        currentUserUUID,
+		AvatarUrl: newAvatarURL,
+	})
+	if err != nil {
+		s.log.Errorf("Помилка оновлення avatar_url в БД для %s: %v", dbUser.Username, err)
+		_ = s.hub.store.DeleteAvatarFile(newAvatarURL)
+		s.sendHTTPError(w, http.StatusInternalServerError, "Помилка бази даних при збереженні аватара")
+		return
+	}
+
+	// Прибираємо старий файл ПІСЛЯ успішного коміту в БД (best-effort, не
+	// критично для успішності запиту, якщо видалення не вдасться).
+	if oldAvatarURL != "" && oldAvatarURL != newAvatarURL {
+		if delErr := s.hub.store.DeleteAvatarFile(oldAvatarURL); delErr != nil {
+			s.log.WithError(delErr).Warnf("Не вдалося видалити попередній файл аватара для %s", dbUser.Username)
+		}
+	}
+
+	s.log.Infof("Користувач %s успішно завантажив новий аватар: %s", updated.Username, newAvatarURL)
+
+	s.sendJSON(w, http.StatusOK, map[string]any{
+		"status":     "success",
+		"avatar_url": updated.AvatarUrl,
+	})
+}
+
+// HandleGetAvatar обробляє GET /api/avatars/{filename} - віддає завантажений
+// файл аватара з локального диска зі статичними cache-control заголовками.
+// Оскільки ім'я файлу завжди унікальне (UUID), безпечно кешувати "назавжди" -
+// зміна аватара користувача завжди генерує НОВЕ ім'я файлу (uuid.New()),
+// тож старий URL ніколи не переприсвоюється іншому вмісту.
+func (s *Server) HandleGetAvatar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.sendHTTPError(w, http.StatusMethodNotAllowed, "Only GET allowed")
+		return
+	}
+
+	filename := r.PathValue("filename")
+	// Захист від path traversal: дозволяємо лише "чисте" базове ім'я файлу
+	// без розділювачів каталогів.
+	if filename == "" || filename != filepath.Base(filename) || strings.Contains(filename, "..") {
+		s.sendHTTPError(w, http.StatusBadRequest, "Некоректне ім'я файлу")
+		return
+	}
+
+	dir, err := s.hub.store.AvatarUploadDir()
+	if err != nil {
+		s.sendHTTPError(w, http.StatusInternalServerError, "Помилка сховища аватарів")
+		return
+	}
+
+	fullPath := filepath.Join(dir, filename)
+	if _, err := os.Stat(fullPath); err != nil {
+		s.sendHTTPError(w, http.StatusNotFound, "Файл аватара не знайдено")
+		return
+	}
+
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	http.ServeFile(w, r, fullPath)
 }
 
 // HandleGetRooms повертає список ідентифікаторів активних кімнат у Хабі

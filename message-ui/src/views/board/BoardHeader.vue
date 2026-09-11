@@ -31,7 +31,7 @@
           class="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 p-[1px] shadow-inner flex-shrink-0"
         >
           <img
-            :src="getAvatarUrl(myPlayer?.avatar_seed)"
+            :src="getAvatarUrl(myPlayer)"
             :alt="$t('common.avatarAlt')"
             class="w-full h-full object-cover rounded-full bg-brand-surface"
           />

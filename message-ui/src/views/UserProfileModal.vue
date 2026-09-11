@@ -19,22 +19,66 @@
           class="flex flex-col items-center gap-4 bg-brand-bg-dark/40 p-4 rounded-xl border border-slate-800/60"
         >
           <div
-            class="w-28 h-28 bg-brand-bg-dark border-2 border-amber-500 rounded-full p-1 overflow-hidden shadow-xl shadow-amber-950/20"
+            class="relative w-28 h-28 bg-brand-bg-dark border-2 border-amber-500 rounded-full p-1 overflow-hidden shadow-xl shadow-amber-950/20"
           >
             <img
               :src="avatarUrl"
               :alt="$t('profile.avatarAlt')"
               class="w-full h-full object-cover rounded-full"
             />
+            <div
+              v-if="isUploadingAvatar"
+              class="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center"
+            >
+              <span
+                class="w-6 h-6 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"
+              ></span>
+            </div>
           </div>
 
-          <button
-            @click="randomizeAvatar"
-            type="button"
-            class="px-4 py-1.5 bg-brand-surface text-brand-text-muted border border-brand-border font-bold text-xs uppercase rounded-xl hover:bg-brand-surface-dim transition"
+          <div class="flex flex-wrap items-center justify-center gap-2">
+            <button
+              @click="triggerFilePicker"
+              type="button"
+              :disabled="isUploadingAvatar"
+              class="px-4 py-1.5 bg-brand-surface text-brand-text-muted border border-brand-border font-bold text-xs uppercase rounded-xl hover:bg-brand-surface-dim transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {{ $t("profile.uploadPhoto") }}
+            </button>
+            <button
+              @click="randomizeAvatar"
+              type="button"
+              :disabled="isUploadingAvatar"
+              class="px-4 py-1.5 bg-brand-surface text-brand-text-muted border border-brand-border font-bold text-xs uppercase rounded-xl hover:bg-brand-surface-dim transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {{ $t("profile.avatarChange") }}
+            </button>
+          </div>
+
+          <input
+            ref="fileInputRef"
+            type="file"
+            :accept="ALLOWED_AVATAR_TYPES.join(',')"
+            class="hidden"
+            @change="handleFileSelected"
+          />
+
+          <p class="text-[10px] text-slate-500 text-center">
+            {{ $t("profile.uploadHint", { maxMb: MAX_AVATAR_SIZE_MB }) }}
+          </p>
+
+          <div
+            v-if="avatarError"
+            class="w-full text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-xl text-center"
           >
-            🎲 {{ $t("profile.avatarChange") }}
-          </button>
+            {{ avatarError }}
+          </div>
+          <div
+            v-if="avatarSuccess"
+            class="w-full text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-xl text-center"
+          >
+            {{ avatarSuccess }}
+          </div>
         </div>
 
         <div>
@@ -138,6 +182,7 @@ const { t } = useI18n();
 const props = defineProps({
   currentUsername: { type: String, default: "" },
   currentSeed: { type: String, default: "" },
+  currentAvatarUrl: { type: String, default: "" },
   apiUrl: { type: String, required: true },
 });
 
@@ -146,6 +191,8 @@ const emit = defineEmits(["close", "updated"]);
 const authStore = useAuthStore();
 
 const currentSeedState = ref(props.currentSeed || generateRandomSeed());
+const uploadedAvatarUrl = ref(props.currentAvatarUrl || "");
+const previewUrl = ref("");
 const isSaving = ref(false);
 const localError = ref(null);
 
@@ -156,11 +203,98 @@ const form = ref({
   password_old: "",
 });
 
-const avatarUrl = computed(() => getAvatarUrl(currentSeedState.value));
+// Клієнтські межі валідації файлу аватара - визначені поруч з місцем
+// використання (правило AGENTS.md щодо необмежених вхідних даних).
+const MAX_AVATAR_SIZE_MB = 5;
+const ALLOWED_AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+
+const fileInputRef = ref(null);
+const isUploadingAvatar = ref(false);
+const avatarError = ref("");
+const avatarSuccess = ref("");
+
+const avatarUrl = computed(() => {
+  if (previewUrl.value) return previewUrl.value;
+  if (uploadedAvatarUrl.value) return uploadedAvatarUrl.value;
+  return getAvatarUrl(currentSeedState.value);
+});
 
 const randomizeAvatar = () => {
   currentSeedState.value = generateRandomSeed();
   form.value.avatar_seed = currentSeedState.value;
+  // Випадковий DiceBear-аватар скасовує будь-яке раніше завантажене фото.
+  uploadedAvatarUrl.value = "";
+  previewUrl.value = "";
+  avatarError.value = "";
+  avatarSuccess.value = "";
+};
+
+const triggerFilePicker = () => {
+  avatarError.value = "";
+  avatarSuccess.value = "";
+  fileInputRef.value?.click();
+};
+
+const handleFileSelected = async (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+
+  avatarError.value = "";
+  avatarSuccess.value = "";
+
+  if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+    avatarError.value = t("profile.errors.invalidType");
+    return;
+  }
+  if (file.size > MAX_AVATAR_SIZE_MB * 1024 * 1024) {
+    avatarError.value = t("profile.errors.tooLarge", { maxMb: MAX_AVATAR_SIZE_MB });
+    return;
+  }
+
+  // Локальний preview одразу, до відповіді сервера.
+  const localPreview = URL.createObjectURL(file);
+  previewUrl.value = localPreview;
+
+  isUploadingAvatar.value = true;
+  try {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await apiFetch(`${props.apiUrl}/api/user/avatar`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (response.status === 401 || response.status === 403) return;
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || t("profile.errors.uploadFailed"));
+    }
+
+    uploadedAvatarUrl.value = data.avatar_url || "";
+    previewUrl.value = "";
+    avatarSuccess.value = t("profile.uploadSuccess");
+
+    localStorage.setItem("avatar_url", uploadedAvatarUrl.value);
+    if (authStore?.user) {
+      authStore.user.avatar_url = uploadedAvatarUrl.value;
+    }
+
+    emit("updated", {
+      username: form.value.username,
+      avatar_seed: form.value.avatar_seed,
+      avatar_url: uploadedAvatarUrl.value,
+    });
+  } catch (error) {
+    console.error("Avatar upload error:", error);
+    avatarError.value = error.message || t("profile.errors.uploadFailed");
+    previewUrl.value = "";
+  } finally {
+    isUploadingAvatar.value = false;
+    URL.revokeObjectURL(localPreview);
+  }
 };
 
 const saveProfile = async () => {
@@ -202,16 +336,19 @@ const saveProfile = async () => {
     // Якщо статус "success" - фіксуємо оновлені дані у локальних сховищах
     localStorage.setItem("username", data.username || form.value.username);
     localStorage.setItem("avatar_seed", data.avatar_seed || form.value.avatar_seed);
+    localStorage.setItem("avatar_url", uploadedAvatarUrl.value);
 
     if (authStore?.user) {
       authStore.user.username = data.username || form.value.username;
       authStore.user.avatar_seed = data.avatar_seed || form.value.avatar_seed;
+      authStore.user.avatar_url = uploadedAvatarUrl.value;
     }
 
     // Передаємо батьківському компоненту підтверджені бекендом дані
     emit("updated", {
       username: data.username || form.value.username,
       avatar_seed: data.avatar_seed || form.value.avatar_seed,
+      avatar_url: uploadedAvatarUrl.value,
     });
 
     // Очищуємо чутливі дані форми

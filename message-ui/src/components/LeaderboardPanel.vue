@@ -45,7 +45,7 @@
             class="w-12 h-12 rounded-full bg-brand-bg-dark border border-slate-700 overflow-hidden flex-shrink-0 shadow-inner"
           >
             <img
-              :src="getAvatarUrl(player.avatar_seed || 'default_seed')"
+              :src="getAvatarUrl({ avatar_url: player.avatar_url, avatar_seed: player.avatar_seed || 'default_seed' })"
               :alt="$t('desktop.myAvatarAlt')"
               class="w-full h-full object-cover rounded-full"
             />

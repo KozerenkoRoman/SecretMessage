@@ -93,8 +93,14 @@ function readToken() {
 export async function apiFetch(path, options = {}) {
   const { auth = true, skipAuthRedirect = false, headers = {}, ...rest } = options;
 
+  // Для FormData (напр., multipart-завантаження файлів) НЕ виставляємо
+  // Content-Type самі - браузер має сам згенерувати заголовок з коректним
+  // multipart boundary. Якщо виставити 'application/json' (чи будь-яке
+  // фіксоване значення) тут, boundary загубиться і бекенд не розпарсить тіло.
+  const isFormData = typeof FormData !== 'undefined' && rest.body instanceof FormData;
+
   const finalHeaders = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...headers,
   };
 

@@ -125,11 +125,13 @@ const handleRegister = async () => {
         username: data.username,
         role: data.user_role,
         avatar_seed: data.avatar_seed,
+        avatar_url: data.avatar_url || "",
       });
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user_id", data.user_id || "");
       localStorage.setItem("avatar_seed", data.avatar_seed || "");
+      localStorage.setItem("avatar_url", data.avatar_url || "");
 
       router.push("/desktop");
     } else {

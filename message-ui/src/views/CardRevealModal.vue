@@ -41,13 +41,7 @@
                 "
               >
                 <img
-                  :src="
-                    getAvatarUrl(
-                      card.playerData?.avatar_seed ||
-                        card.playerData?.username ||
-                        card.playerData?.id
-                    )
-                  "
+                  :src="getAvatarUrl(card.playerData)"
                   :alt="$t('common.avatarAlt')"
                   class="w-full h-full object-cover rounded-full"
                 />

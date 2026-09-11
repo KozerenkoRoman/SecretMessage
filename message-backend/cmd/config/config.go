@@ -23,6 +23,10 @@ type Config struct {
 	AdminUser  string
 	AdminEmail string
 	AdminPass  string
+
+	AvatarUploadDir string
+	AvatarBaseURL   string
+	MaxAvatarSizeMB int
 }
 
 func Load() *Config {
@@ -44,6 +48,10 @@ func Load() *Config {
 		AdminUser:  getEnv("ADMIN_USER", "admin"),
 		AdminEmail: getEnv("ADMIN_EMAIL", "admin@loveletter.local"),
 		AdminPass:  getEnv("ADMIN_PASSWORD", "SuperSecureAdminPassword2026"),
+
+		AvatarUploadDir: getEnv("AVATAR_UPLOAD_DIR", "./uploads/avatars"),
+		AvatarBaseURL:   getEnv("AVATAR_BASE_URL", "/api/avatars"),
+		MaxAvatarSizeMB: getEnvAsInt("MAX_AVATAR_SIZE_MB", 5),
 	}
 
 	if conf.DBPassword == "" {

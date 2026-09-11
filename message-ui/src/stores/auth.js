@@ -17,7 +17,12 @@ export const useAuthStore = defineStore('auth', () => {
         id: decoded.user_id,
         username: decoded.username,
         role: decoded.user_role,
-        avatar_seed: decoded.avatar_seed
+        avatar_seed: decoded.avatar_seed,
+        // avatar_url НЕ зберігається в JWT (щоб не роздувати токен), тож
+        // читаємо його з localStorage - синхронізується там при кожному
+        // логіні/реєстрації/оновленні профілю (див. AuthView/RegisterView/
+        // UserProfileModal).
+        avatar_url: localStorage.getItem('avatar_url') || '',
       };
     } catch (e) {
       console.error("Помилка декодування JWT:", e);
@@ -50,11 +55,13 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user_id');
     localStorage.removeItem('avatar_seed');
+    localStorage.removeItem('avatar_url');
     // Прибираємо будь-який кешований стан сесії і з sessionStorage.
     try {
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('user_id');
       sessionStorage.removeItem('avatar_seed');
+      sessionStorage.removeItem('avatar_url');
     } catch {
       /* sessionStorage може бути недоступний — не критично */
     }

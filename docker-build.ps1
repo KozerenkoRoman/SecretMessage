@@ -1,29 +1,27 @@
 $ErrorActionPreference = "Stop"
 
-$version = "0.17.2"
 $dockerUser = "kozerenko"
-
-$vueImage = "${dockerUser}/message-ui"
-$goImage = "${dockerUser}/message-api"
+$vueImage   = "${dockerUser}/message-ui"
+$goImage    = "${dockerUser}/message-api"
 
 $env:HUSKY = "0"
 node ver.js
 
-# 1. Vue.js: Контекст — корінь фронтенду, Dockerfile — у папці docker/
+$version = (Get-Content -Raw -Path ".\message-ui\package.json" | ConvertFrom-Json).version
+
 $vueContext    = ".\message-ui"
 $vueDockerfile = ".\message-ui\docker\Dockerfile"
 
-Write-Host "--- Building & Pushing Vue.js Image ---" -ForegroundColor Cyan
+Write-Host "--- Building & Pushing Vue.js Image (v$version) ---" -ForegroundColor Cyan
 docker build -f $vueDockerfile -t "${vueImage}:${version}" -t "${vueImage}:latest" $vueContext
 
 docker push "${vueImage}:${version}"
 docker push "${vueImage}:latest"
 
-# 2. Go: Контекст — корінь бекенду, Dockerfile — у папці docker/
 $goContext    = ".\message-backend"
 $goDockerfile = ".\message-backend\docker\Dockerfile"
 
-Write-Host "--- Building & Pushing Go Image ---" -ForegroundColor Cyan
+Write-Host "--- Building & Pushing Go Image (v$version) ---" -ForegroundColor Cyan
 docker build -f $goDockerfile -t "${goImage}:${version}" -t "${goImage}:latest" $goContext
 
 docker push "${goImage}:${version}"

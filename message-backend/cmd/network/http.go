@@ -18,6 +18,7 @@ import (
 	"secret-message/cmd/storage/gen"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -341,6 +342,16 @@ func (s *Server) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Перевіряємо зайнятість нікнейму ДО спроби UPDATE, щоб повернути
+		// зрозумілу помилку 409, а не generic 500 через порушення
+		// unique-констрейнта users_username_key на рівні БД.
+		if usernameChanged {
+			if existing, err := s.hub.store.Queries.GetUserByUsername(ctx, req.Username); err == nil && existing.ID != dbUser.ID {
+				s.sendHTTPError(w, http.StatusConflict, "Цей нікнейм вже зайнятий іншим користувачем")
+				return
+			}
+		}
+
 		targetUsername := dbUser.Username
 		if req.Username != "" {
 			targetUsername = req.Username
@@ -358,6 +369,14 @@ func (s *Server) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 			Email:      dbUser.Email,
 		})
 		if err != nil {
+			// Fallback-захист від гонки (race condition): якщо між перевіркою
+			// GetUserByUsername і цим UPDATE інший запит встиг зайняти той
+			// самий нікнейм, БД поверне unique_violation (код 23505).
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				s.sendHTTPError(w, http.StatusConflict, "Цей нікнейм вже зайнятий іншим користувачем")
+				return
+			}
 			s.log.Errorf("Помилка оновлення профілю для %s: %v", dbUser.Username, err)
 			s.sendHTTPError(w, http.StatusInternalServerError, "Помилка бази даних при збереженні профілю")
 			return

@@ -37,13 +37,25 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value);
   const isAdmin = computed(() => user.value?.role === 'admin');
 
+  // setSession — ЄДИНА точка входу для встановлення активної сесії
+  // (логін/реєстрація/оновлення профілю). userData, якщо переданий,
+  // ПОВНІСТЮ перезаписує user.value — жодних злиттів зі старими даними,
+  // щоб дані попереднього користувача на цьому ж пристрої не "протікали"
+  // в сесію нового (див. баг з localStorage["username"] нижче).
   const setSession = (newToken, userData = null) => {
     token.value = newToken;
     sessionExpired.value = false;
     localStorage.setItem('token', newToken);
 
     if (userData) {
-      user.value = userData;
+      user.value = { ...userData };
+      // Синхронізуємо застарілі окремі ключі localStorage, які досі читають
+      // деякі view (DesktopView, UserProfileModal), щоб вони НЕ показували
+      // дані попереднього користувача, залишені в цьому ж браузері.
+      localStorage.setItem('username', userData.username || '');
+      localStorage.setItem('user_id', userData.id || '');
+      localStorage.setItem('avatar_seed', userData.avatar_seed || '');
+      localStorage.setItem('avatar_url', userData.avatar_url || '');
     } else {
       initUserFromToken(newToken);
     }
@@ -53,12 +65,14 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null;
     user.value = null;
     localStorage.removeItem('token');
+    localStorage.removeItem('username');
     localStorage.removeItem('user_id');
     localStorage.removeItem('avatar_seed');
     localStorage.removeItem('avatar_url');
     // Прибираємо будь-який кешований стан сесії і з sessionStorage.
     try {
       sessionStorage.removeItem('token');
+      sessionStorage.removeItem('username');
       sessionStorage.removeItem('user_id');
       sessionStorage.removeItem('avatar_seed');
       sessionStorage.removeItem('avatar_url');

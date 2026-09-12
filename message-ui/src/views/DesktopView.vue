@@ -160,7 +160,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "../stores/auth";
@@ -177,17 +177,19 @@ const authStore = useAuthStore();
 const gameStore = useGameStore();
 
 const apiError = ref(null);
-const currentUsername = ref(
-  localStorage.getItem("username") || authStore.user?.username || t("common.player")
-);
 const showAvatarModal = ref(false);
 const showRulesModal = ref(false);
-const userAvatarSeed = ref(
-  localStorage.getItem("avatar_seed") || authStore.user?.avatar_seed || "default_seed"
-);
-const userAvatarUrl = ref(
-  localStorage.getItem("avatar_url") || authStore.user?.avatar_url || ""
-);
+
+// currentUsername/userAvatarSeed/userAvatarUrl - ЗАВЖДИ похідні від
+// authStore.user (єдине джерело правди для активної сесії), а НЕ окремі
+// ref'и, ініціалізовані один раз зі застарілого localStorage. Раніше
+// localStorage.getItem("username") мав пріоритет над authStore.user?.username,
+// тож дані ПОПЕРЕДНЬОГО користувача, що логінився на цьому ж пристрої,
+// "протікали" в сесію нового користувача (баг: показувало "Humoryst"
+// замість щойно автентифікованого "Roman").
+const currentUsername = computed(() => authStore.user?.username || t("common.player"));
+const userAvatarSeed = computed(() => authStore.user?.avatar_seed || "default_seed");
+const userAvatarUrl = computed(() => authStore.user?.avatar_url || "");
 
 const generateRandomSeed = () => {
   return (
@@ -201,14 +203,16 @@ const openAvatarModal = () => {
 };
 
 const handleProfileUpdated = (updatedData) => {
-  userAvatarSeed.value = updatedData.avatar_seed;
-  userAvatarUrl.value = updatedData.avatar_url || "";
-  currentUsername.value = updatedData.username;
   if (authStore.user) {
     authStore.user.username = updatedData.username;
     authStore.user.avatar_seed = updatedData.avatar_seed;
     authStore.user.avatar_url = updatedData.avatar_url || "";
   }
+  // Тримаємо localStorage-дзеркало синхронним для інших view/повних
+  // перезавантажень сторінки (initUserFromToken при старті додатку).
+  localStorage.setItem("username", updatedData.username || "");
+  localStorage.setItem("avatar_seed", updatedData.avatar_seed || "");
+  localStorage.setItem("avatar_url", updatedData.avatar_url || "");
 };
 
 const fetchRooms = async () => {
@@ -247,12 +251,13 @@ const createRoom = async () => {
 onMounted(() => {
   fetchRooms();
   gameStore.connectToHub();
-  const storedSeed = localStorage.getItem("avatar_seed") || authStore.user?.avatar_seed;
-  if (storedSeed && storedSeed !== "default_seed") {
-    userAvatarSeed.value = storedSeed;
-  } else {
+  // Якщо у ЩОЙНО автентифікованого користувача (authStore.user - єдине
+  // джерело правди) ще немає власного avatar_seed - генеруємо разовий
+  // випадковий і записуємо його назад у сам authStore.user, а не в
+  // окремий локальний ref, щоб computed-и вище одразу підхопили зміну.
+  if (authStore.user && !authStore.user.avatar_seed) {
     const newSeed = generateRandomSeed();
-    userAvatarSeed.value = newSeed;
+    authStore.user.avatar_seed = newSeed;
     localStorage.setItem("avatar_seed", newSeed);
   }
 });

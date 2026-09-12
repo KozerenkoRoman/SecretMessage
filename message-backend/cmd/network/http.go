@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -62,17 +63,34 @@ func (s *Server) HandleAuth(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	// Логуємо кожну спробу автентифікації із зазначеним у запиті username
+	// та IP клієнта, ще ДО резолву в БД — це дає аудиторський слід навіть
+	// для спроб з неіснуючим логіном (потенційний брутфорс/enum).
+	logAttempt := s.log.WithFields(logrus.Fields{
+		"requested_username": req.Username,
+		"remote_addr":        r.RemoteAddr,
+	})
+
 	// 1. Шукаємо користувача в БД за Username
 	dbUser, err := s.hub.store.Queries.GetUserByUsername(ctx, req.Username)
 	if err != nil {
+		logAttempt.Warn("Спроба автентифікації провалена: користувача не знайдено")
 		// Якщо користувача не знайдено — повертаємо помилку авторизації
 		s.sendHTTPError(w, http.StatusNotFound, "Користувача не знайдено")
 		return
 	}
 
+	// Тепер, коли відомий конкретний акаунт, збагачуємо логер його ID/username
+	// з БД (а не з клієнтського запиту) — саме ці значення потраплять у JWT.
+	logAttempt = logAttempt.WithFields(logrus.Fields{
+		"user_id":  dbUser.ID.String(),
+		"username": dbUser.Username,
+	})
+
 	// 2. Користувач існує — перевіряємо пароль
 	err = bcrypt.CompareHashAndPassword([]byte(dbUser.PasswordHash), []byte(req.Password))
 	if err != nil {
+		logAttempt.Warn("Спроба автентифікації провалена: неправильний пароль")
 		s.sendHTTPError(w, http.StatusUnauthorized, "Неправильний логін або пароль")
 		return
 	}
@@ -83,6 +101,7 @@ func (s *Server) HandleAuth(w http.ResponseWriter, r *http.Request) {
 		if dbUser.BanReason.Valid {
 			reason = dbUser.BanReason.String
 		}
+		logAttempt.WithField("ban_reason", reason).Warn("Спроба автентифікації провалена: акаунт заблоковано")
 		s.sendHTTPError(w, http.StatusForbidden, fmt.Sprintf("Ваш акаунт заблоковано. Причина: %s", reason))
 		return
 	}
@@ -90,9 +109,12 @@ func (s *Server) HandleAuth(w http.ResponseWriter, r *http.Request) {
 	// 4. ГЕНЕРАЦІЯ СЕСІЇ (JWT)
 	token, err := auth.GenerateToken(dbUser.ID, dbUser.Username, dbUser.UserRole, dbUser.AvatarSeed)
 	if err != nil {
+		logAttempt.WithError(err).Error("Спроба автентифікації провалена: помилка генерації JWT")
 		s.sendHTTPError(w, http.StatusInternalServerError, "Token generation failed")
 		return
 	}
+
+	logAttempt.Info("Користувач успішно автентифікований")
 
 	s.sendJSON(w, http.StatusOK, map[string]string{
 		"token":       token,

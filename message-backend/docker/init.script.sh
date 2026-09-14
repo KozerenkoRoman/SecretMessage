@@ -39,5 +39,6 @@ sudo ufw allow 3000/tcp
 
 sudo iptables -I INPUT 1 -p tcp --dport 80 -j ACCEPT
 sudo iptables -I INPUT 1 -p tcp --dport 3000 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
 sudo netfilter-persistent save
 sudo netfilter-persistent reload

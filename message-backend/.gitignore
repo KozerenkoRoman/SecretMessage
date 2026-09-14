@@ -4,4 +4,7 @@
 /merge.ps1
 /tmp
 
+# Let's Encrypt autocert - містить приватні ключі сертифікатів, НЕ комітити.
+/certs-cache
+
 

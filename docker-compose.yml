@@ -3,12 +3,13 @@ services:
     image: postgres:16-alpine
     container_name: postgres
     restart: always
+    env_file: .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "${POSTGRES_PORT}:5432"
+    # ports:
+    #   - "${POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -20,47 +21,53 @@ services:
       - secret_message_network
 
   backend:
-    build:
-      context: ./message-backend
-      dockerfile: docker/Dockerfile
+    image: docker.io/kozerenko/message-api:latest
     container_name: secret_message_api
     restart: always
+    env_file: .env
     ports:
-      - "${PORT}:${PORT}"
+      - "80:80"
+      - "443:443"
       - "${SOCKET_PORT}:${SOCKET_PORT}"
     environment:
-      - PORT=${PORT}
-      - SOCKET_PORT=${SOCKET_PORT}
-      - ENV=production
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_POOL_MAX=${POSTGRES_POOL_MAX}
-      - POSTGRES_POOL_MIN=${POSTGRES_POOL_MIN}
-      - POSTGRES_LOGGING=${POSTGRES_LOGGING}
-      - AVATAR_UPLOAD_DIR=/data/avatars
-      - AVATAR_BASE_URL=/api/avatars
-      - MAX_AVATAR_SIZE_MB=${MAX_AVATAR_SIZE_MB:-5}
+      ENV: production
+      PORT: ${PORT}
+      SOCKET_PORT: ${SOCKET_PORT}
+      AVATAR_BASE_URL: /api/avatars
+      AVATAR_UPLOAD_DIR: /data/avatars
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      FRONTEND_PROXY_URL: http://frontend:80
+      MAX_AVATAR_SIZE_MB: ${MAX_AVATAR_SIZE_MB:-5}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_LOGGING: ${POSTGRES_LOGGING}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_POOL_MAX: ${POSTGRES_POOL_MAX}
+      POSTGRES_POOL_MIN: ${POSTGRES_POOL_MIN}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      TLS_CACHE_DIR: /certs-cache
+      TLS_DOMAINS: ${TLS_DOMAINS}
+      TLS_EMAIL: ${TLS_EMAIL}
+      TLS_ENABLED: ${TLS_ENABLED}
     volumes:
-      - avatar_uploads:/data/avatars
+      - ${AVATAR_UPLOAD_DIR:-./uploads/avatars}:/data/avatars
+      - ${TLS_CACHE_DIR:-./uploads/certs}:/certs-cache
     depends_on:
       postgres:
         condition: service_healthy
+      frontend:
+        condition: service_started
     networks:
       - secret_message_network
 
   frontend:
-    build:
-      context: ./message-ui
-      dockerfile: docker/Dockerfile
+    image: docker.io/kozerenko/message-ui:latest
     container_name: secret_message_ui
     restart: always
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
+    env_file: .env
+    expose:
+      - "80"
     networks:
       - secret_message_network
 
@@ -71,5 +78,5 @@ networks:
 volumes:
   pgdata:
     driver: local
-  avatar_uploads:
+  certs_cache:
     driver: local

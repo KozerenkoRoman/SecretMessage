@@ -25,8 +25,13 @@ services:
       dockerfile: docker/Dockerfile
     container_name: secret_message_api
     restart: always
+    # ВАЖЛИВО: backend тепер ЄДИНА публічна точка входу (80/443).
+    # Він сам термінує TLS через Let's Encrypt/autocert (TLS_ENABLED=true)
+    # і проксіює усе, крім /api|/ws, на внутрішній frontend-контейнер
+    # (FRONTEND_PROXY_URL=http://frontend:80, без публічного порту нижче).
     ports:
-      - "${PORT}:${PORT}"      
+      - "80:80"
+      - "443:443"
       - "${SOCKET_PORT}:${SOCKET_PORT}"
     environment:
       - PORT=${PORT}
@@ -43,11 +48,20 @@ services:
       - AVATAR_UPLOAD_DIR=/data/avatars
       - AVATAR_BASE_URL=/api/avatars
       - MAX_AVATAR_SIZE_MB=${MAX_AVATAR_SIZE_MB:-5}
+      - TLS_ENABLED=${TLS_ENABLED:-false}
+      - TLS_DOMAINS=${TLS_DOMAINS}
+      - TLS_CACHE_DIR=/certs-cache
+      - TLS_EMAIL=${TLS_EMAIL}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - FRONTEND_PROXY_URL=http://frontend:80
     volumes:
       - avatar_uploads:/data/avatars
+      - certs_cache:/certs-cache
     depends_on:
       postgres:
-        condition: service_healthy 
+        condition: service_healthy
+      frontend:
+        condition: service_started
     networks:
       - secret_message_network
 
@@ -57,10 +71,10 @@ services:
       dockerfile: docker/Dockerfile
     container_name: secret_message_ui
     restart: always
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
+    # Більше НЕ публічний контейнер - лише статика SPA всередині
+    # docker-мережі, куди backend проксіює через FRONTEND_PROXY_URL.
+    expose:
+      - "80"
     networks:
       - secret_message_network
 
@@ -72,4 +86,6 @@ volumes:
   pgdata:
     driver: local
   avatar_uploads:
+    driver: local
+  certs_cache:
     driver: local

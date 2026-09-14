@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"secret-message/cmd/auth"
 )
@@ -78,12 +79,36 @@ func AdminOnlyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func CORSMiddleware(next http.Handler) http.Handler {
+// CORSMiddleware додає CORS-заголовки лише для запитів /api/* та /ws, і
+// лише якщо Origin запиту входить у allowedOrigins (напр. TLS_DOMAINS-домен
+// продакшену + локальний Vite dev-сервер, див. cfg.CORSAllowedOrigins).
+//
+// ВАЖЛИВО: для решти шляхів (SPA-статика, що проксіюється на
+// FRONTEND_PROXY_URL) заголовки Access-Control-Allow-* взагалі НЕ
+// виставляються — браузер робить ці запити з того ж Origin
+// (https://message.abrdns.com), тому CORS там не потрібен і лише додає
+// плутанини (напр. Nginx фронтенду раніше сам хардкодив цей заголовок).
+func CORSMiddleware(next http.Handler, allowedOrigins []string) http.Handler {
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		allowed[o] = struct{}{}
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		isAPIOrWS := r.URL.Path == "/ws" || strings.HasPrefix(r.URL.Path, "/api/")
+		if !isAPIOrWS {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		origin := r.Header.Get("Origin")
+		if _, ok := allowed[origin]; ok {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

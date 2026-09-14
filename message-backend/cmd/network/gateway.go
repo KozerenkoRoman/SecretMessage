@@ -4,9 +4,28 @@ package network
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+)
+
+// Таймінги WebSocket keepalive (ping/pong).
+//
+// ВАЖЛИВО: http.Server.ReadTimeout/WriteTimeout встановлюють deadline
+// на сирий net.Conn ЩЕ ДО виклику хендлера (main.go: startServers).
+// Коли gorilla/websocket робить Upgrade → Hijack, цей conn виривається
+// з-під контролю http.Server, але вже виставлений deadline (now+15s)
+// нікуди не зникає — він продовжує діяти на голому net.Conn, доки його
+// не перезапишуть новим SetReadDeadline/SetWriteDeadline. Без явного
+// керування тут WS-з'єднання обривалося б приблизно через WriteTimeout
+// незалежно від активності клієнта. Тому одразу після AddClient і на
+// кожен Pong/цикл запису ми самі виставляємо власні deadlines,
+// перекриваючи ті, що встановив http.Server.
+const (
+	wsWriteWait  = 10 * time.Second
+	wsPongWait   = 60 * time.Second
+	wsPingPeriod = (wsPongWait * 9) / 10
 )
 
 // GlobalClient представляє підключеного до сайту користувача
@@ -43,11 +62,32 @@ func (g *Gateway) RemoveClient(userID string) {
 	}
 }
 
+// StartWriter запускає горутину-письменника, яка водночас відповідає за
+// keepalive: раз на wsPingPeriod шле контрольний PingMessage, а перед
+// кожним записом (даними чи ping) оновлює SetWriteDeadline. Це перекриває
+// deadline, який http.Server виставив на сирий conn до Hijack (див.
+// коментар над константами вище) — без цього WS "вмирав" би за WriteTimeout
+// незалежно від активності з'єднання.
 func (c *GlobalClient) StartWriter() {
 	go func() {
-		for msg := range c.SendChan {
-			if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-				return
+		ticker := time.NewTicker(wsPingPeriod)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case msg, ok := <-c.SendChan:
+				if !ok {
+					return
+				}
+				_ = c.Conn.SetWriteDeadline(time.Now().Add(wsWriteWait))
+				if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+					return
+				}
+			case <-ticker.C:
+				_ = c.Conn.SetWriteDeadline(time.Now().Add(wsWriteWait))
+				if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+					return
+				}
 			}
 		}
 	}()
@@ -56,6 +96,15 @@ func (c *GlobalClient) StartWriter() {
 func (g *Gateway) AddClient(userID string, conn *websocket.Conn) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
+	// Перекриваємо deadline, успадкований від http.Server (ReadTimeout,
+	// виставлений на conn ще до Hijack), і встановлюємо власний
+	// pong-based read deadline: кожен Pong від клієнта (у відповідь на наш
+	// Ping зі StartWriter) відсуває read deadline ще на wsPongWait.
+	_ = conn.SetReadDeadline(time.Now().Add(wsPongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(wsPongWait))
+	})
 
 	client := &GlobalClient{
 		UserID:   userID,
